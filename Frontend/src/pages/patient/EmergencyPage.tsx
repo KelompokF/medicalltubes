@@ -2,10 +2,11 @@ import { Phone, MapPin, Clock, AlertTriangle, Shield, Heart, Thermometer } from 
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
-import { ambulances } from "@/data/mockData";
 import { toast } from "sonner";
 
 export default function EmergencyPage() {
+  const ambulances: any[] = [];
+  
   return (
     <div className="space-y-6 animate-fade-in">
       <div className="text-center">

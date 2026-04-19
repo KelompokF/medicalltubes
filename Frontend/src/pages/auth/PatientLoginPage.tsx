@@ -39,13 +39,17 @@ export default function PatientLoginPage() {
             const token = res.data?.access_token;
             if (token) {
               localStorage.setItem("access_token", token);
-              // fetch user
+              // fetch user and route based on role
               authService
                 .getMe()
                 .then((r) => {
-                  localStorage.setItem("user", JSON.stringify(r.data));
+                  const user = r.data;
+                  localStorage.setItem("user", JSON.stringify(user));
                   toast.success("Welcome back!");
-                  navigate("/dashboard");
+                  if (user.role === "doctor") navigate("/doctor-dashboard");
+                  else if (user.role === "ambulance") navigate("/ambulance-dashboard");
+                  else if (user.role === "admin") navigate("/admin");
+                  else navigate("/dashboard");
                 })
                 .catch(() => {
                   toast.success("Signed in");
