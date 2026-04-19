@@ -38,7 +38,7 @@ async def login(data: UserLogin, db: AsyncSession = Depends(get_db)):
     if not user or not verify_password(data.password, user.hashed_password):
         raise HTTPException(status_code=401, detail="Email atau password salah")
     
-    token = create_access_token({"sub": str(user.id)})
+    token = create_access_token({"sub": str(user.id), "role": getattr(user, 'role', 'patient')})
     return {"access_token": token, "token_type": "bearer"}
 
 

@@ -3,7 +3,6 @@ import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
-import { emergencyRequests } from "@/data/mockData";
 import { toast } from "sonner";
 
 const priorityColors = {
@@ -13,6 +12,8 @@ const priorityColors = {
 };
 
 export default function AmbulanceDashboard() {
+  const emergencyRequests: any[] = [];
+  
   return (
     <div className="space-y-6 animate-fade-in">
       <h1 className="text-2xl font-bold text-foreground">Ambulance Service Dashboard</h1>

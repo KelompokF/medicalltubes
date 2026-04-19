@@ -9,6 +9,7 @@ app = FastAPI(title="Medicall API")
 # CORS — allow frontend origins during development
 origins = [
     "http://localhost:8080",
+    "http://localhost:8081",
     "http://localhost:5173",
     "http://localhost:3000",
 ]

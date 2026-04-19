@@ -6,13 +6,16 @@ import { Button } from "@/components/ui/button";
 import { Card, CardContent } from "@/components/ui/card";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { Badge } from "@/components/ui/badge";
-import { doctors, specializations, locations } from "@/data/mockData";
 
 export default function SearchDoctorPage() {
   const [search, setSearch] = useState("");
   const [specialization, setSpecialization] = useState("All");
   const [location, setLocation] = useState("All");
   const [visibleCount, setVisibleCount] = useState(4);
+  
+  const doctors: any[] = [];
+  const specializations: string[] = [];
+  const locations: string[] = [];
 
   const filtered = doctors.filter((d) => {
     const matchSearch = d.name.toLowerCase().includes(search.toLowerCase());

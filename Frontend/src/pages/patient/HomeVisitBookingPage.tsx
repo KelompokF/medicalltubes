@@ -7,16 +7,18 @@ import { Label } from "@/components/ui/label";
 import { Textarea } from "@/components/ui/textarea";
 import { Badge } from "@/components/ui/badge";
 import ConfirmModal from "@/components/ConfirmModal";
-import { doctors, timeSlots } from "@/data/mockData";
 import { toast } from "sonner";
 
 export default function HomeVisitBookingPage() {
+  const doctors: any[] = [];
+  const timeSlots: string[] = [];
+  
   const [selectedDate, setSelectedDate] = useState("");
   const [selectedTime, setSelectedTime] = useState("");
   const [address, setAddress] = useState("");
   const [notes, setNotes] = useState("");
   const [showConfirm, setShowConfirm] = useState(false);
-  const doctor = doctors[0];
+  const doctor = doctors[0] || { name: "", specialization: "", fee: 0 };
 
   const handleBook = () => {
     setShowConfirm(false);

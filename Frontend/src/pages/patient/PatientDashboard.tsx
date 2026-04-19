@@ -3,9 +3,17 @@ import { Activity, Home, AlertTriangle, Pill, Search, Phone, Calendar, MessageSq
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import StatCard from "@/components/StatCard";
-import { patientStats, recentActivities, upcomingAppointment } from "@/data/mockData";
 
 export default function PatientDashboard() {
+  const patientStats = {
+    totalConsultations: 0,
+    homeVisitBookings: 0,
+    emergencyRequests: 0,
+    activePrescriptions: 0,
+  };
+  const recentActivities: any[] = [];
+  const upcomingAppointment = null;
+  
   return (
     <div className="space-y-6 animate-fade-in">
       {/* Welcome Banner */}
@@ -47,26 +55,38 @@ export default function PatientDashboard() {
         <Card className="shadow-card">
           <CardHeader><CardTitle className="text-lg">Upcoming Appointment</CardTitle></CardHeader>
           <CardContent>
-            <div className="flex items-center gap-4 mb-4">
-              <div className="h-12 w-12 rounded-full medical-gradient flex items-center justify-center text-primary-foreground font-bold">SJ</div>
-              <div>
-                <p className="font-semibold text-foreground">{upcomingAppointment.doctor}</p>
-                <p className="text-sm text-muted-foreground">{upcomingAppointment.specialization}</p>
+            {upcomingAppointment ? (
+              <>
+                <div className="flex items-center gap-4 mb-4">
+                  <div className="h-12 w-12 rounded-full medical-gradient flex items-center justify-center text-primary-foreground font-bold">SJ</div>
+                  <div>
+                    <p className="font-semibold text-foreground">{upcomingAppointment.doctor}</p>
+                    <p className="text-sm text-muted-foreground">{upcomingAppointment.specialization}</p>
+                  </div>
+                </div>
+                <div className="space-y-2 text-sm">
+                  <div className="flex items-center gap-2 text-muted-foreground">
+                    <Calendar className="h-4 w-4" />
+                    <span>{upcomingAppointment.date} at {upcomingAppointment.time}</span>
+                  </div>
+                  <div className="flex items-center gap-2 text-muted-foreground">
+                    <MessageSquare className="h-4 w-4" />
+                    <span>{upcomingAppointment.type}</span>
+                  </div>
+                </div>
+                <Button className="w-full mt-4" size="sm" asChild>
+                  <Link to="/chat">Join Consultation</Link>
+                </Button>
+              </>
+            ) : (
+              <div className="text-center py-8">
+                <Calendar className="h-8 w-8 text-muted-foreground mx-auto mb-2" />
+                <p className="text-muted-foreground text-sm">No upcoming appointments</p>
+                <Button className="w-full mt-4" size="sm" asChild>
+                  <Link to="/search-doctor">Book an Appointment</Link>
+                </Button>
               </div>
-            </div>
-            <div className="space-y-2 text-sm">
-              <div className="flex items-center gap-2 text-muted-foreground">
-                <Calendar className="h-4 w-4" />
-                <span>{upcomingAppointment.date} at {upcomingAppointment.time}</span>
-              </div>
-              <div className="flex items-center gap-2 text-muted-foreground">
-                <MessageSquare className="h-4 w-4" />
-                <span>{upcomingAppointment.type}</span>
-              </div>
-            </div>
-            <Button className="w-full mt-4" size="sm" asChild>
-              <Link to="/chat">Join Consultation</Link>
-            </Button>
+            )}
           </CardContent>
         </Card>
 
@@ -80,15 +100,22 @@ export default function PatientDashboard() {
           </CardHeader>
           <CardContent>
             <div className="space-y-3">
-              {recentActivities.map((activity) => (
-                <div key={activity.id} className="flex items-start gap-3 p-2 rounded-lg hover:bg-muted/50 transition-colors">
-                  <div className={`h-2 w-2 rounded-full mt-2 ${activity.status === "completed" ? "bg-success" : activity.status === "active" ? "bg-primary" : "bg-warning"}`} />
-                  <div className="flex-1 min-w-0">
-                    <p className="text-sm font-medium text-foreground truncate">{activity.description}</p>
-                    <p className="text-xs text-muted-foreground">{activity.date}</p>
+              {recentActivities && recentActivities.length > 0 ? (
+                recentActivities.map((activity) => (
+                  <div key={activity.id} className="flex items-start gap-3 p-2 rounded-lg hover:bg-muted/50 transition-colors">
+                    <div className={`h-2 w-2 rounded-full mt-2 ${activity.status === "completed" ? "bg-success" : activity.status === "active" ? "bg-primary" : "bg-warning"}`} />
+                    <div className="flex-1 min-w-0">
+                      <p className="text-sm font-medium text-foreground truncate">{activity.description}</p>
+                      <p className="text-xs text-muted-foreground">{activity.date}</p>
+                    </div>
                   </div>
+                ))
+              ) : (
+                <div className="text-center py-6">
+                  <Activity className="h-8 w-8 text-muted-foreground mx-auto mb-2" />
+                  <p className="text-muted-foreground text-sm">No recent activity</p>
                 </div>
-              ))}
+              )}
             </div>
           </CardContent>
         </Card>

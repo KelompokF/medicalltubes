@@ -3,11 +3,14 @@ import { Star, MapPin, Clock, DollarSign, ArrowLeft } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
-import { doctors, doctorSchedule, doctorReviews } from "@/data/mockData";
 
 export default function DoctorDetailPage() {
+  const doctors: any[] = [];
+  const doctorSchedule: any[] = [];
+  const doctorReviews: any[] = [];
+  
   const { id } = useParams();
-  const doctor = doctors.find((d) => d.id === id) || doctors[0];
+  const doctor = doctors.find((d) => d.id === id) || { name: "", specialization: "", rating: 0, reviews: 0, location: "", experience: 0, fee: 0, about: "" };
 
   return (
     <div className="space-y-6 animate-fade-in">
