@@ -17,10 +17,14 @@ class UserResponse(BaseModel):
     email: str
     is_active: bool
     role: str
+    location_sharing_enabled: bool
     created_at: datetime
 
     class Config:
         from_attributes = True
+
+class LocationSharingUpdate(BaseModel):
+    enabled: bool
 
 class Token(BaseModel):
     access_token: str
