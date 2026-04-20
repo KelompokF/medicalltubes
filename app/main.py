@@ -7,16 +7,10 @@ from app.Websocket.chat import router as websocket_router
 app = FastAPI(title="Medicall API")
 
 # CORS — allow frontend origins during development
-origins = [
-    "http://localhost:8080",
-    "http://localhost:8081",
-    "http://localhost:5173",
-    "http://localhost:3000",
-]
-
+# Allow any localhost/127.0.0.1 origin on any port during development
 app.add_middleware(
     CORSMiddleware,
-    allow_origins=origins,
+    allow_origin_regex=r"^https?://(localhost|127\.0\.0\.1)(:[0-9]+)?$",
     allow_credentials=True,
     allow_methods=["*"],
     allow_headers=["*"],

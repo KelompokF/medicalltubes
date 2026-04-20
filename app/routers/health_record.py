@@ -5,11 +5,7 @@ from typing import List
 from uuid import UUID
 from datetime import datetime
 
-from app.database import get_db # wait, get_db is actually imported from app.routers.auth in dependencies.py? Let me use app.dependencies or define my own.
-# In app/dependencies.py:
-# from app.routers.auth import get_db 
-# Let me use the standard import structure from existing code.
-from app.routers.auth import get_db
+from app.database import get_db
 from app.dependencies import get_current_user
 from app.models.user import User
 from app.models.health_record import HealthRecord

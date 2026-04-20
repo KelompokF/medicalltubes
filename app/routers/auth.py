@@ -1,7 +1,7 @@
 from fastapi import APIRouter, Depends, HTTPException, status, Header
 from sqlalchemy.ext.asyncio import AsyncSession
 from sqlalchemy.future import select
-from app.database import AsyncSessionLocal
+from app.database import get_db
 from app.models.user import User
 from app.schemas.user import UserRegister, UserLogin, UserResponse, Token
 from app.core.security import hash_password, verify_password, create_access_token
@@ -10,9 +10,7 @@ from uuid import UUID as PyUUID
 
 router = APIRouter(prefix="/auth", tags=["Auth"])
 
-async def get_db():
-    async with AsyncSessionLocal() as session:
-        yield session
+# `get_db` is provided by `app.database` now
 
 @router.post("/register", response_model=UserResponse)
 async def register(data: UserRegister, db: AsyncSession = Depends(get_db)):
@@ -37,7 +35,7 @@ async def login(data: UserLogin, db: AsyncSession = Depends(get_db)):
     user = result.scalar_one_or_none()
     if not user or not verify_password(data.password, user.hashed_password):
         raise HTTPException(status_code=401, detail="Email atau password salah")
-    
+
     token = create_access_token({"sub": str(user.id), "role": getattr(user, 'role', 'patient')})
     return {"access_token": token, "token_type": "bearer"}
 
