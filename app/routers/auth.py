@@ -11,6 +11,7 @@ from app.core.security import hash_password, verify_password, create_access_toke
 router = APIRouter(prefix="/auth", tags=["Auth"])
 
 
+
 @router.post("/register", response_model=UserResponse, status_code=status.HTTP_201_CREATED)
 async def register(data: UserRegister, db: AsyncSession = Depends(get_db)):
     """Daftarkan user baru."""
