@@ -1,51 +1,56 @@
 from fastapi import APIRouter, WebSocket, WebSocketDisconnect
 from app.Websocket.manager import manager
-from datetime import datetime
-
-# DB
 from app.database import AsyncSessionLocal
 from app.models.message import Message
+from datetime import datetime
 
 router = APIRouter()
 
 
 @router.websocket("/ws/chat/{user_id}")
 async def chat(websocket: WebSocket, user_id: str):
+    """
+    WebSocket endpoint untuk real-time chat.
+    Kirim JSON: {"receiver_id": "...", "content": "..."}
+    """
     await manager.connect(user_id, websocket)
 
     try:
         while True:
             data = await websocket.receive_json()
 
-            sender_id = user_id
-            receiver_id = data["receiver_id"]
-            content = data["content"]
+            receiver_id = data.get("receiver_id")
+            content = data.get("content")
+
+            if not receiver_id or not content:
+                await websocket.send_json({"error": "receiver_id dan content diperlukan"})
+                continue
 
             message_data = {
-                "sender_id": sender_id,
+                "sender_id": user_id,
                 "receiver_id": receiver_id,
                 "content": content,
-                "created_at": str(datetime.utcnow())
+                "created_at": datetime.utcnow().isoformat(),
             }
 
-            # Broadcast to receiver and sender
+            # Kirim ke receiver dan sender
             await manager.send_message(receiver_id, message_data)
-            await manager.send_message(sender_id, message_data)
+            await manager.send_message(user_id, message_data)
 
-            # Persist message to DB (patient -> doctor and vice versa)
+            # Simpan ke database
             try:
                 async with AsyncSessionLocal() as db:
                     msg = Message(
-                        sender_id=sender_id,
+                        sender_id=user_id,
                         receiver_id=receiver_id,
                         content=content,
-                        created_at=datetime.utcnow()
+                        created_at=datetime.utcnow(),
                     )
                     db.add(msg)
                     await db.commit()
-            except Exception:
-                # Don't block websocket on DB errors; log if needed
-                pass
+            except Exception as e:
+                # Jangan blokir WebSocket karena error DB
+                print(f"[WebSocket DB Error] {e}")
 
     except WebSocketDisconnect:
         manager.disconnect(user_id)

@@ -1,12 +1,28 @@
-# environment
+# Environment variables — JANGAN commit file ini
 .env
 
-# virtual env
+# Database SQLite lokal
+*.db
+*.sqlite3
+
+# Virtual environment
 venv/
 
-# python cache
+# Python cache
 __pycache__/
 *.pyc
+*.pyo
+*.pyd
 
-# misc
+# Alembic cache
+alembic/__pycache__/
+
+# Editor & OS
 .DS_Store
+.vscode/settings.json
+*.swp
+
+# Build artifacts
+dist/
+build/
+*.egg-info/
