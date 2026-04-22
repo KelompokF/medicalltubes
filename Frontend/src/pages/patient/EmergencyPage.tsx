@@ -1,9 +1,14 @@
-import { Phone, MapPin, Clock, AlertTriangle, Shield, Heart, Thermometer } from "lucide-react";
+import { useState } from "react";
+import { Phone, MapPin, Clock, AlertTriangle, Shield, Heart, Thermometer, Loader2 } from "lucide-react";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
 import { ambulances } from "@/data/mockData";
+import { useGeolocation } from "@/hooks/use-geolocation";
+import { emergencyService } from "@/services/api";
 import { toast } from "sonner";
+import { useGeolocation } from "@/hooks/use-geolocation";
+import { emergencyService } from "@/services/api";
 
 export default function EmergencyPage() {
   return (

@@ -1,6 +1,6 @@
 from fastapi import FastAPI
 from fastapi.middleware.cors import CORSMiddleware
-from app.routers import auth, health_record
+from app.routers import auth, health_record, emergency
 from app.routers.chat import router as chat_router
 from app.Websocket.chat import router as websocket_router
 
@@ -30,5 +30,3 @@ app.include_router(health_record.router)
 @app.get("/")
 async def root():
     return {"message": "Medicall API is running "}
-
-TES
