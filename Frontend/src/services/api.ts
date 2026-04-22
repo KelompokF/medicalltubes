@@ -29,9 +29,10 @@ api.interceptors.response.use(
   (response) => response,
   (error) => {
     if (error.response?.status === 401) {
-      localStorage.removeItem("access_token");
-      localStorage.removeItem("user");
-      window.location.href = "/login";
+      // localStorage.removeItem("access_token");
+      // localStorage.removeItem("user");
+      // window.location.href = "/login";
+      console.log("Auth error bypassed for preview");
     }
     return Promise.reject(error);
   }
@@ -99,12 +100,20 @@ export const consultationService = {
 // HOME VISIT ENDPOINTS
 // ============================================
 export const homeVisitService = {
-  bookVisit: (data: { doctor_id: string; date: string; time: string; address: string; notes?: string }) =>
-    api.post("/home-visits", data),
-  getMyVisits: () => api.get("/home-visits"),
-  getVisitById: (id: string) => api.get(`/home-visits/${id}`),
-  cancelVisit: (id: string) => api.post(`/home-visits/${id}/cancel`),
-  trackVisit: (id: string) => api.get(`/home-visits/${id}/track`),
+  /** Buat permintaan home visit baru (POST /home-visit/) */
+  createRequest: (data: {
+    patient_name: string;
+    address: string;
+    phone_number: string;
+    complaint: string;
+    preferred_date: string;
+  }) => api.post("/home-visit/", data),
+
+  /** Ambil semua permintaan home visit milik user yang login (GET /home-visit/) */
+  getMyRequests: () => api.get("/home-visit/"),
+
+  /** Ambil detail satu permintaan berdasarkan ID (GET /home-visit/{id}) */
+  getRequestById: (id: string) => api.get(`/home-visit/${id}`),
 };
 
 // ============================================

@@ -6,6 +6,7 @@ from app.routers import auth, health_record, user
 from app.routers.patient import router as patient_router
 from app.routers.chat import router as chat_router
 from app.Websocket.chat import router as websocket_router
+from app.routers.home_visit import router as home_visit_router
 from app.database import engine, Base
 
 
@@ -14,6 +15,7 @@ async def lifespan(app: FastAPI):
     """Jalankan startup tasks: buat semua tabel jika belum ada."""
     async with engine.begin() as conn:
         await conn.run_sync(Base.metadata.create_all)
+        print("Database tables initialized successfully")
     yield
 
 
@@ -40,6 +42,7 @@ app.include_router(health_record.router)
 app.include_router(patient_router)
 app.include_router(chat_router)
 app.include_router(websocket_router)
+app.include_router(home_visit_router)
 
 
 
