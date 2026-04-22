@@ -13,3 +13,4 @@ class User(Base):
     hashed_password = Column(String, nullable=False)
     is_active = Column(Boolean, default=True)
     created_at = Column(DateTime, default=datetime.utcnow)
+is_location_enabled = Column(Boolean, default=True)
