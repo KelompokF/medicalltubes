@@ -4,7 +4,7 @@ from sqlalchemy.orm import Session
 from sqlalchemy.future import select
 from app.database import AsyncSessionLocal
 from app.models.user import User
-from app.schemas.user import UserRegister, UserLogin, UserResponse, Token, LocationSettingUpdate
+from app.schemas.user import UserRegister, UserLogin, UserResponse, Token, LocationSettingUpdate, DeleteAccountResponse
 from app.core.security import hash_password, verify_password, create_access_token
 from app.core.security import decode_access_token
 from uuid import UUID as PyUUID
@@ -80,3 +80,20 @@ def update_location_setting(
     db.refresh(current_user)
 
     return current_user
+
+@router.delete("/delete-account", response_model=DeleteAccountResponse)
+def delete_account(
+    db: Session = Depends(get_db),
+    current_user: User = Depends(get_current_user)
+):
+    current_user.is_deleted = True
+    db.commit()
+
+    return {"message": "Akun berhasil dihapus"}
+    if current_user.is_deleted:
+        raise HTTPException(status_code=403, detail="Akun sudah dihapus")
+db.query(User).filter(User.is_deleted == False)
+
+# soft delete juga data terkait
+for record in current_user.health_records:
+    record.is_deleted = True
