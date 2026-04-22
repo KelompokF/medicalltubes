@@ -1,9 +1,10 @@
 from fastapi import APIRouter, Depends, HTTPException, status, Header
 from sqlalchemy.ext.asyncio import AsyncSession
+from sqlalchemy.orm import Session
 from sqlalchemy.future import select
 from app.database import AsyncSessionLocal
 from app.models.user import User
-from app.schemas.user import UserRegister, UserLogin, UserResponse, Token
+from app.schemas.user import UserRegister, UserLogin, UserResponse, Token, LocationSettingUpdate
 from app.core.security import hash_password, verify_password, create_access_token
 from app.core.security import decode_access_token
 from uuid import UUID as PyUUID
@@ -67,3 +68,15 @@ async def me(authorization: str = Header(None), db: AsyncSession = Depends(get_d
         raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="User not found")
 
     return user
+
+@router.put("/location-setting", response_model=LocationSettingResponse)
+def update_location_setting(
+    payload: LocationSettingUpdate,
+    db: Session = Depends(get_db),
+    current_user: User = Depends(get_current_user)
+):
+    current_user.is_location_enabled = payload.is_location_enabled
+    db.commit()
+    db.refresh(current_user)
+
+    return current_user
