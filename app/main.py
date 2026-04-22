@@ -31,3 +31,4 @@ app.include_router(health_record.router)
 async def root():
     return {"message": "Medicall API is running "}
 
+TES
