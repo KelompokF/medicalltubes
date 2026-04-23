@@ -31,9 +31,16 @@ async def register(data: UserRegister, db: AsyncSession = Depends(get_db)):
 
 @router.post("/login", response_model=Token)
 async def login(data: UserLogin, db: AsyncSession = Depends(get_db)):
+    import logging
+    logger = logging.getLogger(__name__)
     result = await db.execute(select(User).where(User.email == data.email))
     user = result.scalar_one_or_none()
-    if not user or not verify_password(data.password, user.hashed_password):
+    if not user:
+        logger.warning(f"LOGIN DEBUG: No user found for email={data.email}")
+        raise HTTPException(status_code=401, detail="Email atau password salah")
+    logger.warning(f"LOGIN DEBUG: User found: email={user.email}, role={user.role}, hash_prefix={user.hashed_password[:20] if user.hashed_password else 'NONE'}")
+    if not verify_password(data.password, user.hashed_password):
+        logger.warning(f"LOGIN DEBUG: Password verification FAILED for email={data.email}")
         raise HTTPException(status_code=401, detail="Email atau password salah")
 
     token = create_access_token({"sub": str(user.id), "role": getattr(user, 'role', 'patient')})
