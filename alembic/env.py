@@ -26,6 +26,9 @@ from app.database import Base
 from app.models.user import User          # noqa: F401
 from app.models.message import Message    # noqa: F401
 from app.models.health_record import HealthRecord  # noqa: F401
+from app.models.patient_profile import PatientProfile  # noqa: F401
+from app.models.consultation import Consultation  # noqa: F401
+from app.models.home_visit import HomeVisit  # noqa: F401
 
 target_metadata = Base.metadata
 

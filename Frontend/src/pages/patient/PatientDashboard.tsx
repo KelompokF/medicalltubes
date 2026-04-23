@@ -1,18 +1,43 @@
+import { useState, useEffect } from "react";
 import { Link } from "react-router-dom";
 import { Activity, Home, AlertTriangle, Pill, Search, Phone, Calendar, MessageSquare, ArrowRight } from "lucide-react";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import StatCard from "@/components/StatCard";
+import { patientService } from "@/services/api";
 
 export default function PatientDashboard() {
-  const patientStats = {
+  const [patientStats, setPatientStats] = useState({
     totalConsultations: 0,
     homeVisitBookings: 0,
     emergencyRequests: 0,
     activePrescriptions: 0,
-  };
-  const recentActivities: any[] = [];
-  const upcomingAppointment = null;
+  });
+  const [recentActivities, setRecentActivities] = useState<any[]>([]);
+  const [upcomingAppointment, setUpcomingAppointment] = useState<any>(null);
+  const [isLoading, setIsLoading] = useState(true);
+
+  useEffect(() => {
+    const fetchDashboardData = async () => {
+      try {
+        const response = await patientService.getDashboard();
+        if (response.data) {
+          setPatientStats(response.data.stats);
+          setRecentActivities(response.data.recentActivities);
+          setUpcomingAppointment(response.data.upcomingAppointment);
+        }
+      } catch (error) {
+        console.error("Failed to fetch dashboard data", error);
+      } finally {
+        setIsLoading(false);
+      }
+    };
+    fetchDashboardData();
+  }, []);
+
+  if (isLoading) {
+    return <div className="flex items-center justify-center h-full">Loading dashboard data...</div>;
+  }
   
   return (
     <div className="space-y-6 animate-fade-in">
