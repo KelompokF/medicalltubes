@@ -1,10 +1,14 @@
 import { Link } from "react-router-dom";
+import { useQuery } from "@tanstack/react-query";
+import { authService } from "@/services/api";
 import { Activity, Home, AlertTriangle, Pill, Search, Phone, Calendar, MessageSquare, ArrowRight } from "lucide-react";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import StatCard from "@/components/StatCard";
 
 export default function PatientDashboard() {
+  const { data: meData } = useQuery({ queryKey: ["me"], queryFn: () => authService.getMe().then((res) => res.data), staleTime: 1000 * 60 * 5 });
+  const firstName = meData?.full_name?.split(" ")[0] || "there";
   const patientStats = {
     totalConsultations: 0,
     homeVisitBookings: 0,
@@ -18,7 +22,7 @@ export default function PatientDashboard() {
     <div className="space-y-6 animate-fade-in">
       {/* Welcome Banner */}
       <div className="rounded-2xl medical-gradient p-6 sm:p-8 text-primary-foreground">
-        <h1 className="text-2xl sm:text-3xl font-bold mb-2">Welcome back, John! 👋</h1>
+        <h1 className="text-2xl sm:text-3xl font-bold mb-2">Welcome back, {firstName}! 👋</h1>
         <p className="text-primary-foreground/80 text-sm sm:text-base">How are you feeling today? Let us help you stay healthy.</p>
       </div>
 
