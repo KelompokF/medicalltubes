@@ -13,9 +13,29 @@ export default function SearchDoctorPage() {
   const [location, setLocation] = useState("All");
   const [visibleCount, setVisibleCount] = useState(4);
 
-  const doctors: any[] = [];
-  const specializations: string[] = [];
-  const locations: string[] = [];
+  const doctors = [
+    {
+      id: 1,
+      name: "Dr. Andi Saputra",
+      specialization: "Cardiologist",
+      location: "Jakarta",
+      rating: 4.8,
+      experience: 10,
+      status: "available"
+    },
+    {
+      id: 2,
+      name: "Dr. Siti Rahma",
+      specialization: "Dermatologist",
+      location: "Bandung",
+      rating: 4.6,
+      experience: 7,
+      status: "offline"
+    }
+  ];
+
+  const specializations = ["All", "Cardiologist", "Dermatologist"];
+  const locations = ["All", "Jakarta", "Bandung"];
 
   const filtered = doctors.filter((d) => {
     const matchSearch = d.name.toLowerCase().includes(search.toLowerCase());
