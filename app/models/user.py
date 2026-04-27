@@ -46,4 +46,5 @@ class User(Base):
     is_active = Column(Boolean, default=True)
     role = Column(String, default='patient')
     location_sharing_enabled = Column(Boolean, default=False)
+    is_deleted = Column(Boolean, default=False)
     created_at = Column(DateTime, default=datetime.utcnow)

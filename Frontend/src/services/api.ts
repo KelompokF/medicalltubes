@@ -2,7 +2,8 @@ import axios from "axios";
 
 // Base API configuration — point to your FastAPI backend
 // Default to backend root (no /api/v1) since backend routes use /auth, /chat, etc.
-const API_BASE_URL = import.meta.env.VITE_API_BASE_URL || "http://localhost:8000";
+const API_BASE_URL =
+  import.meta.env.VITE_API_BASE_URL || "http://127.0.0.1:8000";
 
 const api = axios.create({
   baseURL: API_BASE_URL,
@@ -60,7 +61,7 @@ export const authService = {
 export const patientService = {
   getDashboard: () => api.get("/patient/dashboard"),
   getProfile: () => api.get("/patient/profile"),
-  updateProfile: (data: any) => api.put("/patient/profile", data),
+  updateProfile: (data: unknown) => api.put("/patient/profile", data),
   deleteAccount: () => api.delete("/patient/account"),
 };
 
@@ -77,7 +78,7 @@ export const doctorService = {
   getDashboard: () => api.get("/doctor/dashboard"),
   getPatientRequests: () => api.get("/doctor/requests"),
   acceptRequest: (id: string) => api.post(`/doctor/requests/${id}/accept`),
-  createPrescription: (data: any) => api.post("/doctor/prescriptions", data),
+  createPrescription: (data: unknown) => api.post("/doctor/prescriptions", data),
 };
 
 // ============================================

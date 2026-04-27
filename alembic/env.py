@@ -11,16 +11,24 @@ config = context.config
 if config.config_file_name is not None:
     fileConfig(config.config_file_name)
 
-# add your model's MetaData object here
-# for 'autogenerate' support
-# from myapp import mymodel
-# target_metadata = mymodel.Base.metadata
-target_metadata = None
+def _get_sqlalchemy_url():
+    url = config.get_main_option("sqlalchemy.url")
+    if not url or url.startswith("driver://"):
+        url = settings.DATABASE_URL
+    # Alembic/create_engine expects a sync dialect URL; convert asyncpg URL if present
+    if "asyncpg" in url:
+        url = url.replace("+asyncpg", "")
+        url = url.replace("asyncpg", "postgresql")
+    return url
 
-# other values from the config, defined by the needs of env.py,
-# can be acquired:
-# my_important_option = config.get_main_option("my_important_option")
-# ... etc.
+# Import semua model agar Alembic bisa detect perubahan (autogenerate)
+from app.database import Base
+from app.models.user import User          # noqa: F401
+from app.models.message import Message    # noqa: F401
+from app.models.health_record import HealthRecord  # noqa: F401
+from app.models.ambulance import AmbulanceService  # noqa: F401
+
+target_metadata = Base.metadata
 
 
 def run_migrations_offline() -> None:

@@ -40,7 +40,7 @@ class LocationSettingUpdate(BaseModel):
     is_location_enabled: bool
 
     class Config:
-        orm_mode = True
+        from_attributes = True
 
 class DeleteAccountResponse(BaseModel):
     message: str
