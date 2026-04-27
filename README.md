@@ -36,7 +36,22 @@ source venv/bin/activate
 ```bash
 pip install -r requirements.txt
 ```
-### 5. Jalankan server
+
+### 5. Buat file environment
+```bash
+copy .env.example .env
+```
+
+Isi `DATABASE_URL` dari Supabase Dashboard > Connect > Session pooler.
+Gunakan Session pooler, bukan Direct connection, jika jaringan lokal tidak mendukung IPv6.
+
+Format yang bisa dipakai:
+```env
+DATABASE_URL=postgres://postgres.<project-ref>:<db-password>@aws-0-<region>.pooler.supabase.com:5432/postgres
+SECRET_KEY=change-this-to-a-random-secret
+```
+
+### 6. Jalankan server
 ```bash
 uvicorn app.main:app --reload
 

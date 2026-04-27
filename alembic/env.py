@@ -2,7 +2,7 @@ from logging.config import fileConfig
 from sqlalchemy import create_engine
 from sqlalchemy import pool
 from alembic import context
-from app.core.config import settings
+from app.core.config import normalize_sync_database_url, settings
 
 # Alembic Config object
 config = context.config
@@ -14,12 +14,8 @@ if config.config_file_name is not None:
 def _get_sqlalchemy_url():
     url = config.get_main_option("sqlalchemy.url")
     if not url or url.startswith("driver://"):
-        url = settings.DATABASE_URL
-    # Alembic/create_engine expects a sync dialect URL; convert asyncpg URL if present
-    if "asyncpg" in url:
-        url = url.replace("+asyncpg", "")
-        url = url.replace("asyncpg", "postgresql")
-    return url
+        return settings.sync_database_url
+    return normalize_sync_database_url(url)
 
 # Import semua model agar Alembic bisa detect perubahan (autogenerate)
 from app.database import Base
@@ -30,6 +26,7 @@ from app.models.patient_profile import PatientProfile  # noqa: F401
 from app.models.consultation import Consultation  # noqa: F401
 from app.models.home_visit import HomeVisit  # noqa: F401
 from app.models.ambulance import AmbulanceService  # noqa: F401
+from app.models.emergency import EmergencyRequest  # noqa: F401
 
 target_metadata = Base.metadata
 

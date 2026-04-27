@@ -1,4 +1,6 @@
 from contextlib import asynccontextmanager
+import socket
+
 from fastapi import FastAPI
 from fastapi.middleware.cors import CORSMiddleware
 from app.routers import auth, health_record, user, emergency
@@ -9,6 +11,7 @@ from app.routers.chat_history import router as chat_history_router
 from app.routers.home_visit import router as home_visit_router
 from app.routers.doctor import router as doctor_router
 from app.Websocket.chat import router as websocket_router
+from app.core.config import get_database_connection_hint, settings
 from app.database import engine, Base
 # Ensure doctor_profile model is loaded for create_all
 import app.models.doctor_profile  # noqa: F401
@@ -17,8 +20,14 @@ import app.models.doctor_profile  # noqa: F401
 @asynccontextmanager
 async def lifespan(app: FastAPI):
     """Jalankan startup tasks: buat semua tabel jika belum ada."""
-    async with engine.begin() as conn:
-        await conn.run_sync(Base.metadata.create_all)
+    try:
+        async with engine.begin() as conn:
+            await conn.run_sync(Base.metadata.create_all)
+    except (socket.gaierror, OSError) as exc:
+        hint = get_database_connection_hint(settings.DATABASE_URL)
+        if hint:
+            raise RuntimeError(hint) from exc
+        raise
     yield
 
 
