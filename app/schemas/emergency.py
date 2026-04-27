@@ -32,7 +32,8 @@ class NearbyAmbulancesResponse(BaseModel):
     search_radius_km: float
 
 
-class EmergencyRequest(BaseModel):
+class EmergencyRequestSchema(BaseModel):
+    patient_id: Optional[str] = None
     location: LocationInput
     type: Optional[str] = "general"
     notes: Optional[str] = None

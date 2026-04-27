@@ -9,17 +9,20 @@ Uses Haversine formula for distance calculation.
 import math
 import uuid
 from datetime import datetime
-from typing import Optional
-from fastapi import APIRouter, HTTPException, Query, Depends
+from typing import Optional, List
+from fastapi import APIRouter, HTTPException, Query, Depends, Body
 from sqlalchemy.ext.asyncio import AsyncSession
 from sqlalchemy.future import select
 
 from app.database import get_db
+from app.dependencies import get_current_user
 from app.models.ambulance import AmbulanceService
+from app.models.emergency import EmergencyRequest
+from app.models.user import User
 from app.schemas.emergency import (
     AmbulanceServiceResponse,
     NearbyAmbulancesResponse,
-    EmergencyRequest,
+    EmergencyRequestSchema,
     EmergencyRequestResponse,
 )
 
@@ -134,12 +137,13 @@ async def get_nearby_ambulances(
 
 @router.post("/", response_model=EmergencyRequestResponse)
 async def request_emergency(
-    data: EmergencyRequest,
+    data: EmergencyRequestSchema,
     db: AsyncSession = Depends(get_db),
+    current_user: User = Depends(get_current_user)
 ):
     """
     Create an emergency request. Finds the nearest available ambulance
-    and assigns it to the request.
+    and assigns it to the request. Saves the request to the database.
     """
     # Get all active & available ambulances
     result = await db.execute(
@@ -163,17 +167,114 @@ async def request_emergency(
     if nearest:
         nearest_response = ambulance_to_response(nearest, data.location.lat, data.location.lng)
 
+    # Save to database
+    new_request = EmergencyRequest(
+        patient_id=current_user.id,
+        ambulance_id=nearest.id if nearest else None,
+        status="dispatched" if nearest else "pending",
+        lat=data.location.lat,
+        lng=data.location.lng,
+        emergency_type=data.type,
+        notes=data.notes
+    )
+    db.add(new_request)
+    await db.commit()
+    await db.refresh(new_request)
+
     return EmergencyRequestResponse(
-        id=str(uuid.uuid4()),
-        status="dispatched" if nearest else "searching",
+        id=str(new_request.id),
+        status=new_request.status,
         message=(
             f"Ambulans terdekat ditemukan: {nearest_response.name} ({nearest_response.distance_text}). ETA: {nearest_response.eta_text}."
             if nearest_response
             else "Sedang mencari ambulans terdekat di area Anda..."
         ),
-        created_at=datetime.utcnow(),
+        created_at=new_request.created_at,
         ambulance_assigned=nearest_response,
     )
+
+
+@router.get("/active")
+async def get_active_emergencies(
+    db: AsyncSession = Depends(get_db),
+    current_user: User = Depends(get_current_user)
+):
+    """
+    Get active emergency requests assigned to the current ambulance service.
+    """
+    # First find the ambulance service record for this user
+    result = await db.execute(
+        select(AmbulanceService).where(AmbulanceService.user_id == current_user.id)
+    )
+    ambulance = result.scalar_one_or_none()
+    
+    if not ambulance:
+        raise HTTPException(status_code=403, detail="Hanya untuk layanan ambulans")
+
+    # Fetch active requests (dispatched, on_route, arrived)
+    result = await db.execute(
+        select(EmergencyRequest).where(
+            EmergencyRequest.ambulance_id == ambulance.id,
+            EmergencyRequest.status.in_(["dispatched", "on_route", "arrived", "pending"])
+        ).order_by(EmergencyRequest.created_at.desc())
+    )
+    requests = result.scalars().all()
+    
+    # Enrich with patient info
+    responses = []
+    for req in requests:
+        # Get patient user info
+        patient_result = await db.execute(select(User).where(User.id == req.patient_id))
+        patient = patient_result.scalar_one_or_none()
+        
+        responses.append({
+            "id": str(req.id),
+            "patient_name": patient.full_name if patient else "Unknown Patient",
+            "status": req.status,
+            "lat": req.lat,
+            "lng": req.lng,
+            "emergency_type": req.emergency_type,
+            "notes": req.notes,
+            "created_at": req.created_at.isoformat()
+        })
+        
+    return responses
+
+
+@router.patch("/{id}/status")
+async def update_emergency_status(
+    id: uuid.UUID,
+    status: str = Body(..., embed=True),
+    db: AsyncSession = Depends(get_db),
+    current_user: User = Depends(get_current_user)
+):
+    """
+    Update the status of an emergency request.
+    """
+    # Verify ambulance ownership
+    amb_result = await db.execute(
+        select(AmbulanceService).where(AmbulanceService.user_id == current_user.id)
+    )
+    ambulance = amb_result.scalar_one_or_none()
+    
+    if not ambulance:
+        raise HTTPException(status_code=403, detail="Hanya untuk layanan ambulans")
+
+    result = await db.execute(
+        select(EmergencyRequest).where(EmergencyRequest.id == id)
+    )
+    request = result.scalar_one_or_none()
+
+    if not request:
+        raise HTTPException(status_code=404, detail="Request tidak ditemukan")
+        
+    if request.ambulance_id != ambulance.id:
+        raise HTTPException(status_code=403, detail="Bukan request milik Anda")
+
+    request.status = status
+    await db.commit()
+    
+    return {"success": True, "status": status}
 
 
 @router.post("/ambulances/{ambulance_id}/call")
