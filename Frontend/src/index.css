@@ -91,6 +91,47 @@
     --sidebar-border: 215 20% 18%;
     --sidebar-ring: 213 94% 58%;
   }
+
+  .high-contrast {
+    --background: 0 0% 0%;
+    --foreground: 60 100% 50%;
+    --card: 0 0% 5%;
+    --card-foreground: 60 100% 50%;
+    --popover: 0 0% 5%;
+    --popover-foreground: 60 100% 50%;
+    --primary: 60 100% 50%;
+    --primary-foreground: 0 0% 0%;
+    --secondary: 0 0% 20%;
+    --secondary-foreground: 60 100% 50%;
+    --muted: 0 0% 15%;
+    --muted-foreground: 60 100% 70%;
+    --accent: 60 100% 50%;
+    --accent-foreground: 0 0% 0%;
+    --destructive: 0 100% 50%;
+    --destructive-foreground: 0 0% 100%;
+    --border: 60 100% 50%;
+    --input: 60 100% 50%;
+    --ring: 60 100% 50%;
+    --radius: 0;
+    
+    --sidebar-background: 0 0% 0%;
+    --sidebar-foreground: 60 100% 50%;
+    --sidebar-primary: 60 100% 50%;
+    --sidebar-primary-foreground: 0 0% 0%;
+    --sidebar-accent: 0 0% 20%;
+    --sidebar-accent-foreground: 60 100% 50%;
+    --sidebar-border: 60 100% 50%;
+    --sidebar-ring: 60 100% 50%;
+
+    --gradient-medical: none;
+    --gradient-hero: none;
+    --gradient-card: none;
+    background-color: black !important;
+  }
+}
+
+html.large-text {
+  font-size: 115%;
 }
 
 @layer base {

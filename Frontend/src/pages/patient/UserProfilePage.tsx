@@ -1,4 +1,4 @@
-import { useState } from "react";
+import { useState, useEffect } from "react";
 import { User, Shield, Trash2, Camera } from "lucide-react";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { patientService } from "@/services/api";
@@ -8,8 +8,10 @@ import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { Textarea } from "@/components/ui/textarea";
-import ConfirmModal from "@/components/ConfirmModal";
+import { Switch } from "@/components/ui/switch";
 import { toast } from "sonner";
+import { Eye, Type } from "lucide-react";
+import ConfirmModal from "@/components/ConfirmModal";
 
 export default function UserProfilePage() {
   const [showDelete, setShowDelete] = useState(false);
@@ -31,19 +33,25 @@ export default function UserProfilePage() {
     blood_type: data?.blood_type || "",
     allergies: data?.allergies || "",
     email: data?.email || "",
+    high_contrast_enabled: data?.high_contrast_enabled || false,
+    large_text_enabled: data?.large_text_enabled || false,
   });
 
   // keep form in sync when data loads
-  if (data && form.full_name === "") {
-    setForm({
-      full_name: data.full_name || "",
-      place_of_birth: data.place_of_birth || "",
-      date_of_birth: data.date_of_birth || "",
-      blood_type: data.blood_type || "",
-      allergies: data.allergies || "",
-      email: data.email || "",
-    });
-  }
+  useEffect(() => {
+    if (data && form.full_name === "") {
+      setForm({
+        full_name: data.full_name || "",
+        place_of_birth: data.place_of_birth || "",
+        date_of_birth: data.date_of_birth || "",
+        blood_type: data.blood_type || "",
+        allergies: data.allergies || "",
+        email: data.email || "",
+        high_contrast_enabled: data.high_contrast_enabled || false,
+        large_text_enabled: data.large_text_enabled || false,
+      });
+    }
+  }, [data, form.full_name]);
 
   return (
     <div className="space-y-6 animate-fade-in">
@@ -104,6 +112,52 @@ export default function UserProfilePage() {
         </div>
 
         <div className="space-y-6">
+          {/* Accessibility */}
+          <Card className="shadow-card border-primary/20">
+            <CardHeader><CardTitle className="flex items-center gap-2"><Eye className="h-5 w-5 text-primary" />Accessibility</CardTitle></CardHeader>
+            <CardContent className="space-y-5">
+              <div className="flex items-center justify-between">
+                <div className="space-y-0.5">
+                  <Label className="text-base">High Contrast Mode</Label>
+                  <p className="text-xs text-muted-foreground">Improve visibility with distinct colors.</p>
+                </div>
+                <Switch 
+                  checked={form.high_contrast_enabled} 
+                  onCheckedChange={(checked) => {
+                    const newForm = { ...form, high_contrast_enabled: checked };
+                    setForm(newForm);
+                    
+                    const payload = { ...newForm };
+                    if (!payload.date_of_birth) payload.date_of_birth = null;
+                    mutation.mutate(payload, {
+                      onSuccess: () => toast.success("High Contrast Mode " + (checked ? "enabled" : "disabled")),
+                      onError: () => toast.error("Failed to save settings")
+                    });
+                  }} 
+                />
+              </div>
+              <div className="flex items-center justify-between">
+                <div className="space-y-0.5">
+                  <Label className="text-base flex items-center gap-1"><Type className="h-4 w-4"/> Large Text</Label>
+                  <p className="text-xs text-muted-foreground">Increase global font sizes.</p>
+                </div>
+                <Switch 
+                  checked={form.large_text_enabled} 
+                  onCheckedChange={(checked) => {
+                    const newForm = { ...form, large_text_enabled: checked };
+                    setForm(newForm);
+                    
+                    const payload = { ...newForm };
+                    if (!payload.date_of_birth) payload.date_of_birth = null;
+                    mutation.mutate(payload, {
+                      onSuccess: () => toast.success("Large Text Mode " + (checked ? "enabled" : "disabled")),
+                      onError: () => toast.error("Failed to save settings")
+                    });
+                  }} 
+                />
+              </div>
+            </CardContent>
+          </Card>
           {/* Security */}
           <Card className="shadow-card">
             <CardHeader><CardTitle className="flex items-center gap-2"><Shield className="h-5 w-5 text-primary" />Security</CardTitle></CardHeader>
@@ -117,7 +171,10 @@ export default function UserProfilePage() {
           {/* Actions */}
           <div className="space-y-3">
             <Button className="w-full medical-gradient text-primary-foreground" onClick={() => {
-              mutation.mutate(form, {
+              const payload = { ...form };
+              if (!payload.date_of_birth) payload.date_of_birth = null;
+              
+              mutation.mutate(payload, {
                 onSuccess: () => toast.success("Profile saved!"),
                 onError: () => toast.error("Failed to save profile")
               });

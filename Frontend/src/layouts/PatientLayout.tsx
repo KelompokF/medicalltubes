@@ -1,6 +1,6 @@
-import { useState } from "react";
+import { useState, useEffect } from "react";
 import { useQuery } from "@tanstack/react-query";
-import { authService } from "@/services/api";
+import { authService, patientService } from "@/services/api";
 import { Link, useLocation, Outlet } from "react-router-dom";
 import {
   LayoutDashboard, Search, MessageSquare, History, Home, AlertTriangle,
@@ -37,6 +37,25 @@ export default function PatientLayout({ userName = "John Doe", userInitials = "J
     const parts = (meData.full_name || "").split(" ").filter(Boolean);
     userInitials = parts.length ? parts.map(p => p[0]).slice(0,2).join("") : userInitials;
   }
+  // fetch profile for accessibility settings
+  const { data: profileData } = useQuery({ queryKey: ["patientProfile"], queryFn: () => patientService.getProfile().then((res) => res.data), staleTime: 1000 * 60 * 5 });
+
+  useEffect(() => {
+    if (profileData) {
+      if (profileData.high_contrast_enabled) {
+        document.documentElement.classList.add("high-contrast");
+      } else {
+        document.documentElement.classList.remove("high-contrast");
+      }
+
+      if (profileData.large_text_enabled) {
+        document.documentElement.classList.add("large-text");
+      } else {
+        document.documentElement.classList.remove("large-text");
+      }
+    }
+  }, [profileData]);
+
   const location = useLocation();
   const isActive = (path: string) => location.pathname === path;
 
