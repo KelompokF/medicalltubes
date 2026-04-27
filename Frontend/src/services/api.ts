@@ -146,8 +146,8 @@ export const adminService = {
 // ============================================
 export const ambulanceService = {
   getDashboard: () => api.get("/ambulance/dashboard"),
-  getIncomingRequests: () => api.get("/ambulance/requests"),
-  updateStatus: (requestId: string, status: "on_route" | "arrived" | "completed") =>
-    api.post(`/ambulance/requests/${requestId}/status`, { status }),
+  getActiveRequests: () => api.get("/emergencies/active"),
+  updateStatus: (id: string, status: string) =>
+    api.patch(`/emergencies/${id}/status`, { status }),
   getHistory: () => api.get("/ambulance/history"),
 };
