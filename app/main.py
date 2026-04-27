@@ -3,6 +3,7 @@ from fastapi import FastAPI
 from fastapi.middleware.cors import CORSMiddleware
 from app.routers import auth, health_record, user, emergency
 from app.routers.patient import router as patient_router
+from app.routers.dashboard import router as dashboard_router
 from app.routers.chat import router as chat_router
 from app.Websocket.chat import router as websocket_router
 from app.database import engine, Base
@@ -37,6 +38,7 @@ app.include_router(auth.router)
 app.include_router(user.router)
 app.include_router(health_record.router)
 app.include_router(patient_router)
+app.include_router(dashboard_router)
 app.include_router(chat_router)
 app.include_router(websocket_router)
 app.include_router(emergency.router)
