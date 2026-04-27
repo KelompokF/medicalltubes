@@ -102,7 +102,7 @@ export default function EmergencyPage() {
       if (data.ambulances?.length === 0) {
         toast.info("Tidak ada layanan ambulans ditemukan di area ini. Coba perbesar radius pencarian.");
       }
-    } catch (error: any) {
+    } catch (error: unknown) {
       console.error("Error fetching ambulances:", error);
       toast.error("Gagal memuat data ambulans. Silakan coba lagi.");
     } finally {
@@ -131,7 +131,7 @@ export default function EmergencyPage() {
         ambulance: data.ambulance_assigned,
       });
       toast.success("Permintaan darurat terkirim! Bantuan sedang dalam perjalanan.");
-    } catch (error: any) {
+    } catch (error: unknown) {
       console.error("SOS Error:", error);
       toast.error("Gagal mengirim permintaan darurat. Silakan coba lagi.");
     } finally {
@@ -150,7 +150,7 @@ export default function EmergencyPage() {
       // Otherwise use the backend call endpoint
       await emergencyService.callAmbulance(ambulance.id);
       toast.success(`Menghubungi ${ambulance.name}...`);
-    } catch (error: any) {
+    } catch (error: unknown) {
       console.error("Call error:", error);
       toast.error("Gagal menghubungi ambulans.");
     }
