@@ -88,10 +88,12 @@ async def get_dashboard_summary(
     )
     next_cons = upcoming_cons.scalar_one_or_none()
 
+    # For HomeVisit, we use date and time
+    today = now.date()
     upcoming_hv = await db.execute(
         select(HomeVisit)
-        .where(HomeVisit.patient_id == current_user.id, HomeVisit.scheduled_time > now, HomeVisit.status == "active")
-        .order_by(HomeVisit.scheduled_time.asc())
+        .where(HomeVisit.patient_id == current_user.id, HomeVisit.date >= today, HomeVisit.status.in_(["pending", "confirmed"]))
+        .order_by(HomeVisit.date.asc(), HomeVisit.time.asc())
         .limit(1)
     )
     next_hv = upcoming_hv.scalar_one_or_none()
@@ -100,8 +102,16 @@ async def get_dashboard_summary(
     next_event = None
     event_type = ""
     
+    # Helper to get a proper datetime from HomeVisit
+    def get_hv_dt(hv):
+        try:
+            return datetime.datetime.combine(hv.date, datetime.datetime.strptime(hv.time, "%H:%M").time())
+        except:
+            return datetime.datetime.combine(hv.date, datetime.time(0,0))
+
     if next_cons and next_hv:
-        if next_cons.scheduled_time < next_hv.scheduled_time:
+        hv_dt = get_hv_dt(next_hv)
+        if next_cons.scheduled_time < hv_dt:
             next_event = next_cons
             event_type = "Online Consultation"
         else:
@@ -115,11 +125,19 @@ async def get_dashboard_summary(
         event_type = "Home Visit"
 
     if next_event:
+        if event_type == "Home Visit":
+            dt_obj = get_hv_dt(next_event)
+            formatted_date = dt_obj.strftime("%B %d, %Y")
+            formatted_time = dt_obj.strftime("%I:%M %p")
+        else:
+            formatted_date = next_event.scheduled_time.strftime("%B %d, %Y")
+            formatted_time = next_event.scheduled_time.strftime("%I:%M %p")
+
         upcoming_appointment = UpcomingAppointment(
             doctor=next_event.doctor_name,
             specialization=getattr(next_event, "specialization", "General") or "General",
-            date=next_event.scheduled_time.strftime("%B %d, %Y"),
-            time=next_event.scheduled_time.strftime("%I:%M %p"),
+            date=formatted_date,
+            time=formatted_time,
             type=event_type
         )
 

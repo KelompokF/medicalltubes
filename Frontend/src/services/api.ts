@@ -68,11 +68,16 @@ export const patientService = {
 // DOCTOR ENDPOINTS
 // ============================================
 export const doctorService = {
-  searchDoctors: (params: { search?: string; specialization?: string; location?: string; page?: number }) =>
-    api.get("/doctors", { params }),
+  searchDoctors: (params: {
+    search?: string;
+    specialization?: string;
+    lat?: number;
+    lng?: number;
+    radius_km?: number;
+  }) => api.get("/doctors", { params }),
   getDoctorById: (id: string) => api.get(`/doctors/${id}`),
-  getDoctorSchedule: (id: string) => api.get(`/doctors/${id}/schedule`),
-  getDoctorReviews: (id: string) => api.get(`/doctors/${id}/reviews`),
+  startConsultation: (doctorId: string) =>
+    api.post("/doctors/start-consultation", { doctor_id: doctorId }),
   // Doctor dashboard
   getDashboard: () => api.get("/doctor/dashboard"),
   getPatientRequests: () => api.get("/doctor/requests"),
