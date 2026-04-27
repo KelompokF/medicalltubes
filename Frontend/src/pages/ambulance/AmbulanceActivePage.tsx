@@ -75,7 +75,7 @@ export default function AmbulanceActivePage() {
       <EmptyState 
         title="Tidak Ada Emergency Aktif" 
         description="Saat ini tidak ada permintaan darurat yang ditugaskan kepada Anda."
-        icon={AlertTriangle}
+        icon={<AlertTriangle className="h-8 w-8 text-muted-foreground" />}
       />
     );
   }
