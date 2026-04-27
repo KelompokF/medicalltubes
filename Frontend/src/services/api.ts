@@ -150,3 +150,13 @@ export const ambulanceService = {
     api.post(`/ambulance/requests/${requestId}/status`, { status }),
   getHistory: () => api.get("/ambulance/history"),
 };
+
+// ============================================
+// HEALTH RECORD ENDPOINTS
+// ============================================
+export const healthRecordService = {
+  getRecords: () => api.get("/health-records/"),
+  getRecordById: (id: string) => api.get(`/health-records/${id}`),
+  createRecord: (data: unknown) => api.post("/health-records/", data),
+  deleteRecord: (id: string) => api.delete(`/health-records/${id}`),
+};
