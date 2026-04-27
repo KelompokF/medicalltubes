@@ -56,6 +56,7 @@ export const authService = {
   getLocationSetting: () => api.get("/auth/location-setting"),
   updateLocationSetting: (data: { is_location_enabled: boolean }) =>
     api.put("/auth/location-setting", data),
+  deleteAccount: () => api.delete("/auth/delete-account"),
 };
 
 // ============================================
@@ -65,7 +66,6 @@ export const patientService = {
   getDashboard: () => api.get("/patient/dashboard"),
   getProfile: () => api.get("/patient/profile"),
   updateProfile: (data: unknown) => api.put("/patient/profile", data),
-  deleteAccount: () => api.delete("/patient/account"),
 };
 
 // ============================================

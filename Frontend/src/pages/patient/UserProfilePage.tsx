@@ -39,6 +39,18 @@ export default function UserProfilePage() {
     onError: () => toast.error("Gagal menyimpan pengaturan lokasi.")
   });
 
+  const deleteMutation = useMutation({
+    mutationFn: () => authService.deleteAccount(),
+    onSuccess: () => {
+      localStorage.removeItem("access_token");
+      localStorage.removeItem("user");
+      window.location.href = "/login";
+    },
+    onError: () => {
+      toast.error("Gagal menghapus akun. Silakan coba lagi.");
+    }
+  });
+
   const [form, setForm] = useState({
     full_name: data?.full_name || "",
     place_of_birth: data?.place_of_birth || "",
@@ -162,7 +174,18 @@ export default function UserProfilePage() {
         </div>
       </div>
 
-      <ConfirmModal open={showDelete} onOpenChange={setShowDelete} title="Delete Account" description="This action cannot be undone. All your data will be permanently deleted." onConfirm={() => { setShowDelete(false); toast.error("Account deleted."); }} confirmText="Delete" variant="destructive" />
+      <ConfirmModal 
+        open={showDelete} 
+        onOpenChange={setShowDelete} 
+        title="Delete Account" 
+        description="This action cannot be undone. All your data will be permanently deleted." 
+        onConfirm={() => { 
+          setShowDelete(false); 
+          deleteMutation.mutate(); 
+        }} 
+        confirmText={deleteMutation.isPending ? "Deleting..." : "Delete"} 
+        variant="destructive" 
+      />
     </div>
   );
 }
