@@ -9,6 +9,7 @@ from app.routers.chat_history import router as chat_history_router
 from app.routers.home_visit import router as home_visit_router
 from app.routers.doctor import router as doctor_router
 from app.Websocket.chat import router as websocket_router
+from app.routers.home_visit import router as home_visit_router
 from app.database import engine, Base
 # Ensure doctor_profile model is loaded for create_all
 import app.models.doctor_profile  # noqa: F401
@@ -19,6 +20,7 @@ async def lifespan(app: FastAPI):
     """Jalankan startup tasks: buat semua tabel jika belum ada."""
     async with engine.begin() as conn:
         await conn.run_sync(Base.metadata.create_all)
+        print("Database tables initialized successfully")
     yield
 
 
@@ -46,8 +48,9 @@ app.include_router(patient_router)
 app.include_router(dashboard_router)
 app.include_router(chat_router)
 app.include_router(chat_history_router)
-app.include_router(home_visit_router)
 app.include_router(websocket_router)
+app.include_router(home_visit_router)  
+
 app.include_router(emergency.router)
 app.include_router(doctor_router)
 
