@@ -8,14 +8,18 @@ Uses Haversine formula for distance calculation.
 
 import math
 import uuid
-from datetime import datetime
+from datetime import UTC, datetime
 from typing import Optional
+import httpx
 from fastapi import APIRouter, HTTPException, Query, Depends
 from sqlalchemy.ext.asyncio import AsyncSession
 from sqlalchemy.future import select
 
 from app.database import get_db
+from app.dependencies import get_current_user
 from app.models.ambulance import AmbulanceService
+from app.models.emergency_request import EmergencyRequestRecord
+from app.models.user import User
 from app.schemas.emergency import (
     AmbulanceServiceResponse,
     NearbyAmbulancesResponse,
@@ -28,6 +32,8 @@ router = APIRouter(prefix="/emergencies", tags=["Emergency"])
 # ─── Constants ────────────────────────────────────────────────────
 DEFAULT_RADIUS_KM = 50.0
 MAX_RADIUS_KM = 200.0
+NOMINATIM_REVERSE_URL = "https://nominatim.openstreetmap.org/reverse"
+NOMINATIM_USER_AGENT = "Medicall/1.0"
 # Average ambulance speed (km/h) for ETA estimation
 AVG_AMBULANCE_SPEED_KMH = 40
 
@@ -68,6 +74,32 @@ def format_eta(minutes: int) -> str:
     if remaining == 0:
         return f"{hours} jam"
     return f"{hours} jam {remaining} menit"
+
+
+async def reverse_geocode_address(lat: float, lng: float) -> Optional[str]:
+    """Resolve GPS coordinates to a readable address using OpenStreetMap Nominatim."""
+    try:
+        async with httpx.AsyncClient(timeout=5.0) as client:
+            response = await client.get(
+                NOMINATIM_REVERSE_URL,
+                params={
+                    "format": "jsonv2",
+                    "lat": lat,
+                    "lon": lng,
+                    "addressdetails": 1,
+                    "accept-language": "id",
+                },
+                headers={"User-Agent": NOMINATIM_USER_AGENT},
+            )
+        response.raise_for_status()
+        data = response.json()
+    except Exception:
+        return None
+
+    display_name = data.get("display_name") if isinstance(data, dict) else None
+    if isinstance(display_name, str) and display_name.strip():
+        return display_name
+    return None
 
 
 def ambulance_to_response(amb: AmbulanceService, user_lat: float, user_lng: float) -> AmbulanceServiceResponse:
@@ -122,10 +154,12 @@ async def get_nearby_ambulances(
     # Sort by distance
     responses.sort(key=lambda x: x.distance_km)
 
+    user_address = await reverse_geocode_address(lat, lng)
+
     return NearbyAmbulancesResponse(
         user_lat=lat,
         user_lng=lng,
-        address=None,
+        address=user_address,
         ambulances=responses,
         total=len(responses),
         search_radius_km=radius_km,
@@ -135,6 +169,7 @@ async def get_nearby_ambulances(
 @router.post("/", response_model=EmergencyRequestResponse)
 async def request_emergency(
     data: EmergencyRequest,
+    current_user: User = Depends(get_current_user),
     db: AsyncSession = Depends(get_db),
 ):
     """
@@ -163,16 +198,69 @@ async def request_emergency(
     if nearest:
         nearest_response = ambulance_to_response(nearest, data.location.lat, data.location.lng)
 
+    status = "on_progress"
+    message = (
+        f"Ambulans terdekat ditemukan: {nearest_response.name} ({nearest_response.distance_text}). ETA: {nearest_response.eta_text}."
+        if nearest_response
+        else "Sedang mencari ambulans terdekat di area Anda..."
+    )
+    request_record = EmergencyRequestRecord(
+        id=uuid.uuid4(),
+        patient_id=current_user.id,
+        lat=data.location.lat,
+        lng=data.location.lng,
+        request_type=data.type or "general",
+        notes=data.notes,
+        status=status,
+        message=message,
+        ambulance_service_id=nearest.id if nearest else None,
+        ambulance_name=nearest.name if nearest else None,
+    )
+    db.add(request_record)
+    await db.commit()
+
     return EmergencyRequestResponse(
-        id=str(uuid.uuid4()),
-        status="dispatched" if nearest else "searching",
-        message=(
-            f"Ambulans terdekat ditemukan: {nearest_response.name} ({nearest_response.distance_text}). ETA: {nearest_response.eta_text}."
-            if nearest_response
-            else "Sedang mencari ambulans terdekat di area Anda..."
-        ),
-        created_at=datetime.utcnow(),
+        id=str(request_record.id),
+        status=status,
+        message=message,
+        created_at=request_record.created_at or datetime.now(UTC),
         ambulance_assigned=nearest_response,
+    )
+
+
+@router.post("/{emergency_id}/complete", response_model=EmergencyRequestResponse)
+async def complete_emergency_request(
+    emergency_id: str,
+    current_user: User = Depends(get_current_user),
+    db: AsyncSession = Depends(get_db),
+):
+    """Mark the current patient's emergency request as completed."""
+    try:
+        request_uuid = uuid.UUID(emergency_id)
+    except ValueError:
+        raise HTTPException(status_code=400, detail="Invalid emergency request ID format")
+
+    result = await db.execute(
+        select(EmergencyRequestRecord).where(
+            EmergencyRequestRecord.id == request_uuid,
+            EmergencyRequestRecord.patient_id == current_user.id,
+        )
+    )
+    request_record = result.scalar_one_or_none()
+
+    if not request_record:
+        raise HTTPException(status_code=404, detail="Permintaan darurat tidak ditemukan")
+
+    request_record.status = "completed"
+    request_record.message = "Permintaan darurat telah selesai."
+    await db.commit()
+
+    return EmergencyRequestResponse(
+        id=str(request_record.id),
+        status=request_record.status,
+        message=request_record.message,
+        created_at=request_record.created_at or datetime.now(UTC),
+        ambulance_assigned=None,
     )
 
 

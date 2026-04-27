@@ -9,6 +9,7 @@ from app.dependencies import get_current_user
 from app.models.user import User
 from app.models.consultation import Consultation
 from app.models.home_visit import HomeVisit
+from app.models.emergency_request import EmergencyRequestRecord
 from app.schemas.dashboard import DashboardResponse, DashboardStats, ActivityItem, UpcomingAppointment, HistoryItem
 
 router = APIRouter(prefix="/patient/dashboard", tags=["Patient Dashboard"])
@@ -30,11 +31,16 @@ async def get_dashboard_summary(
     )
     total_home_visits = result_home_visits.scalar() or 0
 
-    # Untuk demo, kita mock emergency dan prescriptions karena belum ada modelnya
+    result_emergencies = await db.execute(
+        select(func.count(EmergencyRequestRecord.id)).where(EmergencyRequestRecord.patient_id == current_user.id)
+    )
+    total_emergencies = result_emergencies.scalar() or 0
+
+    # Untuk demo, prescriptions masih mock karena belum ada modelnya
     stats = DashboardStats(
         totalConsultations=total_consultations,
         homeVisitBookings=total_home_visits,
-        emergencyRequests=0,
+        emergencyRequests=total_emergencies,
         activePrescriptions=0
     )
 
@@ -77,7 +83,7 @@ async def get_dashboard_summary(
 
     # 4. Cari appointment mendatang terdekat
     # Cari yang scheduled_time > sekarang
-    now = datetime.datetime.utcnow()
+    now = datetime.datetime.now(datetime.UTC).replace(tzinfo=None)
     upcoming_appointment = None
     
     upcoming_cons = await db.execute(

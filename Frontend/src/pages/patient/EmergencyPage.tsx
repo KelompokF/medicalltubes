@@ -1,8 +1,19 @@
 import { useState, useEffect, useCallback } from "react";
-import { Phone, MapPin, Clock, AlertTriangle, Shield, Heart, Thermometer, Loader2, Navigation, RefreshCw, Search } from "lucide-react";
+import { useQueryClient } from "@tanstack/react-query";
+import { Phone, MapPin, Clock, AlertTriangle, Shield, Heart, Thermometer, Loader2, Navigation, RefreshCw, Search, CheckCircle2 } from "lucide-react";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
+import {
+  AlertDialog,
+  AlertDialogAction,
+  AlertDialogCancel,
+  AlertDialogContent,
+  AlertDialogDescription,
+  AlertDialogFooter,
+  AlertDialogHeader,
+  AlertDialogTitle,
+} from "@/components/ui/alert-dialog";
 import { toast } from "sonner";
 import { emergencyService } from "@/services/api";
 
@@ -27,13 +38,25 @@ interface UserLocation {
   address?: string;
 }
 
+interface PatientDashboardCache {
+  stats?: {
+    emergencyRequests?: number;
+    [key: string]: unknown;
+  };
+  [key: string]: unknown;
+}
+
 export default function EmergencyPage() {
+  const queryClient = useQueryClient();
   const [ambulances, setAmbulances] = useState<AmbulanceService[]>([]);
   const [location, setLocation] = useState<UserLocation | null>(null);
   const [locationError, setLocationError] = useState<string | null>(null);
   const [isLoadingLocation, setIsLoadingLocation] = useState(true);
   const [isLoadingAmbulances, setIsLoadingAmbulances] = useState(false);
   const [isSending, setIsSending] = useState(false);
+  const [isConfirmOpen, setIsConfirmOpen] = useState(false);
+  const [isCompleteConfirmOpen, setIsCompleteConfirmOpen] = useState(false);
+  const [isCompleting, setIsCompleting] = useState(false);
   const [emergencyStatus, setEmergencyStatus] = useState<{
     id: string;
     status: string;
@@ -41,6 +64,22 @@ export default function EmergencyPage() {
     ambulance?: AmbulanceService;
   } | null>(null);
   const [radiusKm, setRadiusKm] = useState(50);
+  const isActiveEmergency = emergencyStatus?.status === "on_progress";
+
+  const getEmergencyStatusLabel = (status: string) => {
+    if (status === "completed") return "Completed";
+    if (status === "on_progress" || status === "dispatched" || status === "searching") {
+      return "On Progress";
+    }
+    return status;
+  };
+
+  const getEmergencyStatusBadgeClass = (status: string) => {
+    if (status === "completed") {
+      return "bg-success/10 text-success border-success/20";
+    }
+    return "bg-warning/10 text-warning border-warning/20";
+  };
 
   // Get user's GPS location
   const getLocation = useCallback(() => {
@@ -102,7 +141,7 @@ export default function EmergencyPage() {
       if (data.ambulances?.length === 0) {
         toast.info("Tidak ada layanan ambulans ditemukan di area ini. Coba perbesar radius pencarian.");
       }
-    } catch (error: any) {
+    } catch (error: unknown) {
       console.error("Error fetching ambulances:", error);
       toast.error("Gagal memuat data ambulans. Silakan coba lagi.");
     } finally {
@@ -110,8 +149,37 @@ export default function EmergencyPage() {
     }
   };
 
-  // Send emergency SOS request
-  const handleSOS = async () => {
+  const incrementDashboardEmergencyCount = () => {
+    queryClient.setQueryData<PatientDashboardCache>(["patientDashboard"], (currentData) => {
+      if (!currentData?.stats) return currentData;
+
+      return {
+        ...currentData,
+        stats: {
+          ...currentData.stats,
+          emergencyRequests: Number(currentData.stats.emergencyRequests || 0) + 1,
+        },
+      };
+    });
+    queryClient.invalidateQueries({ queryKey: ["patientDashboard"] });
+  };
+
+  const handleSOSClick = () => {
+    if (isActiveEmergency) {
+      toast.info("Selesaikan permintaan ambulans aktif terlebih dahulu sebelum membuat request baru.");
+      return;
+    }
+
+    if (!location) {
+      toast.error("Lokasi belum tersedia. Silakan izinkan akses lokasi.");
+      return;
+    }
+
+    setIsConfirmOpen(true);
+  };
+
+  // Send emergency SOS request after location confirmation
+  const handleConfirmSOS = async () => {
     if (!location) {
       toast.error("Lokasi belum tersedia. Silakan izinkan akses lokasi.");
       return;
@@ -130,12 +198,42 @@ export default function EmergencyPage() {
         message: data.message,
         ambulance: data.ambulance_assigned,
       });
+      incrementDashboardEmergencyCount();
+      setIsConfirmOpen(false);
       toast.success("Permintaan darurat terkirim! Bantuan sedang dalam perjalanan.");
-    } catch (error: any) {
+    } catch (error: unknown) {
       console.error("SOS Error:", error);
       toast.error("Gagal mengirim permintaan darurat. Silakan coba lagi.");
     } finally {
       setIsSending(false);
+    }
+  };
+
+  const handleCompleteEmergency = async () => {
+    if (!emergencyStatus) return;
+
+    setIsCompleting(true);
+    try {
+      const response = await emergencyService.completeEmergency(emergencyStatus.id);
+      const data = response.data;
+      setEmergencyStatus((prev) =>
+        prev
+          ? {
+              ...prev,
+              id: data.id,
+              status: data.status,
+              message: data.message,
+              ambulance: data.ambulance_assigned || prev.ambulance,
+            }
+          : null
+      );
+      setIsCompleteConfirmOpen(false);
+      toast.success("Permintaan darurat ditandai selesai.");
+    } catch (error: unknown) {
+      console.error("Complete emergency error:", error);
+      toast.error("Gagal menyelesaikan permintaan darurat. Silakan coba lagi.");
+    } finally {
+      setIsCompleting(false);
     }
   };
 
@@ -150,7 +248,7 @@ export default function EmergencyPage() {
       // Otherwise use the backend call endpoint
       await emergencyService.callAmbulance(ambulance.id);
       toast.success(`Menghubungi ${ambulance.name}...`);
-    } catch (error: any) {
+    } catch (error: unknown) {
       console.error("Call error:", error);
       toast.error("Gagal menghubungi ambulans.");
     }
@@ -177,13 +275,13 @@ export default function EmergencyPage() {
       </div>
 
       {/* Emergency SOS Button */}
-      <div className="flex justify-center">
+      <div className="flex flex-col items-center gap-3">
         <button
-          onClick={handleSOS}
-          disabled={isSending || !location}
+          onClick={handleSOSClick}
+          disabled={isSending || !location || isActiveEmergency}
           className="group relative h-40 w-40 rounded-full bg-emergency hover:bg-emergency/90 transition-all duration-300 flex flex-col items-center justify-center shadow-elevated hover:scale-105 disabled:opacity-50 disabled:cursor-not-allowed"
         >
-          {!isSending && (
+          {!isSending && !isActiveEmergency && (
             <div className="absolute inset-0 rounded-full bg-emergency/30 animate-ping" />
           )}
           {isSending ? (
@@ -195,7 +293,82 @@ export default function EmergencyPage() {
             {isSending ? "Mengirim..." : "SOS"}
           </span>
         </button>
+        {isActiveEmergency && (
+          <p className="max-w-md text-center text-sm text-muted-foreground">
+            Saat ini Anda sedang memesan layanan ambulans aktif, silakan selesaikan terlebih dahulu sebelum memesan lagi.
+          </p>
+        )}
       </div>
+
+      <AlertDialog open={isConfirmOpen} onOpenChange={(open) => !isSending && setIsConfirmOpen(open)}>
+        <AlertDialogContent>
+          <AlertDialogHeader>
+            <AlertDialogTitle>Konfirmasi Lokasi Darurat</AlertDialogTitle>
+            <AlertDialogDescription>
+              Pastikan lokasi Anda saat ini sudah benar sebelum mengirim panggilan SOS.
+            </AlertDialogDescription>
+          </AlertDialogHeader>
+          <div className="flex items-start gap-3 rounded-lg border bg-muted/40 p-4">
+            <MapPin className="h-5 w-5 shrink-0 text-emergency mt-0.5" />
+            <div className="min-w-0">
+              <p className="text-sm font-medium text-foreground">Lokasi yang akan dikirim</p>
+              <p className="text-sm text-muted-foreground break-words">
+                {location?.address || `${location?.lat.toFixed(6)}, ${location?.lng.toFixed(6)}`}
+              </p>
+            </div>
+          </div>
+          <AlertDialogFooter>
+            <AlertDialogCancel disabled={isSending}>Batal</AlertDialogCancel>
+            <AlertDialogAction
+              disabled={isSending}
+              className="bg-emergency text-emergency-foreground hover:bg-emergency/90"
+              onClick={(event) => {
+                event.preventDefault();
+                handleConfirmSOS();
+              }}
+            >
+              {isSending ? (
+                <>
+                  <Loader2 className="h-4 w-4 mr-2 animate-spin" />
+                  Mengirim...
+                </>
+              ) : (
+                "Lokasi Benar, Kirim SOS"
+              )}
+            </AlertDialogAction>
+          </AlertDialogFooter>
+        </AlertDialogContent>
+      </AlertDialog>
+
+      <AlertDialog open={isCompleteConfirmOpen} onOpenChange={(open) => !isCompleting && setIsCompleteConfirmOpen(open)}>
+        <AlertDialogContent>
+          <AlertDialogHeader>
+            <AlertDialogTitle>Konfirmasi Layanan Selesai</AlertDialogTitle>
+            <AlertDialogDescription>
+              Apakah layanan ambulans untuk permintaan darurat ini sudah selesai?
+            </AlertDialogDescription>
+          </AlertDialogHeader>
+          <AlertDialogFooter>
+            <AlertDialogCancel disabled={isCompleting}>Batal</AlertDialogCancel>
+            <AlertDialogAction
+              disabled={isCompleting}
+              onClick={(event) => {
+                event.preventDefault();
+                handleCompleteEmergency();
+              }}
+            >
+              {isCompleting ? (
+                <>
+                  <Loader2 className="h-4 w-4 mr-2 animate-spin" />
+                  Menyelesaikan...
+                </>
+              ) : (
+                "Ya, Layanan Selesai"
+              )}
+            </AlertDialogAction>
+          </AlertDialogFooter>
+        </AlertDialogContent>
+      </AlertDialog>
 
       {/* Current Location */}
       <Card className="shadow-card">
@@ -411,13 +584,9 @@ export default function EmergencyPage() {
               <div className="flex items-center gap-2">
                 <Badge
                   variant="default"
-                  className={
-                    emergencyStatus.status === "dispatched"
-                      ? "bg-success/10 text-success border-success/20"
-                      : "bg-warning/10 text-warning border-warning/20"
-                  }
+                  className={getEmergencyStatusBadgeClass(emergencyStatus.status)}
                 >
-                  {emergencyStatus.status === "dispatched" ? "Dikirim" : "Mencari"}
+                  {getEmergencyStatusLabel(emergencyStatus.status)}
                 </Badge>
                 <span className="text-sm text-muted-foreground">ID: {emergencyStatus.id.slice(0, 8)}...</span>
               </div>
@@ -427,6 +596,17 @@ export default function EmergencyPage() {
                   <p className="font-medium">{emergencyStatus.ambulance.name}</p>
                   <p className="text-muted-foreground">{emergencyStatus.ambulance.distance_text} • ETA: {emergencyStatus.ambulance.eta_text}</p>
                 </div>
+              )}
+              {isActiveEmergency && (
+                <Button
+                  size="sm"
+                  variant="outline"
+                  className="gap-2"
+                  onClick={() => setIsCompleteConfirmOpen(true)}
+                >
+                  <CheckCircle2 className="h-4 w-4" />
+                  Tandai Selesai
+                </Button>
               )}
             </div>
           ) : (
