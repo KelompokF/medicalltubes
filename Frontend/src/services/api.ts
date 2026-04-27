@@ -53,6 +53,9 @@ export const authService = {
     api.post("/auth/forgot-password", { email }),
   resetPassword: (data: { token: string; password: string }) =>
     api.post("/auth/reset-password", data),
+  getLocationSetting: () => api.get("/auth/location-setting"),
+  updateLocationSetting: (data: { is_location_enabled: boolean }) =>
+    api.put("/auth/location-setting", data),
 };
 
 // ============================================

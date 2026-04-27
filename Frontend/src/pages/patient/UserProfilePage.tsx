@@ -1,7 +1,7 @@
 import { useState } from "react";
-import { User, Shield, Trash2, Camera } from "lucide-react";
+import { User, Shield, Trash2, Camera, MapPin } from "lucide-react";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
-import { patientService } from "@/services/api";
+import { patientService, authService } from "@/services/api";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -9,6 +9,7 @@ import { Label } from "@/components/ui/label";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { Textarea } from "@/components/ui/textarea";
 import ConfirmModal from "@/components/ConfirmModal";
+import { Switch } from "@/components/ui/switch";
 import { toast } from "sonner";
 
 export default function UserProfilePage() {
@@ -18,10 +19,24 @@ export default function UserProfilePage() {
   const { data } = useQuery({ queryKey: ["patientProfile"], queryFn: () => patientService.getProfile().then((r) => r.data) });
 
   const mutation = useMutation({
-    mutationFn: (payload: any) => patientService.updateProfile(payload).then((r) => r.data),
+    mutationFn: (payload: Record<string, unknown>) => patientService.updateProfile(payload).then((r) => r.data),
     onSuccess: (data) => {
       queryClient.setQueryData(["patientProfile"], data);
     }
+  });
+
+  const { data: locationData } = useQuery({ 
+    queryKey: ["locationSetting"], 
+    queryFn: () => authService.getLocationSetting().then((r) => r.data) 
+  });
+
+  const locationMutation = useMutation({
+    mutationFn: (payload: { is_location_enabled: boolean }) => authService.updateLocationSetting(payload).then((r) => r.data),
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ["locationSetting"] });
+      toast.success("Pengaturan lokasi berhasil disimpan!");
+    },
+    onError: () => toast.error("Gagal menyimpan pengaturan lokasi.")
   });
 
   const [form, setForm] = useState({
@@ -99,6 +114,24 @@ export default function UserProfilePage() {
                 </div>
               </div>
               <div><Label>Allergies (optional)</Label><Textarea value={form.allergies} onChange={(e) => setForm({ ...form, allergies: e.target.value })} className="mt-1" /></div>
+            </CardContent>
+          </Card>
+
+          {/* Privacy & Location */}
+          <Card className="shadow-card">
+            <CardHeader><CardTitle className="flex items-center gap-2"><MapPin className="h-5 w-5 text-primary" />Privacy & Location</CardTitle></CardHeader>
+            <CardContent className="space-y-4">
+              <div className="flex items-center justify-between">
+                <div className="space-y-0.5">
+                  <Label className="text-base">Bagikan Lokasi Secara Otomatis</Label>
+                  <p className="text-sm text-muted-foreground">Izinkan aplikasi mengirim lokasi terkinimu secara otomatis saat darurat.</p>
+                </div>
+                <Switch 
+                  checked={locationData?.is_location_enabled || false}
+                  onCheckedChange={(checked) => locationMutation.mutate({ is_location_enabled: checked })}
+                  disabled={locationMutation.isPending}
+                />
+              </div>
             </CardContent>
           </Card>
         </div>
