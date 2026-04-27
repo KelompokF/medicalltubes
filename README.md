@@ -39,6 +39,7 @@ pip install -r requirements.txt
 ### 5. Jalankan server
 ```bash
 uvicorn app.main:app --reload
+
 ```
 
 ### 7. Buka dokumentasi API
