@@ -26,7 +26,15 @@ import DoctorDashboard from "@/pages/doctor/DoctorDashboard";
 import AmbulanceDashboard from "@/pages/ambulance/AmbulanceDashboard";
 import NotFound from "@/pages/NotFound";
 
-const queryClient = new QueryClient();
+const queryClient = new QueryClient({
+  defaultOptions: {
+    queries: {
+      retry: false,
+      refetchOnWindowFocus: false,
+      staleTime: 5 * 60 * 1000, // 5 minutes
+    },
+  },
+});
 
 const ComingSoon = ({ title }: { title: string }) => (
   <div className="flex flex-col items-center justify-center py-20 text-center animate-fade-in">
