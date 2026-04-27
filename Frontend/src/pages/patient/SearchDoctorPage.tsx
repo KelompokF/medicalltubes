@@ -12,7 +12,7 @@ export default function SearchDoctorPage() {
   const [specialization, setSpecialization] = useState("All");
   const [location, setLocation] = useState("All");
   const [visibleCount, setVisibleCount] = useState(4);
-  
+
   const doctors: any[] = [];
   const specializations: string[] = [];
   const locations: string[] = [];
