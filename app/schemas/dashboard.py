@@ -22,7 +22,18 @@ class UpcomingAppointment(BaseModel):
     time: str
     type: str
 
+class HistoryItem(BaseModel):
+    id: str
+    doctor: str
+    specialization: str
+    date: str
+    time: str
+    status: str
+    type: str
+
 class DashboardResponse(BaseModel):
     stats: DashboardStats
     recentActivities: List[ActivityItem]
+    consultationHistory: List[HistoryItem] = []
+    bookingHistory: List[HistoryItem] = []
     upcomingAppointment: Optional[UpcomingAppointment] = None
