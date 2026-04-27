@@ -23,10 +23,19 @@ import EmergencyPage from "@/pages/patient/EmergencyPage";
 import UserProfilePage from "@/pages/patient/UserProfilePage";
 import AdminDashboard from "@/pages/admin/AdminDashboard";
 import DoctorDashboard from "@/pages/doctor/DoctorDashboard";
+import DoctorConsultationPage from "@/pages/doctor/DoctorConsultationPage";
 import AmbulanceDashboard from "@/pages/ambulance/AmbulanceDashboard";
 import NotFound from "@/pages/NotFound";
 
-const queryClient = new QueryClient();
+const queryClient = new QueryClient({
+  defaultOptions: {
+    queries: {
+      retry: false,
+      refetchOnWindowFocus: false,
+      staleTime: 5 * 60 * 1000, // 5 minutes
+    },
+  },
+});
 
 const ComingSoon = ({ title }: { title: string }) => (
   <div className="flex flex-col items-center justify-center py-20 text-center animate-fade-in">
@@ -76,7 +85,7 @@ const App = () => (
           <Route element={<DoctorLayout />}>
             <Route path="/doctor-dashboard" element={<DoctorDashboard />} />
             <Route path="/doctor-dashboard/patients" element={<ComingSoon title="My Patients" />} />
-            <Route path="/doctor-dashboard/consultations" element={<ComingSoon title="Consultations" />} />
+            <Route path="/doctor-dashboard/consultations" element={<DoctorConsultationPage />} />
             <Route path="/doctor-dashboard/home-visits" element={<ComingSoon title="Home Visits" />} />
             <Route path="/doctor-dashboard/schedule" element={<ComingSoon title="Schedule Management" />} />
             <Route path="/doctor-dashboard/prescriptions" element={<ComingSoon title="Prescriptions" />} />

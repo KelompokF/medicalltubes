@@ -1,52 +1,170 @@
 import { useEffect, useRef, useState } from "react";
-import { Send, Paperclip, Smile, Search } from "lucide-react";
+import { useSearchParams, Link } from "react-router-dom";
+import { Send, ArrowLeft, Loader2, MessageCircle } from "lucide-react";
 import { Input } from "@/components/ui/input";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
+import api from "@/services/api";
+
+interface ChatMessage {
+  id: string | number;
+  sender: "user" | "doctor";
+  message: string;
+  timestamp: string;
+}
+
+interface Conversation {
+  doctorId: string;
+  doctorName: string;
+}
 
 export default function ConsultationChatPage() {
-  const chatConversations: any[] = [];
-  const chatMessages: any[] = [];
-  
-  const [activeChat, setActiveChat] = useState<number>(0);
-  const [message, setMessage] = useState("");
-  const [messages, setMessages] = useState<any[]>(chatMessages);
-  const [showSidebar, setShowSidebar] = useState(false);
-  const wsRef = useRef<WebSocket | null>(null);
+  const [searchParams] = useSearchParams();
+  const doctorIdFromUrl = searchParams.get("doctor_id");
+  const doctorNameFromUrl = searchParams.get("doctor_name");
 
-  // get current user id from localStorage (set at login)
-  const user = typeof window !== "undefined" ? JSON.parse(localStorage.getItem("user") || "null") : null;
+  // Current user info
+  const user =
+    typeof window !== "undefined"
+      ? JSON.parse(localStorage.getItem("user") || "null")
+      : null;
   const userId = user?.id || user?.sub || null;
 
+  // State
+  const [conversations, setConversations] = useState<Conversation[]>([]);
+  const [activeConversation, setActiveConversation] =
+    useState<Conversation | null>(null);
+  const [messages, setMessages] = useState<ChatMessage[]>([]);
+  const [message, setMessage] = useState("");
+  const [showSidebar, setShowSidebar] = useState(false);
+  const [isLoadingHistory, setIsLoadingHistory] = useState(false);
+  const [isConnected, setIsConnected] = useState(false);
+
+  const wsRef = useRef<WebSocket | null>(null);
+  const messagesEndRef = useRef<HTMLDivElement>(null);
+
+  // Scroll to bottom when messages change
+  useEffect(() => {
+    messagesEndRef.current?.scrollIntoView({ behavior: "smooth" });
+  }, [messages]);
+
+  // Load conversation list (unique partners from messages)
+  useEffect(() => {
+    const loadConversations = async () => {
+      if (!userId) return;
+      try {
+        // Fetch all conversations for this user from chat history
+        const response = await api.get("/chat/history");
+        const data = response.data;
+        if (Array.isArray(data)) {
+          const convs: Conversation[] = data.map((c: any) => ({
+            doctorId: c.partner_id,
+            doctorName: c.partner_name || `User ${c.partner_id.slice(0, 8)}`,
+          }));
+          setConversations(convs);
+        }
+      } catch {
+        // Fallback: start with empty or URL-based conversation
+      }
+
+      // If coming from search page with doctor_id, set as active
+      if (doctorIdFromUrl) {
+        const conv: Conversation = {
+          doctorId: doctorIdFromUrl,
+          doctorName: doctorNameFromUrl || "Dokter",
+        };
+        setActiveConversation(conv);
+        // Add to conversations if not already there
+        setConversations((prev) => {
+          const exists = prev.find((c) => c.doctorId === doctorIdFromUrl);
+          if (!exists) return [conv, ...prev];
+          return prev;
+        });
+      }
+    };
+    loadConversations();
+  }, [userId, doctorIdFromUrl, doctorNameFromUrl]);
+
+  // Load message history when active conversation changes
+  useEffect(() => {
+    const loadMessages = async () => {
+      if (!userId || !activeConversation) return;
+      setIsLoadingHistory(true);
+      try {
+        const response = await api.get(
+          `/chat/messages/${userId}/${activeConversation.doctorId}`
+        );
+        const data = response.data;
+        if (Array.isArray(data)) {
+          const msgs: ChatMessage[] = data.map((m: any, idx: number) => ({
+            id: m.id || idx,
+            sender: m.sender_id === userId ? "user" : "doctor",
+            message: m.content,
+            timestamp: new Date(m.created_at).toLocaleTimeString("id-ID", {
+              hour: "2-digit",
+              minute: "2-digit",
+            }),
+          }));
+          setMessages(msgs);
+        }
+      } catch {
+        setMessages([]);
+      } finally {
+        setIsLoadingHistory(false);
+      }
+    };
+    loadMessages();
+  }, [userId, activeConversation]);
+
+  // WebSocket connection
   useEffect(() => {
     if (!userId) return;
 
-    const wsUrl = `${location.protocol === "https:" ? "wss" : "ws"}://${location.hostname}:8000/ws/chat/${userId}`;
+    const port = window.location.hostname === "localhost" ? "8001" : window.location.port;
+    const wsUrl = `${location.protocol === "https:" ? "wss" : "ws"}://${window.location.hostname}:${port}/ws/chat/${userId}`;
     const ws = new WebSocket(wsUrl);
     wsRef.current = ws;
 
     ws.onopen = () => {
       console.log("WebSocket connected", wsUrl);
+      setIsConnected(true);
     };
 
     ws.onmessage = (event) => {
       try {
         const data = JSON.parse(event.data);
-        // data expected: { sender_id, receiver_id, content, created_at }
         const isSenderUser = data.sender_id === userId;
-        const newMsg = {
-          id: messages.length + 1,
-          sender: isSenderUser ? "user" : "doctor",
-          message: data.content,
-          timestamp: data.created_at || new Date().toLocaleTimeString(),
-        };
-        setMessages((prev) => [...prev, newMsg]);
+        // Only add if for current conversation
+        if (
+          activeConversation &&
+          (data.sender_id === activeConversation.doctorId ||
+            data.receiver_id === activeConversation.doctorId)
+        ) {
+          const newMsg: ChatMessage = {
+            id: Date.now(),
+            sender: isSenderUser ? "user" : "doctor",
+            message: data.content,
+            timestamp: data.created_at
+              ? new Date(data.created_at).toLocaleTimeString("id-ID", {
+                  hour: "2-digit",
+                  minute: "2-digit",
+                })
+              : new Date().toLocaleTimeString("id-ID", {
+                  hour: "2-digit",
+                  minute: "2-digit",
+                }),
+          };
+          setMessages((prev) => [...prev, newMsg]);
+        }
       } catch (e) {
         console.error("Invalid WS message", e);
       }
     };
 
-    ws.onclose = () => console.log("WebSocket closed");
+    ws.onclose = () => {
+      console.log("WebSocket closed");
+      setIsConnected(false);
+    };
     ws.onerror = (e) => console.error("WebSocket error", e);
 
     return () => {
@@ -54,57 +172,115 @@ export default function ConsultationChatPage() {
       wsRef.current = null;
     };
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [userId]);
+  }, [userId, activeConversation?.doctorId]);
 
   const handleSend = () => {
-    if (!message.trim()) return;
-    const active = chatConversations[activeChat];
-    const receiverId = active?.id || "";
+    if (!message.trim() || !activeConversation) return;
 
-    // Optimistic UI add
-    const localMsg = { id: messages.length + 1, sender: "user", message, timestamp: new Date().toLocaleTimeString() };
-    setMessages((prev) => [...prev, localMsg]);
+    // Optimistic UI
+    const localMsg: ChatMessage = {
+      id: Date.now(),
+      sender: "user",
+      message: message,
+      timestamp: new Date().toLocaleTimeString("id-ID", {
+        hour: "2-digit",
+        minute: "2-digit",
+      }),
+    };
 
-    // send via websocket if connected
+    // Send via WebSocket
     if (wsRef.current && wsRef.current.readyState === WebSocket.OPEN) {
-      wsRef.current.send(JSON.stringify({ receiver_id: receiverId, content: message }));
+      wsRef.current.send(
+        JSON.stringify({
+          receiver_id: activeConversation.doctorId,
+          content: message,
+        })
+      );
+      // Don't add optimistic message since WS echo will add it
     } else {
+      // Fallback: add optimistic and warn
+      setMessages((prev) => [...prev, localMsg]);
       console.warn("WebSocket not connected, message not sent to server");
     }
 
     setMessage("");
   };
 
-  const active = chatConversations[activeChat] || null;
+  const selectConversation = (conv: Conversation) => {
+    setActiveConversation(conv);
+    setShowSidebar(false);
+  };
+
+  // No user logged in
+  if (!userId) {
+    return (
+      <div className="flex flex-col items-center justify-center py-20 animate-fade-in">
+        <MessageCircle className="h-8 w-8 text-muted-foreground mb-3" />
+        <p className="text-muted-foreground mb-4">
+          Silakan login untuk menggunakan fitur konsultasi.
+        </p>
+        <Button asChild>
+          <Link to="/login">Login</Link>
+        </Button>
+      </div>
+    );
+  }
 
   return (
     <div className="animate-fade-in h-[calc(100vh-200px)] flex rounded-xl border overflow-hidden bg-card">
       {/* Sidebar */}
-      <div className={`${showSidebar ? "block" : "hidden"} md:block w-full md:w-80 border-r flex-shrink-0`}>
+      <div
+        className={`${
+          showSidebar ? "block" : "hidden"
+        } md:block w-full md:w-80 border-r flex-shrink-0`}
+      >
         <div className="p-4 border-b">
-          <div className="relative">
-            <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
-            <Input placeholder="Search conversations..." className="pl-10" />
-          </div>
+          <h2 className="font-semibold text-sm text-foreground mb-2">
+            Konsultasi
+          </h2>
+          <Button size="sm" variant="outline" className="w-full" asChild>
+            <Link to="/search-doctor">
+              <MessageCircle className="h-3.5 w-3.5 mr-1" />
+              Cari Dokter Baru
+            </Link>
+          </Button>
         </div>
-        <div className="overflow-y-auto h-[calc(100%-65px)]">
-          {chatConversations.map((conv, i) => (
+        <div className="overflow-y-auto h-[calc(100%-90px)]">
+          {conversations.length === 0 && (
+            <div className="p-6 text-center text-sm text-muted-foreground">
+              <MessageCircle className="h-6 w-6 mx-auto mb-2 text-muted-foreground/50" />
+              <p>Belum ada percakapan.</p>
+              <p className="mt-1">
+                Cari dokter untuk memulai konsultasi.
+              </p>
+            </div>
+          )}
+          {conversations.map((conv) => (
             <button
-              key={conv.id}
-              onClick={() => { setActiveChat(i); setShowSidebar(false); }}
-              className={`w-full flex items-center gap-3 p-4 hover:bg-muted/50 transition-colors ${i === activeChat ? "bg-primary/5 border-r-2 border-primary" : ""}`}
+              key={conv.doctorId}
+              onClick={() => selectConversation(conv)}
+              className={`w-full flex items-center gap-3 p-4 hover:bg-muted/50 transition-colors ${
+                activeConversation?.doctorId === conv.doctorId
+                  ? "bg-primary/5 border-r-2 border-primary"
+                  : ""
+              }`}
             >
               <div className="h-10 w-10 rounded-full medical-gradient flex items-center justify-center text-primary-foreground text-sm font-bold shrink-0">
-                {conv.doctorName.split(" ").slice(1).map((n) => n[0]).join("")}
+                {conv.doctorName
+                  .split(" ")
+                  .filter(
+                    (n) =>
+                      n.length > 1 && !n.includes(".") && !n.includes(",")
+                  )
+                  .map((n) => n[0])
+                  .join("")
+                  .slice(0, 2)}
               </div>
               <div className="flex-1 min-w-0 text-left">
-                <div className="flex items-center justify-between">
-                  <span className="font-medium text-sm text-foreground">{conv.doctorName}</span>
-                  <span className="text-xs text-muted-foreground">{conv.timestamp}</span>
-                </div>
-                <p className="text-xs text-muted-foreground truncate">{conv.lastMessage}</p>
+                <span className="font-medium text-sm text-foreground block truncate">
+                  {conv.doctorName}
+                </span>
               </div>
-              {conv.unread > 0 && <Badge className="bg-primary text-primary-foreground h-5 w-5 flex items-center justify-center rounded-full p-0 text-[10px]">{conv.unread}</Badge>}
             </button>
           ))}
         </div>
@@ -114,43 +290,139 @@ export default function ConsultationChatPage() {
       <div className="flex-1 flex flex-col min-w-0">
         {/* Top bar */}
         <div className="flex items-center gap-3 px-4 py-3 border-b">
-          <button className="md:hidden text-muted-foreground" onClick={() => setShowSidebar(!showSidebar)}>☰</button>
-          <div className="h-9 w-9 rounded-full medical-gradient flex items-center justify-center text-primary-foreground text-sm font-bold">{active?.doctorName ? active.doctorName.split(" ").map((n:string)=>n[0]).slice(0,2).join("") : "U"}</div>
-          <div>
-            <p className="font-semibold text-sm text-foreground">{active?.doctorName || "No conversation selected"}</p>
-            <p className="text-xs text-muted-foreground">{active ? "Online" : ""}</p>
-          </div>
+          <button
+            className="md:hidden text-muted-foreground"
+            onClick={() => setShowSidebar(!showSidebar)}
+          >
+            ☰
+          </button>
+          {activeConversation ? (
+            <>
+              <div className="h-9 w-9 rounded-full medical-gradient flex items-center justify-center text-primary-foreground text-sm font-bold">
+                {activeConversation.doctorName
+                  .split(" ")
+                  .filter(
+                    (n) =>
+                      n.length > 1 && !n.includes(".") && !n.includes(",")
+                  )
+                  .map((n) => n[0])
+                  .join("")
+                  .slice(0, 2)}
+              </div>
+              <div>
+                <p className="font-semibold text-sm text-foreground">
+                  {activeConversation.doctorName}
+                </p>
+                <p className="text-xs text-muted-foreground flex items-center gap-1">
+                  <span
+                    className={`h-1.5 w-1.5 rounded-full ${
+                      isConnected ? "bg-success" : "bg-muted-foreground"
+                    }`}
+                  />
+                  {isConnected ? "Connected" : "Disconnected"}
+                </p>
+              </div>
+            </>
+          ) : (
+            <p className="font-semibold text-sm text-muted-foreground">
+              Pilih percakapan atau cari dokter
+            </p>
+          )}
         </div>
 
         {/* Messages */}
         <div className="flex-1 overflow-y-auto p-4 space-y-3">
+          {!activeConversation && (
+            <div className="flex flex-col items-center justify-center h-full text-center">
+              <MessageCircle className="h-12 w-12 text-muted-foreground/30 mb-3" />
+              <p className="text-muted-foreground text-sm">
+                Pilih dokter dari daftar di samping atau{" "}
+                <Link
+                  to="/search-doctor"
+                  className="text-primary hover:underline"
+                >
+                  cari dokter baru
+                </Link>
+              </p>
+            </div>
+          )}
+
+          {activeConversation && isLoadingHistory && (
+            <div className="flex items-center justify-center py-8">
+              <Loader2 className="h-5 w-5 text-primary animate-spin mr-2" />
+              <span className="text-sm text-muted-foreground">
+                Memuat pesan...
+              </span>
+            </div>
+          )}
+
+          {activeConversation && !isLoadingHistory && messages.length === 0 && (
+            <div className="flex flex-col items-center justify-center h-full text-center">
+              <MessageCircle className="h-10 w-10 text-muted-foreground/30 mb-3" />
+              <p className="text-muted-foreground text-sm">
+                Belum ada pesan. Kirim pesan untuk memulai konsultasi.
+              </p>
+            </div>
+          )}
+
           {messages.map((msg) => (
-            <div key={msg.id} className={`flex ${msg.sender === "user" ? "justify-end" : "justify-start"}`}>
-              <div className={`max-w-[75%] px-4 py-2.5 rounded-2xl text-sm ${
-                msg.sender === "user"
-                  ? "medical-gradient text-primary-foreground rounded-br-md"
-                  : "bg-muted text-foreground rounded-bl-md"
-              }`}>
+            <div
+              key={msg.id}
+              className={`flex ${
+                msg.sender === "user" ? "justify-end" : "justify-start"
+              }`}
+            >
+              <div
+                className={`max-w-[75%] px-4 py-2.5 rounded-2xl text-sm ${
+                  msg.sender === "user"
+                    ? "medical-gradient text-primary-foreground rounded-br-md"
+                    : "bg-muted text-foreground rounded-bl-md"
+                }`}
+              >
                 <p>{msg.message}</p>
-                <p className={`text-[10px] mt-1 ${msg.sender === "user" ? "text-primary-foreground/60" : "text-muted-foreground"}`}>{msg.timestamp}</p>
+                <p
+                  className={`text-[10px] mt-1 ${
+                    msg.sender === "user"
+                      ? "text-primary-foreground/60"
+                      : "text-muted-foreground"
+                  }`}
+                >
+                  {msg.timestamp}
+                </p>
               </div>
             </div>
           ))}
-          <div className="flex items-center gap-2 text-muted-foreground">
-            <div className="flex gap-1"><div className="h-1.5 w-1.5 rounded-full bg-muted-foreground animate-bounce" /><div className="h-1.5 w-1.5 rounded-full bg-muted-foreground animate-bounce [animation-delay:0.1s]" /><div className="h-1.5 w-1.5 rounded-full bg-muted-foreground animate-bounce [animation-delay:0.2s]" /></div>
-            <span className="text-xs">Dr. Johnson is typing...</span>
-          </div>
+          <div ref={messagesEndRef} />
         </div>
 
         {/* Input */}
-        <div className="p-4 border-t">
-          <div className="flex items-center gap-2">
-            <Button variant="ghost" size="icon" className="shrink-0 text-muted-foreground"><Paperclip className="h-4 w-4" /></Button>
-            <Button variant="ghost" size="icon" className="shrink-0 text-muted-foreground"><Smile className="h-4 w-4" /></Button>
-            <Input placeholder="Type a message..." value={message} onChange={(e) => setMessage(e.target.value)} onKeyDown={(e) => e.key === "Enter" && handleSend()} className="flex-1" />
-            <Button size="icon" onClick={handleSend} className="medical-gradient text-primary-foreground shrink-0"><Send className="h-4 w-4" /></Button>
+        {activeConversation && (
+          <div className="p-4 border-t">
+            <div className="flex items-center gap-2">
+              <Input
+                placeholder="Ketik pesan..."
+                value={message}
+                onChange={(e) => setMessage(e.target.value)}
+                onKeyDown={(e) => e.key === "Enter" && handleSend()}
+                className="flex-1"
+                disabled={!isConnected}
+              />
+              <Button
+                size="icon"
+                onClick={handleSend}
+                disabled={!message.trim() || !isConnected}
+                className="medical-gradient text-primary-foreground shrink-0"
+              >
+                <Send className="h-4 w-4" />
+              </Button>
+            </div>
+            {!isConnected && (
+              <p className="text-xs text-destructive mt-1">
+                Koneksi terputus. Mencoba menghubungkan ulang...
+              </p>
+            )}
           </div>
-        </div>
+        )}
       </div>
     </div>
   );

@@ -1,35 +1,36 @@
 from fastapi import APIRouter, Depends, HTTPException, status
 from sqlalchemy.ext.asyncio import AsyncSession
-from sqlalchemy.future import select
-from typing import List
+from sqlalchemy import select
+from typing import List, Optional
+from datetime import datetime
 from uuid import UUID
 
 from app.database import get_db
 from app.dependencies import get_current_user
 from app.models.user import User
-from app.models.home_visit import HomeVisitRequest
-from app.schemas.home_visit import HomeVisitRequestCreate, HomeVisitRequestResponse
-from typing import Optional
-
-router = APIRouter(prefix="/home-visit", tags=["Home Visit"])
-
-
-@router.post(
-    "/",
-    response_model=HomeVisitRequestResponse,
-    status_code=status.HTTP_201_CREATED,
+from app.models.home_visit import HomeVisit, HomeVisitRequest, HomeVisitStatus
+from app.schemas.home_visit import (
+    HomeVisitCreate,
+    HomeVisitResponse,
+    HomeVisitTrackingResponse,
+    HomeVisitRequestCreate,
+    HomeVisitRequestResponse,
 )
+
+router = APIRouter(prefix="/home-visits", tags=["Home Visits"])
+
+
+# ========================
+# CREATE REQUEST (PUNYA KAMU)
+# ========================
+@router.post("/request", response_model=HomeVisitRequestResponse)
 async def create_home_visit_request(
     payload: HomeVisitRequestCreate,
     current_user: Optional[User] = Depends(get_current_user),
     db: AsyncSession = Depends(get_db),
 ):
-    """
-    Buat permintaan kunjungan rumah baru. 
-    Jika tidak login (preview mode), user_id diset ke None.
-    """
     user_id = current_user.id if current_user else None
-    
+
     new_request = HomeVisitRequest(
         user_id=user_id,
         doctor_id=payload.doctor_id,
@@ -47,66 +48,87 @@ async def create_home_visit_request(
     return new_request
 
 
-@router.get(
-    "/",
-    response_model=List[HomeVisitRequestResponse],
-)
-async def get_my_home_visit_requests(
-    skip: int = 0,
-    limit: int = 100,
-    current_user: Optional[User] = Depends(get_current_user),
+# ========================
+# CREATE BOOKING (FITUR BARU)
+# ========================
+@router.post("/", response_model=HomeVisitResponse)
+async def create_home_visit(
+    data: HomeVisitCreate,
+    current_user: User = Depends(get_current_user),
     db: AsyncSession = Depends(get_db),
 ):
-    """
-    Ambil daftar permintaan kunjungan rumah.
-    Jika tidak login, ambil data yang user_id-nya None (preview data).
-    """
-    # Ambil daftar permintaan dengan join ke User (dokter) untuk mendapatkan nama dokter
-    result = await db.execute(
-        select(HomeVisitRequest, User.full_name.label("doctor_name"))
-        .outerjoin(User, HomeVisitRequest.doctor_id == User.id)
-        .where(HomeVisitRequest.user_id == user_id)
-        .order_by(HomeVisitRequest.created_at.desc())
-        .offset(skip)
-        .limit(limit)
+    visit = HomeVisit(
+        patient_id=current_user.id,
+        doctor_id=data.doctor_id,
+        doctor_name=data.doctor_name,
+        specialization=data.specialization,
+        date=data.date,
+        time=data.time,
+        address=data.address,
+        notes=data.notes,
+        status=HomeVisitStatus.pending,
     )
-    
-    rows = result.all()
-    requests_data = []
-    for row in rows:
-        req = row[0]
-        # Kita bisa menambahkan attribute secara dinamis ke object SQLAlchemy 
-        # karena schema Pydantic akan mengambilnya
-        req.doctor_name = row[1]
-        requests_data.append(req)
-        
-    return requests_data
+
+    db.add(visit)
+    await db.commit()
+    await db.refresh(visit)
+    return visit
 
 
-@router.get(
-    "/{request_id}",
-    response_model=HomeVisitRequestResponse,
-)
-async def get_home_visit_request_detail(
-    request_id: UUID,
-    current_user: Optional[User] = Depends(get_current_user),
+# ========================
+# GET LIST
+# ========================
+@router.get("/", response_model=List[HomeVisitResponse])
+async def get_home_visits(
+    current_user: User = Depends(get_current_user),
     db: AsyncSession = Depends(get_db),
 ):
-    """
-    Ambil detail satu permintaan kunjungan rumah.
-    """
-    user_id = current_user.id if current_user else None
     result = await db.execute(
-        select(HomeVisitRequest)
-        .where(HomeVisitRequest.id == request_id)
-        .where(HomeVisitRequest.user_id == user_id)
+        select(HomeVisit)
+        .where(HomeVisit.patient_id == current_user.id)
+        .order_by(HomeVisit.created_at.desc())
     )
-    visit_request = result.scalar_one_or_none()
+    return result.scalars().all()
 
-    if not visit_request:
-        raise HTTPException(
-            status_code=status.HTTP_404_NOT_FOUND,
-            detail="Permintaan kunjungan rumah tidak ditemukan",
+
+# ========================
+# TRACKING
+# ========================
+@router.get("/{visit_id}/track", response_model=HomeVisitTrackingResponse)
+async def track_home_visit(
+    visit_id: str,
+    current_user: User = Depends(get_current_user),
+    db: AsyncSession = Depends(get_db),
+):
+    result = await db.execute(
+        select(HomeVisit).where(
+            HomeVisit.id == visit_id,
+            HomeVisit.patient_id == current_user.id,
         )
+    )
+    visit = result.scalar_one_or_none()
 
-    return visit_request
+    if not visit:
+        raise HTTPException(status_code=404, detail="Not found")
+
+    status_order = ["pending", "confirmed", "on_the_way", "arrived", "completed"]
+    current_idx = status_order.index(visit.status.value)
+
+    steps = []
+    for i, s in enumerate(status_order):
+        steps.append({
+            "key": s,
+            "status": "done" if i < current_idx else "current" if i == current_idx else "upcoming"
+        })
+
+    return {
+        "id": visit.id,
+        "doctor_name": visit.doctor_name,
+        "specialization": visit.specialization,
+        "date": visit.date,
+        "time": visit.time,
+        "address": visit.address,
+        "notes": visit.notes,
+        "status": visit.status.value,
+        "steps": steps,
+    }

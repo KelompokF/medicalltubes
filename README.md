@@ -39,9 +39,19 @@ pip install -r requirements.txt
 ### 5. Jalankan server
 ```bash
 uvicorn app.main:app --reload
+
 ```
 
 ### 7. Buka dokumentasi API
 ```
 http://127.0.0.1:8000/docs
+```
+
+### 8. jalanin frontend
+ ```
+cd frontend
+
+npm install
+
+npm run dev
 ```
