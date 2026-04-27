@@ -1,24 +1,46 @@
-from pydantic import BaseModel, ConfigDict
-from typing import Optional
+from pydantic import BaseModel, Field
+from typing import Optional, List
 from datetime import datetime
-from uuid import UUID
 
-class EmergencyBase(BaseModel):
-    latitude: float
-    longitude: float
-    type: Optional[str] = None
 
-class EmergencyCreate(EmergencyBase):
-    pass
+class LocationInput(BaseModel):
+    lat: float = Field(..., description="Latitude", ge=-90, le=90)
+    lng: float = Field(..., description="Longitude", ge=-180, le=180)
 
-class EmergencyResponse(EmergencyBase):
-    id: UUID
-    user_id: UUID
+
+class AmbulanceServiceResponse(BaseModel):
+    id: str
+    name: str
+    address: str
+    lat: float
+    lng: float
+    distance_km: float = Field(..., description="Distance in kilometers")
+    distance_text: str = Field(..., description="Human-readable distance")
+    eta_minutes: int = Field(..., description="Estimated time of arrival in minutes")
+    eta_text: str = Field(..., description="Human-readable ETA")
+    phone: Optional[str] = None
+    status: str = "available"
+    source: str = "openstreetmap"
+
+
+class NearbyAmbulancesResponse(BaseModel):
+    user_lat: float
+    user_lng: float
+    address: Optional[str] = None
+    ambulances: List[AmbulanceServiceResponse]
+    total: int
+    search_radius_km: float
+
+
+class EmergencyRequest(BaseModel):
+    location: LocationInput
+    type: Optional[str] = "general"
+    notes: Optional[str] = None
+
+
+class EmergencyRequestResponse(BaseModel):
+    id: str
     status: str
+    message: str
     created_at: datetime
-    updated_at: datetime
-
-    model_config = ConfigDict(from_attributes=True)
-
-class EmergencyStatusUpdate(BaseModel):
-    status: str  # pending, on_route, arrived, completed
+    ambulance_assigned: Optional[AmbulanceServiceResponse] = None

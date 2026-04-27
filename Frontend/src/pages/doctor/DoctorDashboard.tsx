@@ -4,9 +4,17 @@ import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
 import StatCard from "@/components/StatCard";
-import { doctorDashboardStats, patientRequests, doctorSchedule } from "@/data/mockData";
 
 export default function DoctorDashboard() {
+  const doctorDashboardStats = {
+    patientsToday: 0,
+    pendingConsultations: 0,
+    upcomingHomeVisits: 0,
+    newNotifications: 0,
+  };
+  const patientRequests: any[] = [];
+  const doctorSchedule: any[] = [];
+  
   return (
     <div className="space-y-6 animate-fade-in">
       <h1 className="text-2xl font-bold text-foreground">Doctor Dashboard</h1>
@@ -56,15 +64,19 @@ export default function DoctorDashboard() {
         <Card className="shadow-card">
           <CardHeader><CardTitle className="flex items-center gap-2"><Calendar className="h-5 w-5 text-primary" />Today's Schedule</CardTitle></CardHeader>
           <CardContent className="space-y-4">
-            {doctorSchedule[0].slots.map((slot, i) => (
-              <div key={i} className="flex items-center justify-between p-3 rounded-lg bg-muted/50">
-                <div className="flex items-center gap-3">
-                  <Clock className="h-4 w-4 text-primary" />
-                  <span className="text-sm font-medium text-foreground">{slot}</span>
+            {doctorSchedule && doctorSchedule.length > 0 ? (
+              doctorSchedule[0].slots.map((slot, i) => (
+                <div key={i} className="flex items-center justify-between p-3 rounded-lg bg-muted/50">
+                  <div className="flex items-center gap-3">
+                    <Clock className="h-4 w-4 text-primary" />
+                    <span className="text-sm font-medium text-foreground">{slot}</span>
+                  </div>
+                  <Badge variant="outline" className="text-xs">{i < 2 ? "Booked" : "Free"}</Badge>
                 </div>
-                <Badge variant="outline" className="text-xs">{i < 2 ? "Booked" : "Free"}</Badge>
-              </div>
-            ))}
+              ))
+            ) : (
+              <p className="text-sm text-muted-foreground">No schedule available for today.</p>
+            )}
           </CardContent>
         </Card>
       </div>

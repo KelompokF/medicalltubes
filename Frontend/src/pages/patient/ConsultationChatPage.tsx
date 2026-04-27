@@ -1,23 +1,81 @@
-import { useState } from "react";
+import { useEffect, useRef, useState } from "react";
 import { Send, Paperclip, Smile, Search } from "lucide-react";
 import { Input } from "@/components/ui/input";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
-import { chatConversations, chatMessages } from "@/data/mockData";
 
 export default function ConsultationChatPage() {
-  const [activeChat, setActiveChat] = useState(0);
+  const chatConversations: any[] = [];
+  const chatMessages: any[] = [];
+  
+  const [activeChat, setActiveChat] = useState<number>(0);
   const [message, setMessage] = useState("");
-  const [messages, setMessages] = useState(chatMessages);
+  const [messages, setMessages] = useState<any[]>(chatMessages);
   const [showSidebar, setShowSidebar] = useState(false);
+  const wsRef = useRef<WebSocket | null>(null);
+
+  // get current user id from localStorage (set at login)
+  const user = typeof window !== "undefined" ? JSON.parse(localStorage.getItem("user") || "null") : null;
+  const userId = user?.id || user?.sub || null;
+
+  useEffect(() => {
+    if (!userId) return;
+
+    const wsUrl = `${location.protocol === "https:" ? "wss" : "ws"}://${location.hostname}:8000/ws/chat/${userId}`;
+    const ws = new WebSocket(wsUrl);
+    wsRef.current = ws;
+
+    ws.onopen = () => {
+      console.log("WebSocket connected", wsUrl);
+    };
+
+    ws.onmessage = (event) => {
+      try {
+        const data = JSON.parse(event.data);
+        // data expected: { sender_id, receiver_id, content, created_at }
+        const isSenderUser = data.sender_id === userId;
+        const newMsg = {
+          id: messages.length + 1,
+          sender: isSenderUser ? "user" : "doctor",
+          message: data.content,
+          timestamp: data.created_at || new Date().toLocaleTimeString(),
+        };
+        setMessages((prev) => [...prev, newMsg]);
+      } catch (e) {
+        console.error("Invalid WS message", e);
+      }
+    };
+
+    ws.onclose = () => console.log("WebSocket closed");
+    ws.onerror = (e) => console.error("WebSocket error", e);
+
+    return () => {
+      ws.close();
+      wsRef.current = null;
+    };
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [userId]);
 
   const handleSend = () => {
     if (!message.trim()) return;
-    setMessages([...messages, { id: messages.length + 1, sender: "user", message, timestamp: "Now" }]);
+    const active = chatConversations[activeChat];
+    const receiverId = active?.id || "";
+
+    // Optimistic UI add
+    const localMsg = { id: messages.length + 1, sender: "user", message, timestamp: new Date().toLocaleTimeString() };
+    setMessages((prev) => [...prev, localMsg]);
+
+    // send via websocket if connected
+    if (wsRef.current && wsRef.current.readyState === WebSocket.OPEN) {
+      wsRef.current.send(JSON.stringify({ receiver_id: receiverId, content: message }));
+    } else {
+      console.warn("WebSocket not connected, message not sent to server");
+    }
+
     setMessage("");
   };
 
-  const active = chatConversations[activeChat];
+  const active = chatConversations[activeChat] || null;
 
   return (
     <div className="animate-fade-in h-[calc(100vh-200px)] flex rounded-xl border overflow-hidden bg-card">
@@ -57,10 +115,10 @@ export default function ConsultationChatPage() {
         {/* Top bar */}
         <div className="flex items-center gap-3 px-4 py-3 border-b">
           <button className="md:hidden text-muted-foreground" onClick={() => setShowSidebar(!showSidebar)}>☰</button>
-          <div className="h-9 w-9 rounded-full medical-gradient flex items-center justify-center text-primary-foreground text-sm font-bold">SJ</div>
+          <div className="h-9 w-9 rounded-full medical-gradient flex items-center justify-center text-primary-foreground text-sm font-bold">{active?.doctorName ? active.doctorName.split(" ").map((n:string)=>n[0]).slice(0,2).join("") : "U"}</div>
           <div>
-            <p className="font-semibold text-sm text-foreground">{active.doctorName}</p>
-            <p className="text-xs text-success">Online</p>
+            <p className="font-semibold text-sm text-foreground">{active?.doctorName || "No conversation selected"}</p>
+            <p className="text-xs text-muted-foreground">{active ? "Online" : ""}</p>
           </div>
         </div>
 

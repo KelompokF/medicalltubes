@@ -1,83 +1,205 @@
-from fastapi import APIRouter, Depends, HTTPException, status
+"""
+Emergency & Ambulance Service Router
+-------------------------------------
+Queries the ambulance_services table in the database to find
+nearby ambulance services based on the user's GPS coordinates.
+Uses Haversine formula for distance calculation.
+"""
+
+import math
+import uuid
+from datetime import datetime
+from typing import Optional
+from fastapi import APIRouter, HTTPException, Query, Depends
 from sqlalchemy.ext.asyncio import AsyncSession
 from sqlalchemy.future import select
-from typing import List
-from uuid import UUID
-from app.dependencies import get_db
-from app.dependencies import get_current_user
-from app.models.user import User
-from app.models.emergency import Emergency
-from app.schemas.emergency import EmergencyCreate, EmergencyResponse, EmergencyStatusUpdate
 
-router = APIRouter(prefix="/emergencies", tags=["Emergencies"])
+from app.database import get_db
+from app.models.ambulance import AmbulanceService
+from app.schemas.emergency import (
+    AmbulanceServiceResponse,
+    NearbyAmbulancesResponse,
+    EmergencyRequest,
+    EmergencyRequestResponse,
+)
 
-@router.post("/", response_model=EmergencyResponse, status_code=status.HTTP_201_CREATED)
-async def request_emergency(
-    emergency_in: EmergencyCreate,
-    current_user: User = Depends(get_current_user),
-    db: AsyncSession = Depends(get_db)
-):
-    """
-    Request emergency assistance with automatic location.
-    """
-    new_emergency = Emergency(
-        user_id=current_user.id,
-        latitude=emergency_in.latitude,
-        longitude=emergency_in.longitude,
-        type=emergency_in.type,
+router = APIRouter(prefix="/emergencies", tags=["Emergency"])
+
+# ─── Constants ────────────────────────────────────────────────────
+DEFAULT_RADIUS_KM = 50.0
+MAX_RADIUS_KM = 200.0
+# Average ambulance speed (km/h) for ETA estimation
+AVG_AMBULANCE_SPEED_KMH = 40
+
+
+# ─── Helpers ──────────────────────────────────────────────────────
+def haversine(lat1: float, lon1: float, lat2: float, lon2: float) -> float:
+    """Calculate distance in km between two points using the Haversine formula."""
+    R = 6371.0  # Earth radius in km
+    phi1 = math.radians(lat1)
+    phi2 = math.radians(lat2)
+    d_phi = math.radians(lat2 - lat1)
+    d_lambda = math.radians(lon2 - lon1)
+
+    a = math.sin(d_phi / 2) ** 2 + math.cos(phi1) * math.cos(phi2) * math.sin(d_lambda / 2) ** 2
+    c = 2 * math.atan2(math.sqrt(a), math.sqrt(1 - a))
+    return R * c
+
+
+def format_distance(km: float) -> str:
+    """Return human-readable distance string."""
+    if km < 1:
+        return f"{int(km * 1000)} m"
+    return f"{km:.1f} km"
+
+
+def estimate_eta_minutes(distance_km: float) -> int:
+    """Estimate ETA in minutes based on distance."""
+    minutes = (distance_km / AVG_AMBULANCE_SPEED_KMH) * 60
+    return max(1, round(minutes))
+
+
+def format_eta(minutes: int) -> str:
+    """Return human-readable ETA."""
+    if minutes < 60:
+        return f"{minutes} menit"
+    hours = minutes // 60
+    remaining = minutes % 60
+    if remaining == 0:
+        return f"{hours} jam"
+    return f"{hours} jam {remaining} menit"
+
+
+def ambulance_to_response(amb: AmbulanceService, user_lat: float, user_lng: float) -> AmbulanceServiceResponse:
+    """Convert a database AmbulanceService model to an API response."""
+    dist_km = haversine(user_lat, user_lng, amb.lat, amb.lng)
+    eta_min = estimate_eta_minutes(dist_km)
+
+    return AmbulanceServiceResponse(
+        id=str(amb.id),
+        name=amb.name,
+        address=amb.address or "Alamat tidak tersedia",
+        lat=amb.lat,
+        lng=amb.lng,
+        distance_km=round(dist_km, 2),
+        distance_text=format_distance(dist_km),
+        eta_minutes=eta_min,
+        eta_text=format_eta(eta_min),
+        phone=amb.phone,
+        status=amb.status or "available",
+        source=f"database:{amb.vehicle_type or 'standard'}",
     )
-    db.add(new_emergency)
-    await db.commit()
-    await db.refresh(new_emergency)
-    return new_emergency
 
-@router.get("/", response_model=List[EmergencyResponse])
-async def get_emergencies(
-    skip: int = 0,
-    limit: int = 100,
-    current_user: User = Depends(get_current_user),
-    db: AsyncSession = Depends(get_db)
+
+# ─── Endpoints ────────────────────────────────────────────────────
+
+@router.get("/ambulances", response_model=NearbyAmbulancesResponse)
+async def get_nearby_ambulances(
+    lat: float = Query(..., ge=-90, le=90, description="User latitude"),
+    lng: float = Query(..., ge=-180, le=180, description="User longitude"),
+    radius_km: float = Query(DEFAULT_RADIUS_KM, ge=1, le=MAX_RADIUS_KM, description="Search radius in km"),
+    db: AsyncSession = Depends(get_db),
 ):
     """
-    Get user's emergency requests.
+    Find nearby ambulance services based on the user's GPS coordinates.
+    Queries the database and filters by distance using Haversine formula.
     """
+    # Get all active ambulances from DB
     result = await db.execute(
-        select(Emergency).where(Emergency.user_id == current_user.id).offset(skip).limit(limit)
+        select(AmbulanceService).where(
+            AmbulanceService.is_active == True
+        )
     )
-    emergencies = result.scalars().all()
-    return emergencies
+    all_ambulances = result.scalars().all()
 
-@router.get("/{emergency_id}", response_model=EmergencyResponse)
-async def get_emergency(
-    emergency_id: UUID,
-    current_user: User = Depends(get_current_user),
-    db: AsyncSession = Depends(get_db)
+    # Calculate distance for each and filter by radius
+    responses = []
+    for amb in all_ambulances:
+        dist_km = haversine(lat, lng, amb.lat, amb.lng)
+        if dist_km <= radius_km:
+            responses.append(ambulance_to_response(amb, lat, lng))
+
+    # Sort by distance
+    responses.sort(key=lambda x: x.distance_km)
+
+    return NearbyAmbulancesResponse(
+        user_lat=lat,
+        user_lng=lng,
+        address=None,
+        ambulances=responses,
+        total=len(responses),
+        search_radius_km=radius_km,
+    )
+
+
+@router.post("/", response_model=EmergencyRequestResponse)
+async def request_emergency(
+    data: EmergencyRequest,
+    db: AsyncSession = Depends(get_db),
 ):
     """
-    Get specific emergency request.
+    Create an emergency request. Finds the nearest available ambulance
+    and assigns it to the request.
     """
-    result = await db.execute(select(Emergency).where(Emergency.id == emergency_id))
-    emergency = result.scalar_one_or_none()
-    if not emergency or emergency.user_id != current_user.id:
-        raise HTTPException(status_code=404, detail="Emergency request not found")
-    return emergency
+    # Get all active & available ambulances
+    result = await db.execute(
+        select(AmbulanceService).where(
+            AmbulanceService.is_active == True,
+            AmbulanceService.status == "available",
+        )
+    )
+    all_ambulances = result.scalars().all()
 
-@router.patch("/{emergency_id}/status", response_model=EmergencyResponse)
-async def update_emergency_status(
-    emergency_id: UUID,
-    status_update: EmergencyStatusUpdate,
-    current_user: User = Depends(get_current_user),
-    db: AsyncSession = Depends(get_db)
-):
+    # Find nearest
+    nearest = None
+    nearest_dist = float("inf")
+    for amb in all_ambulances:
+        dist = haversine(data.location.lat, data.location.lng, amb.lat, amb.lng)
+        if dist < nearest_dist:
+            nearest_dist = dist
+            nearest = amb
+
+    nearest_response = None
+    if nearest:
+        nearest_response = ambulance_to_response(nearest, data.location.lat, data.location.lng)
+
+    return EmergencyRequestResponse(
+        id=str(uuid.uuid4()),
+        status="dispatched" if nearest else "searching",
+        message=(
+            f"Ambulans terdekat ditemukan: {nearest_response.name} ({nearest_response.distance_text}). ETA: {nearest_response.eta_text}."
+            if nearest_response
+            else "Sedang mencari ambulans terdekat di area Anda..."
+        ),
+        created_at=datetime.utcnow(),
+        ambulance_assigned=nearest_response,
+    )
+
+
+@router.post("/ambulances/{ambulance_id}/call")
+async def call_ambulance(ambulance_id: str, db: AsyncSession = Depends(get_db)):
     """
-    Update emergency status (for ambulance/admin).
+    Simulate calling a specific ambulance service.
+    Returns the ambulance's phone number if available.
     """
-    result = await db.execute(select(Emergency).where(Emergency.id == emergency_id))
-    emergency = result.scalar_one_or_none()
-    if not emergency:
-        raise HTTPException(status_code=404, detail="Emergency request not found")
-    
-    emergency.status = status_update.status
-    await db.commit()
-    await db.refresh(emergency)
-    return emergency
+    try:
+        amb_uuid = uuid.UUID(ambulance_id)
+    except ValueError:
+        raise HTTPException(status_code=400, detail="Invalid ambulance ID format")
+
+    result = await db.execute(
+        select(AmbulanceService).where(AmbulanceService.id == amb_uuid)
+    )
+    ambulance = result.scalar_one_or_none()
+
+    if not ambulance:
+        raise HTTPException(status_code=404, detail="Ambulans tidak ditemukan")
+
+    return {
+        "success": True,
+        "ambulance_id": str(ambulance.id),
+        "ambulance_name": ambulance.name,
+        "phone": ambulance.phone,
+        "message": f"Panggilan darurat telah dikirim ke {ambulance.name}. Mereka akan segera menghubungi Anda.",
+        "timestamp": datetime.utcnow().isoformat(),
+    }

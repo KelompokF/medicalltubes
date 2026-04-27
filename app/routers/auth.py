@@ -2,26 +2,25 @@ from fastapi import APIRouter, Depends, HTTPException, status, Header
 from sqlalchemy.ext.asyncio import AsyncSession
 from sqlalchemy.orm import Session
 from sqlalchemy.future import select
-from app.database import AsyncSessionLocal
+from uuid import UUID as PyUUID
+
+from app.database import get_db
 from app.models.user import User
 from app.schemas.user import UserRegister, UserLogin, UserResponse, Token, LocationSettingUpdate, DeleteAccountResponse
-from app.core.security import hash_password, verify_password, create_access_token
-from app.core.security import decode_access_token
-from uuid import UUID as PyUUID
+from app.core.security import hash_password, verify_password, create_access_token, decode_access_token
 
 router = APIRouter(prefix="/auth", tags=["Auth"])
 
-async def get_db():
-    async with AsyncSessionLocal() as session:
-        yield session
 
-@router.post("/register", response_model=UserResponse)
+
+@router.post("/register", response_model=UserResponse, status_code=status.HTTP_201_CREATED)
 async def register(data: UserRegister, db: AsyncSession = Depends(get_db)):
+    """Daftarkan user baru."""
     result = await db.execute(select(User).where(User.email == data.email))
     existing = result.scalar_one_or_none()
     if existing:
         raise HTTPException(status_code=400, detail="Email sudah terdaftar")
-    
+
     user = User(
         full_name=data.full_name,
         email=data.email,
@@ -32,19 +31,29 @@ async def register(data: UserRegister, db: AsyncSession = Depends(get_db)):
     await db.refresh(user)
     return user
 
+
 @router.post("/login", response_model=Token)
 async def login(data: UserLogin, db: AsyncSession = Depends(get_db)):
+    """Login dan dapatkan JWT access token."""
+    import logging
+    logger = logging.getLogger(__name__)
     result = await db.execute(select(User).where(User.email == data.email))
     user = result.scalar_one_or_none()
-    if not user or not verify_password(data.password, user.hashed_password):
+    if not user:
+        logger.warning(f"LOGIN DEBUG: No user found for email={data.email}")
         raise HTTPException(status_code=401, detail="Email atau password salah")
-    
-    token = create_access_token({"sub": str(user.id)})
+    logger.warning(f"LOGIN DEBUG: User found: email={user.email}, role={user.role}, hash_prefix={user.hashed_password[:20] if user.hashed_password else 'NONE'}")
+    if not verify_password(data.password, user.hashed_password):
+        logger.warning(f"LOGIN DEBUG: Password verification FAILED for email={data.email}")
+        raise HTTPException(status_code=401, detail="Email atau password salah")
+
+    token = create_access_token({"sub": str(user.id), "role": getattr(user, 'role', 'patient')})
     return {"access_token": token, "token_type": "bearer"}
 
 
 @router.get("/me", response_model=UserResponse)
 async def me(authorization: str = Header(None), db: AsyncSession = Depends(get_db)):
+    """Dapatkan informasi user yang sedang login."""
     if not authorization:
         raise HTTPException(status_code=status.HTTP_401_UNAUTHORIZED, detail="Missing authorization header")
 

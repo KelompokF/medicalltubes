@@ -1,5 +1,7 @@
 import { useState } from "react";
 import { User, Shield, Trash2, Camera } from "lucide-react";
+import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
+import { patientService } from "@/services/api";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -11,6 +13,37 @@ import { toast } from "sonner";
 
 export default function UserProfilePage() {
   const [showDelete, setShowDelete] = useState(false);
+  const queryClient = useQueryClient();
+
+  const { data } = useQuery({ queryKey: ["patientProfile"], queryFn: () => patientService.getProfile().then((r) => r.data) });
+
+  const mutation = useMutation({
+    mutationFn: (payload: any) => patientService.updateProfile(payload).then((r) => r.data),
+    onSuccess: (data) => {
+      queryClient.setQueryData(["patientProfile"], data);
+    }
+  });
+
+  const [form, setForm] = useState({
+    full_name: data?.full_name || "",
+    place_of_birth: data?.place_of_birth || "",
+    date_of_birth: data?.date_of_birth || "",
+    blood_type: data?.blood_type || "",
+    allergies: data?.allergies || "",
+    email: data?.email || "",
+  });
+
+  // keep form in sync when data loads
+  if (data && form.full_name === "") {
+    setForm({
+      full_name: data.full_name || "",
+      place_of_birth: data.place_of_birth || "",
+      date_of_birth: data.date_of_birth || "",
+      blood_type: data.blood_type || "",
+      allergies: data.allergies || "",
+      email: data.email || "",
+    });
+  }
 
   return (
     <div className="space-y-6 animate-fade-in">
@@ -24,21 +57,30 @@ export default function UserProfilePage() {
             <CardContent className="space-y-4">
               <div className="flex items-center gap-4 mb-4">
                 <div className="relative">
-                  <div className="h-20 w-20 rounded-full medical-gradient flex items-center justify-center text-primary-foreground font-bold text-2xl">JD</div>
-                  <button className="absolute -bottom-1 -right-1 h-7 w-7 rounded-full bg-primary text-primary-foreground flex items-center justify-center">
-                    <Camera className="h-3.5 w-3.5" />
-                  </button>
+                  <div className="h-20 w-20 rounded-full medical-gradient flex items-center justify-center text-primary-foreground font-bold text-2xl">{(form.full_name || "").split(" ").map(p => p[0]).slice(0,2).join("") || "JD"}</div>
                 </div>
                 <div>
-                  <p className="font-semibold text-foreground">John Doe</p>
-                  <p className="text-sm text-muted-foreground">john.doe@email.com</p>
+                  <p className="font-semibold text-foreground">{form.full_name || "John Doe"}</p>
+                  <p className="text-sm text-muted-foreground">{form.email || "email@example.com"}</p>
                 </div>
               </div>
               <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
-                <div><Label>Full Name</Label><Input defaultValue="John Doe" className="mt-1" /></div>
-                <div><Label>Email</Label><Input defaultValue="john.doe@email.com" className="mt-1" /></div>
-                <div><Label>Phone</Label><Input defaultValue="+1 (555) 123-4567" className="mt-1" /></div>
-                <div><Label>Date of Birth</Label><Input type="date" defaultValue="1990-05-15" className="mt-1" /></div>
+                <div>
+                  <Label>Full Name</Label>
+                  <Input value={form.full_name} onChange={(e) => setForm({ ...form, full_name: e.target.value })} className="mt-1" />
+                </div>
+                <div>
+                  <Label>Email</Label>
+                  <Input value={form.email} disabled className="mt-1" />
+                </div>
+                <div>
+                  <Label>Place of Birth</Label>
+                  <Input value={form.place_of_birth} onChange={(e) => setForm({ ...form, place_of_birth: e.target.value })} className="mt-1" />
+                </div>
+                <div>
+                  <Label>Date of Birth</Label>
+                  <Input type="date" value={form.date_of_birth || ""} onChange={(e) => setForm({ ...form, date_of_birth: e.target.value })} className="mt-1" />
+                </div>
               </div>
             </CardContent>
           </Card>
@@ -48,17 +90,15 @@ export default function UserProfilePage() {
             <CardHeader><CardTitle>Medical Information</CardTitle></CardHeader>
             <CardContent className="space-y-4">
               <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
-                <div><Label>Age</Label><Input defaultValue="35" type="number" className="mt-1" /></div>
                 <div>
                   <Label>Blood Type</Label>
-                  <Select defaultValue="O+">
-                    <SelectTrigger className="mt-1"><SelectValue /></SelectTrigger>
+                  <Select value={form.blood_type} onValueChange={(v) => setForm({ ...form, blood_type: v })}>
+                    <SelectTrigger className="mt-1"><SelectValue>{form.blood_type}</SelectValue></SelectTrigger>
                     <SelectContent>{["A+", "A-", "B+", "B-", "AB+", "AB-", "O+", "O-"].map((bt) => <SelectItem key={bt} value={bt}>{bt}</SelectItem>)}</SelectContent>
                   </Select>
                 </div>
               </div>
-              <div><Label>Allergies</Label><Textarea defaultValue="Penicillin, Peanuts" className="mt-1" /></div>
-              <div><Label>Disease History</Label><Textarea defaultValue="Hypertension (managed since 2020)" className="mt-1" /></div>
+              <div><Label>Allergies (optional)</Label><Textarea value={form.allergies} onChange={(e) => setForm({ ...form, allergies: e.target.value })} className="mt-1" /></div>
             </CardContent>
           </Card>
         </div>
@@ -76,7 +116,12 @@ export default function UserProfilePage() {
 
           {/* Actions */}
           <div className="space-y-3">
-            <Button className="w-full medical-gradient text-primary-foreground" onClick={() => toast.success("Profile saved!")}>Save Changes</Button>
+            <Button className="w-full medical-gradient text-primary-foreground" onClick={() => {
+              mutation.mutate(form, {
+                onSuccess: () => toast.success("Profile saved!"),
+                onError: () => toast.error("Failed to save profile")
+              });
+            }}>Save Changes</Button>
             <Button variant="outline" className="w-full text-destructive border-destructive/20 hover:bg-destructive/5" onClick={() => setShowDelete(true)}>
               <Trash2 className="h-4 w-4 mr-2" />Delete Account
             </Button>

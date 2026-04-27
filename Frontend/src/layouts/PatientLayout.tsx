@@ -1,4 +1,6 @@
 import { useState } from "react";
+import { useQuery } from "@tanstack/react-query";
+import { authService } from "@/services/api";
 import { Link, useLocation, Outlet } from "react-router-dom";
 import {
   LayoutDashboard, Search, MessageSquare, History, Home, AlertTriangle,
@@ -28,6 +30,13 @@ interface PatientLayoutProps {
 
 export default function PatientLayout({ userName = "John Doe", userInitials = "JD" }: PatientLayoutProps) {
   const [sidebarOpen, setSidebarOpen] = useState(false);
+  // fetch current user to show name in header
+  const { data: meData } = useQuery({ queryKey: ["me"], queryFn: () => authService.getMe().then((res) => res.data), staleTime: 1000 * 60 * 5 });
+  if (meData) {
+    userName = meData.full_name || userName;
+    const parts = (meData.full_name || "").split(" ").filter(Boolean);
+    userInitials = parts.length ? parts.map(p => p[0]).slice(0,2).join("") : userInitials;
+  }
   const location = useLocation();
   const isActive = (path: string) => location.pathname === path;
 

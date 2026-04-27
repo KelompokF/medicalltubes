@@ -4,10 +4,18 @@ import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
 import StatCard from "@/components/StatCard";
-import { adminStats, adminUsers, analyticsData } from "@/data/mockData";
 import { BarChart, Bar, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer, Legend } from "recharts";
 
 export default function AdminDashboard() {
+  const adminStats = {
+    totalUsers: 0,
+    totalDoctors: 0,
+    activeEmergencies: 0,
+    totalConsultations: 0,
+  };
+  const adminUsers: any[] = [];
+  const analyticsData: any[] = [];
+  
   return (
     <div className="space-y-6 animate-fade-in">
       <h1 className="text-2xl font-bold text-foreground">Admin Dashboard</h1>
