@@ -1,5 +1,5 @@
 import { useState, useEffect } from "react";
-import { Calendar, MapPin, FileText, Phone, User, Clock, Stethoscope } from "lucide-react";
+import { Calendar, MapPin, FileText, Phone, User, Clock, Stethoscope, AlertCircle } from "lucide-react";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -18,11 +18,46 @@ import api, { doctorService } from "@/services/api";
 // Ambil tanggal hari ini dalam format YYYY-MM-DD untuk input min
 const todayStr = new Date().toISOString().split("T")[0];
 
+interface Schedule {
+  id: string;
+  day_of_week: string;
+  start_time: string;
+  end_time: string;
+  is_active: boolean;
+}
+
 interface Doctor {
   id: string;
-  full_name: string;
+  doctor_id: string;
+  name: string;
   specialization?: string;
+  hospital_name?: string;
+  experience_years: number;
+  fee: number;
+  rating: number;
+  is_available: boolean;
+  schedules: Schedule[];
 }
+
+const dayOfWeekIndonesian: { [key: string]: string } = {
+  monday: "Senin",
+  tuesday: "Selasa",
+  wednesday: "Rabu",
+  thursday: "Kamis",
+  friday: "Jumat",
+  saturday: "Sabtu",
+  sunday: "Minggu",
+};
+
+const dayOfWeekEnglish: { [key: string]: string } = {
+  senin: "monday",
+  selasa: "tuesday",
+  rabu: "wednesday",
+  kamis: "thursday",
+  jumat: "friday",
+  sabtu: "saturday",
+  minggu: "sunday",
+};
 
 export default function HomeVisitBookingPage() {
   const [patientName, setPatientName] = useState("");
@@ -35,44 +70,83 @@ export default function HomeVisitBookingPage() {
   const [doctors, setDoctors] = useState<Doctor[]>([]);
   const [isLoading, setIsLoading] = useState(false);
   const [isFetchingDoctors, setIsFetchingDoctors] = useState(false);
+  const [availableTimeSlots, setAvailableTimeSlots] = useState<string[]>([]);
 
-  /** Ambil daftar dokter saat komponen dimuat */
+  /** Ambil daftar dokter dengan jadwal mereka saat komponen dimuat */
   useEffect(() => {
-    const fetchDoctors = async () => {
+    const fetchDoctorsWithSchedules = async () => {
       setIsFetchingDoctors(true);
       try {
-        const response = await doctorService.searchDoctors({ page: 1 });
-        // Sesuaikan dengan struktur respons API (asumsi response.data.items atau response.data)
-        const docs = Array.isArray(response.data) ? response.data : response.data.items || [];
+        const response = await doctorService.getDoctorSchedules();
+        const docs = Array.isArray(response.data) ? response.data : response.data.doctors || [];
         setDoctors(docs);
       } catch (err) {
         console.error("Gagal mengambil daftar dokter:", err);
-        // Fallback dummy data jika API gagal
-        setDoctors([
-          { id: "d1", full_name: "Dr. Sarah Johnson", specialization: "Cardiologist" },
-          { id: "d2", full_name: "Dr. Michael Chen", specialization: "General Practitioner" }
-        ]);
+        toast.error("Gagal mengambil daftar dokter. Silakan refresh halaman.");
+        setDoctors([]);
       } finally {
         setIsFetchingDoctors(false);
       }
     };
-    fetchDoctors();
+    fetchDoctorsWithSchedules();
   }, []);
+
+  /** Update available time slots ketika tanggal atau dokter berubah */
+  useEffect(() => {
+    if (!preferredDate || !selectedDoctorId) {
+      setAvailableTimeSlots([]);
+      return;
+    }
+
+    const selectedDoctor = doctors.find(d => d.id === selectedDoctorId);
+    if (!selectedDoctor || !selectedDoctor.schedules) {
+      setAvailableTimeSlots([]);
+      return;
+    }
+
+    // Get day of week from selected date
+    const date = new Date(preferredDate);
+    const dayIndex = date.getDay(); // 0 = Sunday, 1 = Monday, etc.
+    
+    // Convert dayIndex to day name
+    const dayNames = ["sunday", "monday", "tuesday", "wednesday", "thursday", "friday", "saturday"];
+    const selectedDayOfWeek = dayNames[dayIndex];
+
+    // Find schedules for the selected day
+    const daySchedules = selectedDoctor.schedules.filter(
+      s => s.day_of_week === selectedDayOfWeek && s.is_active
+    );
+
+    // Extract time slots from schedules
+    const slots = daySchedules.map(s => {
+      return `${s.start_time} - ${s.end_time}`;
+    });
+
+    setAvailableTimeSlots(slots.length > 0 ? slots : []);
+  }, [preferredDate, selectedDoctorId, doctors]);
 
   /** Kirim permintaan home visit ke backend */
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
 
     if (!patientName || !address || !phoneNumber || !complaint || !preferredDate || !preferredTime || !selectedDoctorId) {
-      toast.error("Semua field harus diisi termasuk pemilihan dokter");
+      toast.error("Semua field harus diisi termasuk pemilihan dokter dan jadwal");
+      return;
+    }
+
+    // Validate time slot is selected
+    if (!availableTimeSlots.includes(preferredTime)) {
+      toast.error("Pilih jadwal yang tersedia");
       return;
     }
 
     setIsLoading(true);
     try {
+      const selectedDoc = doctors.find(d => d.id === selectedDoctorId);
+      
       const payload = {
         patient_name: patientName,
-        doctor_id: selectedDoctorId,
+        doctor_id: selectedDoc?.doctor_id, // Use the actual doctor user ID
         address,
         phone_number: phoneNumber,
         complaint,
@@ -94,6 +168,7 @@ export default function HomeVisitBookingPage() {
       setPreferredDate("");
       setPreferredTime("");
       setSelectedDoctorId("");
+      setAvailableTimeSlots([]);
     } catch (err: any) {
       console.error("Error submitting form:", err.response?.data || err);
       const detail = err?.response?.data?.detail;
@@ -127,26 +202,95 @@ export default function HomeVisitBookingPage() {
               <CardHeader>
                 <CardTitle className="flex items-center gap-2">
                   <Stethoscope className="h-5 w-5 text-primary" />
-                  Pilih Dokter
+                  Pilih Dokter dari Database
                 </CardTitle>
               </CardHeader>
-              <CardContent>
-                <Label htmlFor="doctor-select">Dokter yang Tersedia <span className="text-destructive">*</span></Label>
-                <Select value={selectedDoctorId} onValueChange={setSelectedDoctorId}>
-                  <SelectTrigger id="doctor-select" className="mt-1 bg-background">
-                    <SelectValue placeholder={isFetchingDoctors ? "Memuat dokter..." : "Pilih dokter untuk kunjungan"} />
-                  </SelectTrigger>
-                  <SelectContent>
-                    {doctors.map((doc) => (
-                      <SelectItem key={doc.id} value={doc.id}>
-                        {doc.full_name} {doc.specialization ? `(${doc.specialization})` : ""}
-                      </SelectItem>
-                    ))}
-                  </SelectContent>
-                </Select>
-                <p className="text-[10px] text-muted-foreground mt-2">
-                  * Dokter yang Anda pilih akan meninjau keluhan Anda sebelum melakukan kunjungan.
-                </p>
+              <CardContent className="space-y-4">
+                {isFetchingDoctors ? (
+                  <div className="flex justify-center py-8">
+                    <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-primary"></div>
+                  </div>
+                ) : doctors.length === 0 ? (
+                  <div className="p-4 text-center">
+                    <AlertCircle className="h-8 w-8 text-destructive mx-auto mb-2" />
+                    <p className="text-muted-foreground">Tidak ada dokter tersedia saat ini</p>
+                  </div>
+                ) : (
+                  <>
+                    <div className="grid grid-cols-1 gap-3">
+                      {doctors.map((doc) => (
+                        <div
+                          key={doc.id}
+                          onClick={() => setSelectedDoctorId(doc.id)}
+                          className={`p-4 border-2 rounded-lg cursor-pointer transition-all ${
+                            selectedDoctorId === doc.id
+                              ? "border-primary bg-primary/10"
+                              : "border-border hover:border-primary/50 bg-background"
+                          }`}
+                        >
+                          <div className="flex items-start justify-between gap-3">
+                            <div className="flex-1">
+                              <h3 className="font-semibold text-foreground">{doc.name}</h3>
+                              <p className="text-sm text-primary font-medium">{doc.specialization || "Spesialis Umum"}</p>
+                              
+                              <div className="flex flex-wrap gap-2 mt-2">
+                                {doc.hospital_name && (
+                                  <span className="text-xs bg-secondary/30 px-2 py-1 rounded">
+                                    🏥 {doc.hospital_name}
+                                  </span>
+                                )}
+                                {doc.experience_years > 0 && (
+                                  <span className="text-xs bg-secondary/30 px-2 py-1 rounded">
+                                    📅 {doc.experience_years} tahun pengalaman
+                                  </span>
+                                )}
+                              </div>
+
+                              <div className="flex items-center gap-3 mt-2">
+                                <div className="flex items-center gap-1">
+                                  <span className="text-sm font-medium text-foreground">⭐ {doc.rating.toFixed(1)}</span>
+                                </div>
+                                {doc.fee > 0 && (
+                                  <span className="text-sm text-muted-foreground">
+                                    💰 Rp{(doc.fee / 1000).toFixed(0)}k per kunjungan
+                                  </span>
+                                )}
+                              </div>
+
+                              {doc.schedules && doc.schedules.length > 0 ? (
+                                <div className="mt-2 p-2 bg-success/10 border border-success/20 rounded">
+                                  <p className="text-xs text-success font-medium">✓ Memiliki {doc.schedules.length} jadwal tersedia</p>
+                                </div>
+                              ) : (
+                                <div className="mt-2 p-2 bg-yellow-50 border border-yellow-200 rounded">
+                                  <p className="text-xs text-yellow-700">⚠️ Belum ada jadwal yang diatur</p>
+                                </div>
+                              )}
+                            </div>
+
+                            {selectedDoctorId === doc.id && (
+                              <div className="h-6 w-6 rounded-full bg-primary flex items-center justify-center text-white text-sm font-bold shrink-0">
+                                ✓
+                              </div>
+                            )}
+                          </div>
+                        </div>
+                      ))}
+                    </div>
+
+                    {selectedDoctorId && (
+                      <div className="p-3 bg-blue-50 border border-blue-200 rounded-lg">
+                        <p className="text-sm text-blue-700">
+                          ✓ Dokter dipilih: <strong>{selectedDoctor?.name}</strong>
+                        </p>
+                      </div>
+                    )}
+
+                    <p className="text-[10px] text-muted-foreground mt-3">
+                      * Pilih dokter di atas untuk melihat jadwal kunjungan yang tersedia
+                    </p>
+                  </>
+                )}
               </CardContent>
             </Card>
 
@@ -181,18 +325,51 @@ export default function HomeVisitBookingPage() {
                   Jadwal Kunjungan
                 </CardTitle>
               </CardHeader>
-              <CardContent className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+              <CardContent className="space-y-4">
                 <div>
                   <Label htmlFor="preferred-date">Tanggal <span className="text-destructive">*</span></Label>
-                  <Input id="preferred-date" type="date" value={preferredDate} onChange={(e) => setPreferredDate(e.target.value)} min={todayStr} className="mt-1" required />
+                  <Input 
+                    id="preferred-date" 
+                    type="date" 
+                    value={preferredDate} 
+                    onChange={(e) => {
+                      setPreferredDate(e.target.value);
+                      setPreferredTime(""); // Reset time when date changes
+                    }} 
+                    min={todayStr} 
+                    className="mt-1" 
+                    required 
+                    disabled={!selectedDoctorId}
+                  />
+                  {!selectedDoctorId && (
+                    <p className="text-xs text-muted-foreground mt-1">Pilih dokter terlebih dahulu</p>
+                  )}
                 </div>
-                <div>
-                  <Label htmlFor="preferred-time">Jam <span className="text-destructive">*</span></Label>
-                  <div className="relative mt-1">
-                    <Clock className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
-                    <Input id="preferred-time" type="time" value={preferredTime} onChange={(e) => setPreferredTime(e.target.value)} className="pl-9" required />
+
+                {preferredDate && selectedDoctorId && (
+                  <div>
+                    <Label htmlFor="preferred-time">Jadwal Tersedia <span className="text-destructive">*</span></Label>
+                    {availableTimeSlots.length > 0 ? (
+                      <Select value={preferredTime} onValueChange={setPreferredTime}>
+                        <SelectTrigger id="preferred-time" className="mt-1 bg-background">
+                          <SelectValue placeholder="Pilih waktu kunjungan" />
+                        </SelectTrigger>
+                        <SelectContent>
+                          {availableTimeSlots.map((slot) => (
+                            <SelectItem key={slot} value={slot}>
+                              {slot}
+                            </SelectItem>
+                          ))}
+                        </SelectContent>
+                      </Select>
+                    ) : (
+                      <div className="mt-2 p-3 bg-red-50 border border-red-200 rounded-lg flex gap-2">
+                        <AlertCircle className="h-4 w-4 text-red-600 mt-0.5 shrink-0" />
+                        <p className="text-xs text-red-700">Dokter tidak tersedia pada tanggal ini. Pilih tanggal lain.</p>
+                      </div>
+                    )}
                   </div>
-                </div>
+                )}
               </CardContent>
             </Card>
 
@@ -218,7 +395,7 @@ export default function HomeVisitBookingPage() {
             <CardContent className="space-y-3 text-sm">
               <div className="flex justify-between font-medium text-primary">
                 <span>Dokter</span>
-                <span className="truncate max-w-[120px]">{selectedDoctor?.full_name || "-"}</span>
+                <span className="truncate max-w-[120px]">{selectedDoctor?.name || "-"}</span>
               </div>
               <div className="flex justify-between">
                 <span>Pasien</span>
@@ -226,7 +403,7 @@ export default function HomeVisitBookingPage() {
               </div>
               <div className="flex justify-between">
                 <span>Waktu</span>
-                <span>{preferredDate ? `${preferredDate} ${preferredTime}` : "-"}</span>
+                <span>{preferredDate && preferredTime ? `${preferredDate} ${preferredTime}` : "-"}</span>
               </div>
               <div className="border-t pt-3">
                 <Button type="submit" className="w-full medical-gradient text-primary-foreground" disabled={!isFormValid || isLoading}>

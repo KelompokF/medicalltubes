@@ -22,6 +22,9 @@ from app.schemas.doctor import (
     StartConsultationRequest,
     StartConsultationResponse,
 )
+from app.models.doctor_schedule import DoctorSchedule
+from app.schemas.doctor_schedule import DoctorWithSchedules, DoctorScheduleItem
+from sqlalchemy import and_
 
 router = APIRouter(prefix="/doctors", tags=["Doctors"])
 
@@ -208,3 +211,132 @@ async def start_consultation(
         doctor_name=doctor.full_name,
         message=f"Konsultasi dengan {doctor.full_name} siap dimulai. Silakan kirim pesan.",
     )
+
+
+# ─── GET /doctors/schedules (Get all doctors with their schedules) ────────
+@router.get("/schedules/available", response_model=list)
+async def get_doctors_with_schedules(
+    db: AsyncSession = Depends(get_db),
+):
+    """
+    Get all available doctors with their schedules for home visits.
+    Returns a list of doctors with their available time slots.
+    """
+    # Get all active doctors
+    result = await db.execute(
+        select(DoctorProfile, User.full_name)
+        .join(User, DoctorProfile.user_id == User.id)
+        .where(
+            and_(
+                User.role == "doctor",
+                User.is_active == True,
+                DoctorProfile.is_available == True
+            )
+        )
+    )
+    rows = result.all()
+
+    doctors_with_schedules = []
+    for profile, full_name in rows:
+        # Get schedules for this doctor
+        schedule_result = await db.execute(
+            select(DoctorSchedule)
+            .where(
+                and_(
+                    DoctorSchedule.doctor_id == profile.user_id,
+                    DoctorSchedule.is_active == True
+                )
+            )
+        )
+        schedules = schedule_result.scalars().all()
+
+        doctor_data = {
+            "id": str(profile.id),
+            "doctor_id": str(profile.user_id),
+            "name": full_name,
+            "specialization": profile.specialization,
+            "hospital_name": profile.hospital_name,
+            "experience_years": profile.experience_years or 0,
+            "fee": profile.fee or 100000,
+            "rating": profile.rating or 4.5,
+            "is_available": profile.is_available,
+            "schedules": [
+                {
+                    "id": str(s.id),
+                    "day_of_week": s.day_of_week.value,
+                    "start_time": s.start_time,
+                    "end_time": s.end_time,
+                    "is_active": s.is_active,
+                }
+                for s in schedules
+            ]
+        }
+        doctors_with_schedules.append(doctor_data)
+
+    return doctors_with_schedules
+
+
+# ─── GET /doctors/{doctor_id}/schedules (Get specific doctor schedules) ────
+@router.get("/{doctor_id}/schedules")
+async def get_doctor_schedules(
+    doctor_id: str,
+    db: AsyncSession = Depends(get_db),
+):
+    """
+    Get schedules for a specific doctor.
+    """
+    import uuid as _uuid
+
+    try:
+        doc_uuid = _uuid.UUID(doctor_id)
+    except ValueError:
+        raise HTTPException(status_code=400, detail="Invalid doctor ID format")
+
+    # Get doctor profile
+    result = await db.execute(
+        select(DoctorProfile, User.full_name)
+        .join(User, DoctorProfile.user_id == User.id)
+        .where(
+            (DoctorProfile.id == doc_uuid) | (DoctorProfile.user_id == doc_uuid)
+        )
+    )
+    row = result.first()
+
+    if not row:
+        raise HTTPException(status_code=404, detail="Dokter tidak ditemukan")
+
+    profile, full_name = row
+
+    # Get schedules
+    schedule_result = await db.execute(
+        select(DoctorSchedule)
+        .where(
+            and_(
+                DoctorSchedule.doctor_id == profile.user_id,
+                DoctorSchedule.is_active == True
+            )
+        )
+    )
+    schedules = schedule_result.scalars().all()
+
+    return {
+        "id": str(profile.id),
+        "doctor_id": str(profile.user_id),
+        "name": full_name,
+        "specialization": profile.specialization,
+        "hospital_name": profile.hospital_name,
+        "experience_years": profile.experience_years or 0,
+        "fee": profile.fee or 100000,
+        "rating": profile.rating or 4.5,
+        "is_available": profile.is_available,
+        "schedules": [
+            {
+                "id": str(s.id),
+                "day_of_week": s.day_of_week.value,
+                "start_time": s.start_time,
+                "end_time": s.end_time,
+                "is_active": s.is_active,
+            }
+            for s in schedules
+        ]
+    }

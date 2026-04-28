@@ -79,6 +79,10 @@ export const doctorService = {
   getDoctorById: (id: string) => api.get(`/doctors/${id}`),
   startConsultation: (doctorId: string) =>
     api.post("/doctors/start-consultation", { doctor_id: doctorId }),
+  // Get doctors with schedules
+  getDoctorSchedules: () => api.get("/doctors/schedules/available"),
+  getDoctorScheduleById: (doctorId: string) =>
+    api.get(`/doctors/${doctorId}/schedules`),
   // Doctor dashboard
   getDashboard: () => api.get("/doctor/dashboard"),
   getPatientRequests: () => api.get("/doctor/requests"),
