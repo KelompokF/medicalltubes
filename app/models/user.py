@@ -46,9 +46,5 @@ class User(Base):
     is_active = Column(Boolean, default=True)
     role = Column(String, default='patient')
     location_sharing_enabled = Column(Boolean, default=False)
+    is_deleted = Column(Boolean, default=False)
     created_at = Column(DateTime, default=datetime.utcnow)
-    # Profile fields
-    place_of_birth = Column(String, nullable=True)
-    date_of_birth = Column(Date, nullable=True)
-    blood_type = Column(String, nullable=True)
-    allergies = Column(String, nullable=True)

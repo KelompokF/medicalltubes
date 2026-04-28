@@ -5,7 +5,6 @@ import uuid
 from app.database import Base
 from app.models.user import GUID
 
-
 class HealthRecord(Base):
     __tablename__ = "health_records"
 

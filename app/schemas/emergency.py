@@ -1,12 +1,6 @@
-from pydantic import BaseModel, Field
-from typing import Optional, List
+from pydantic import BaseModel
+from typing import List, Optional
 from datetime import datetime
-
-
-class LocationInput(BaseModel):
-    lat: float = Field(..., description="Latitude", ge=-90, le=90)
-    lng: float = Field(..., description="Longitude", ge=-180, le=180)
-
 
 class AmbulanceServiceResponse(BaseModel):
     id: str
@@ -14,14 +8,13 @@ class AmbulanceServiceResponse(BaseModel):
     address: str
     lat: float
     lng: float
-    distance_km: float = Field(..., description="Distance in kilometers")
-    distance_text: str = Field(..., description="Human-readable distance")
-    eta_minutes: int = Field(..., description="Estimated time of arrival in minutes")
-    eta_text: str = Field(..., description="Human-readable ETA")
+    distance_km: float
+    distance_text: str
+    eta_minutes: int
+    eta_text: str
     phone: Optional[str] = None
-    status: str = "available"
-    source: str = "openstreetmap"
-
+    status: str
+    source: str
 
 class NearbyAmbulancesResponse(BaseModel):
     user_lat: float
@@ -31,13 +24,14 @@ class NearbyAmbulancesResponse(BaseModel):
     total: int
     search_radius_km: float
 
+class Location(BaseModel):
+    lat: float
+    lng: float
 
 class EmergencyRequestSchema(BaseModel):
     patient_id: Optional[str] = None
     location: LocationInput
     type: Optional[str] = "general"
-    notes: Optional[str] = None
-
 
 class EmergencyRequestResponse(BaseModel):
     id: str

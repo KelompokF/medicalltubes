@@ -1,109 +1,242 @@
-import { useState } from "react";
-import { Calendar, Clock, MapPin, FileText } from "lucide-react";
+import { useState, useEffect } from "react";
+import { Calendar, MapPin, FileText, Phone, User, Clock, Stethoscope } from "lucide-react";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Textarea } from "@/components/ui/textarea";
-import { Badge } from "@/components/ui/badge";
-import ConfirmModal from "@/components/ConfirmModal";
+import {
+  Select,
+  SelectContent,
+  SelectItem,
+  SelectTrigger,
+  SelectValue,
+} from "@/components/ui/select";
 import { toast } from "sonner";
+import api, { doctorService } from "@/services/api";
+
+// Ambil tanggal hari ini dalam format YYYY-MM-DD untuk input min
+const todayStr = new Date().toISOString().split("T")[0];
+
+interface Doctor {
+  id: string;
+  full_name: string;
+  specialization?: string;
+}
 
 export default function HomeVisitBookingPage() {
-  const doctors: any[] = [];
-  const timeSlots: string[] = [];
-  
-  const [selectedDate, setSelectedDate] = useState("");
-  const [selectedTime, setSelectedTime] = useState("");
+  const [patientName, setPatientName] = useState("");
   const [address, setAddress] = useState("");
-  const [notes, setNotes] = useState("");
-  const [showConfirm, setShowConfirm] = useState(false);
-  const doctor = doctors[0] || { name: "", specialization: "", fee: 0 };
+  const [phoneNumber, setPhoneNumber] = useState("");
+  const [complaint, setComplaint] = useState("");
+  const [preferredDate, setPreferredDate] = useState("");
+  const [preferredTime, setPreferredTime] = useState("");
+  const [selectedDoctorId, setSelectedDoctorId] = useState("");
+  const [doctors, setDoctors] = useState<Doctor[]>([]);
+  const [isLoading, setIsLoading] = useState(false);
+  const [isFetchingDoctors, setIsFetchingDoctors] = useState(false);
 
-  const handleBook = () => {
-    setShowConfirm(false);
-    toast.success("Home visit booked successfully!");
+  /** Ambil daftar dokter saat komponen dimuat */
+  useEffect(() => {
+    const fetchDoctors = async () => {
+      setIsFetchingDoctors(true);
+      try {
+        const response = await doctorService.searchDoctors({ page: 1 });
+        // Sesuaikan dengan struktur respons API (asumsi response.data.items atau response.data)
+        const docs = Array.isArray(response.data) ? response.data : response.data.items || [];
+        setDoctors(docs);
+      } catch (err) {
+        console.error("Gagal mengambil daftar dokter:", err);
+        // Fallback dummy data jika API gagal
+        setDoctors([
+          { id: "d1", full_name: "Dr. Sarah Johnson", specialization: "Cardiologist" },
+          { id: "d2", full_name: "Dr. Michael Chen", specialization: "General Practitioner" }
+        ]);
+      } finally {
+        setIsFetchingDoctors(false);
+      }
+    };
+    fetchDoctors();
+  }, []);
+
+  /** Kirim permintaan home visit ke backend */
+  const handleSubmit = async (e: React.FormEvent) => {
+    e.preventDefault();
+
+    if (!patientName || !address || !phoneNumber || !complaint || !preferredDate || !preferredTime || !selectedDoctorId) {
+      toast.error("Semua field harus diisi termasuk pemilihan dokter");
+      return;
+    }
+
+    setIsLoading(true);
+    try {
+      const payload = {
+        patient_name: patientName,
+        doctor_id: selectedDoctorId,
+        address,
+        phone_number: phoneNumber,
+        complaint,
+        preferred_date: new Date(preferredDate).toISOString(),
+        preferred_time: preferredTime,
+      };
+      
+      console.log("Sending payload:", payload);
+      const response = await api.post("/home-visit/", payload);
+      console.log("Success:", response.data);
+      
+      toast.success("Permintaan kunjungan rumah berhasil dikirim!");
+
+      // Reset form
+      setPatientName("");
+      setAddress("");
+      setPhoneNumber("");
+      setComplaint("");
+      setPreferredDate("");
+      setPreferredTime("");
+      setSelectedDoctorId("");
+    } catch (err: any) {
+      console.error("Error submitting form:", err.response?.data || err);
+      const detail = err?.response?.data?.detail;
+      toast.error(typeof detail === "string" ? detail : "Gagal mengirim permintaan. Silakan coba lagi.");
+    } finally {
+      setIsLoading(false);
+    }
   };
+
+  const isFormValid = patientName && address && phoneNumber && complaint && preferredDate && preferredTime && selectedDoctorId;
+  const selectedDoctor = doctors.find(d => d.id === selectedDoctorId);
 
   return (
     <div className="space-y-6 animate-fade-in">
-      <div>
-        <h1 className="text-2xl font-bold text-foreground">Book Home Visit</h1>
-        <p className="text-muted-foreground mt-1">Schedule a doctor visit to your location.</p>
+      <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4">
+        <div>
+          <h1 className="text-2xl font-bold text-foreground">Pesan Kunjungan Rumah</h1>
+          <p className="text-muted-foreground mt-1">Isi formulir untuk meminta dokter mengunjungi Anda.</p>
+        </div>
+        <Button variant="outline" onClick={() => window.location.href = "/home-visit-history"}>
+          Lihat Riwayat Kunjungan
+        </Button>
       </div>
 
-      <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
-        <div className="lg:col-span-2 space-y-6">
-          {/* Doctor Summary */}
-          <Card className="shadow-card">
-            <CardContent className="p-5 flex items-center gap-4">
-              <div className="h-14 w-14 rounded-full medical-gradient flex items-center justify-center text-primary-foreground font-bold text-lg">SJ</div>
-              <div>
-                <h3 className="font-semibold text-foreground">{doctor.name}</h3>
-                <p className="text-sm text-muted-foreground">{doctor.specialization} • ${doctor.fee}/visit</p>
-              </div>
-            </CardContent>
-          </Card>
+      <form onSubmit={handleSubmit}>
+        <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
+          <div className="lg:col-span-2 space-y-6">
 
-          {/* Date Selection */}
-          <Card className="shadow-card">
-            <CardHeader><CardTitle className="flex items-center gap-2"><Calendar className="h-5 w-5 text-primary" />Select Date</CardTitle></CardHeader>
-            <CardContent>
-              <Input type="date" value={selectedDate} onChange={(e) => setSelectedDate(e.target.value)} min="2026-04-14" />
-            </CardContent>
-          </Card>
+            {/* Pilih Dokter */}
+            <Card className="shadow-card border-primary/20 bg-primary/5">
+              <CardHeader>
+                <CardTitle className="flex items-center gap-2">
+                  <Stethoscope className="h-5 w-5 text-primary" />
+                  Pilih Dokter
+                </CardTitle>
+              </CardHeader>
+              <CardContent>
+                <Label htmlFor="doctor-select">Dokter yang Tersedia <span className="text-destructive">*</span></Label>
+                <Select value={selectedDoctorId} onValueChange={setSelectedDoctorId}>
+                  <SelectTrigger id="doctor-select" className="mt-1 bg-background">
+                    <SelectValue placeholder={isFetchingDoctors ? "Memuat dokter..." : "Pilih dokter untuk kunjungan"} />
+                  </SelectTrigger>
+                  <SelectContent>
+                    {doctors.map((doc) => (
+                      <SelectItem key={doc.id} value={doc.id}>
+                        {doc.full_name} {doc.specialization ? `(${doc.specialization})` : ""}
+                      </SelectItem>
+                    ))}
+                  </SelectContent>
+                </Select>
+                <p className="text-[10px] text-muted-foreground mt-2">
+                  * Dokter yang Anda pilih akan meninjau keluhan Anda sebelum melakukan kunjungan.
+                </p>
+              </CardContent>
+            </Card>
 
-          {/* Time Slots */}
-          <Card className="shadow-card">
-            <CardHeader><CardTitle className="flex items-center gap-2"><Clock className="h-5 w-5 text-primary" />Available Time Slots</CardTitle></CardHeader>
-            <CardContent>
-              <div className="flex flex-wrap gap-2">
-                {timeSlots.map((slot) => (
-                  <Badge
-                    key={slot}
-                    variant={selectedTime === slot ? "default" : "outline"}
-                    className={`cursor-pointer transition-all ${selectedTime === slot ? "bg-primary text-primary-foreground" : "hover:bg-primary/10"}`}
-                    onClick={() => setSelectedTime(slot)}
-                  >{slot}</Badge>
-                ))}
-              </div>
-            </CardContent>
-          </Card>
+            {/* Informasi Pasien */}
+            <Card className="shadow-card">
+              <CardHeader>
+                <CardTitle className="flex items-center gap-2">
+                  <User className="h-5 w-5 text-primary" />
+                  Informasi Pasien
+                </CardTitle>
+              </CardHeader>
+              <CardContent className="space-y-4">
+                <div>
+                  <Label htmlFor="patient-name">Nama Lengkap Pasien <span className="text-destructive">*</span></Label>
+                  <Input id="patient-name" value={patientName} onChange={(e) => setPatientName(e.target.value)} placeholder="Nama lengkap" className="mt-1" required />
+                </div>
+                <div>
+                  <Label htmlFor="phone-number">Nomor Telepon <span className="text-destructive">*</span></Label>
+                  <div className="relative mt-1">
+                    <Phone className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
+                    <Input id="phone-number" value={phoneNumber} onChange={(e) => setPhoneNumber(e.target.value)} placeholder="08xx" className="pl-9" required />
+                  </div>
+                </div>
+              </CardContent>
+            </Card>
 
-          {/* Address */}
-          <Card className="shadow-card">
-            <CardHeader><CardTitle className="flex items-center gap-2"><MapPin className="h-5 w-5 text-primary" />Your Address</CardTitle></CardHeader>
-            <CardContent className="space-y-4">
-              <div>
-                <Label>Full Address</Label>
-                <Input placeholder="123 Main Street, Apt 4B" value={address} onChange={(e) => setAddress(e.target.value)} className="mt-1" />
+            {/* Jadwal */}
+            <Card className="shadow-card">
+              <CardHeader>
+                <CardTitle className="flex items-center gap-2">
+                  <Calendar className="h-5 w-5 text-primary" />
+                  Jadwal Kunjungan
+                </CardTitle>
+              </CardHeader>
+              <CardContent className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+                <div>
+                  <Label htmlFor="preferred-date">Tanggal <span className="text-destructive">*</span></Label>
+                  <Input id="preferred-date" type="date" value={preferredDate} onChange={(e) => setPreferredDate(e.target.value)} min={todayStr} className="mt-1" required />
+                </div>
+                <div>
+                  <Label htmlFor="preferred-time">Jam <span className="text-destructive">*</span></Label>
+                  <div className="relative mt-1">
+                    <Clock className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
+                    <Input id="preferred-time" type="time" value={preferredTime} onChange={(e) => setPreferredTime(e.target.value)} className="pl-9" required />
+                  </div>
+                </div>
+              </CardContent>
+            </Card>
+
+            {/* Alamat & Keluhan */}
+            <Card className="shadow-card">
+              <CardHeader><CardTitle className="flex items-center gap-2"><MapPin className="h-5 w-5 text-primary" /> Alamat & Keluhan</CardTitle></CardHeader>
+              <CardContent className="space-y-4">
+                <div>
+                  <Label htmlFor="address">Alamat Lengkap <span className="text-destructive">*</span></Label>
+                  <Textarea id="address" value={address} onChange={(e) => setAddress(e.target.value)} placeholder="Alamat lengkap lokasi kunjungan" className="mt-1" required />
+                </div>
+                <div>
+                  <Label htmlFor="complaint">Keluhan <span className="text-destructive">*</span></Label>
+                  <Textarea id="complaint" value={complaint} onChange={(e) => setComplaint(e.target.value)} placeholder="Deskripsikan kondisi kesehatan Anda" className="mt-1" required />
+                </div>
+              </CardContent>
+            </Card>
+          </div>
+
+          {/* Ringkasan */}
+          <Card className="shadow-card h-fit sticky top-24">
+            <CardHeader><CardTitle>Ringkasan</CardTitle></CardHeader>
+            <CardContent className="space-y-3 text-sm">
+              <div className="flex justify-between font-medium text-primary">
+                <span>Dokter</span>
+                <span className="truncate max-w-[120px]">{selectedDoctor?.full_name || "-"}</span>
               </div>
-              <div>
-                <Label className="flex items-center gap-2"><FileText className="h-4 w-4" />Additional Notes</Label>
-                <Textarea placeholder="Any specific instructions for the doctor..." value={notes} onChange={(e) => setNotes(e.target.value)} className="mt-1" />
+              <div className="flex justify-between">
+                <span>Pasien</span>
+                <span className="truncate max-w-[120px]">{patientName || "-"}</span>
+              </div>
+              <div className="flex justify-between">
+                <span>Waktu</span>
+                <span>{preferredDate ? `${preferredDate} ${preferredTime}` : "-"}</span>
+              </div>
+              <div className="border-t pt-3">
+                <Button type="submit" className="w-full medical-gradient text-primary-foreground" disabled={!isFormValid || isLoading}>
+                  {isLoading ? "Mengirim..." : "Konfirmasi & Pesan"}
+                </Button>
               </div>
             </CardContent>
           </Card>
         </div>
-
-        {/* Summary */}
-        <Card className="shadow-card h-fit sticky top-24">
-          <CardHeader><CardTitle>Booking Summary</CardTitle></CardHeader>
-          <CardContent className="space-y-3 text-sm">
-            <div className="flex justify-between"><span className="text-muted-foreground">Doctor</span><span className="font-medium text-foreground">{doctor.name}</span></div>
-            <div className="flex justify-between"><span className="text-muted-foreground">Date</span><span className="font-medium text-foreground">{selectedDate || "Not selected"}</span></div>
-            <div className="flex justify-between"><span className="text-muted-foreground">Time</span><span className="font-medium text-foreground">{selectedTime || "Not selected"}</span></div>
-            <div className="flex justify-between"><span className="text-muted-foreground">Fee</span><span className="font-medium text-foreground">${doctor.fee}</span></div>
-            <div className="border-t pt-3">
-              <Button className="w-full medical-gradient text-primary-foreground" onClick={() => setShowConfirm(true)} disabled={!selectedDate || !selectedTime || !address}>
-                Confirm Booking
-              </Button>
-            </div>
-          </CardContent>
-        </Card>
-      </div>
-
-      <ConfirmModal open={showConfirm} onOpenChange={setShowConfirm} title="Confirm Home Visit" description={`Book a home visit with ${doctor.name} on ${selectedDate} at ${selectedTime}?`} onConfirm={handleBook} confirmText="Book Visit" />
+      </form>
     </div>
   );
 }

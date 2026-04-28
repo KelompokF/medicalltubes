@@ -11,6 +11,7 @@ from app.routers.chat_history import router as chat_history_router
 from app.routers.home_visit import router as home_visit_router
 from app.routers.doctor import router as doctor_router
 from app.Websocket.chat import router as websocket_router
+from app.routers.home_visit import router as home_visit_router
 from app.core.config import get_database_connection_hint, settings
 from app.database import engine, Base
 # Ensure doctor_profile model is loaded for create_all
@@ -55,8 +56,9 @@ app.include_router(patient_router)
 app.include_router(dashboard_router)
 app.include_router(chat_router)
 app.include_router(chat_history_router)
-app.include_router(home_visit_router)
 app.include_router(websocket_router)
+app.include_router(home_visit_router)  
+
 app.include_router(emergency.router)
 app.include_router(doctor_router)
 

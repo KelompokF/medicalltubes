@@ -1,13 +1,55 @@
-# app/schemas/home_visit.py
-
-from pydantic import BaseModel
-from datetime import datetime, date
+import re
+from pydantic import BaseModel, ConfigDict, field_validator
 from typing import Optional
-import uuid
+from datetime import datetime, date
+from uuid import UUID
+
+from app.models.home_visit import HomeVisitStatus
 
 
+# ========================
+# REQUEST (PUNYA KAMU)
+# ========================
+PHONE_REGEX = re.compile(r"^(\+62|62|0)[0-9]{8,13}$")
+
+class HomeVisitRequestCreate(BaseModel):
+    patient_name: str
+    doctor_id: Optional[UUID] = None
+    address: str
+    phone_number: str
+    complaint: str
+    preferred_date: datetime
+    preferred_time: str
+
+    @field_validator("phone_number")
+    def validate_phone(cls, v):
+        if not PHONE_REGEX.match(v):
+            raise ValueError("Nomor tidak valid")
+        return v
+
+
+class HomeVisitRequestResponse(BaseModel):
+    id: UUID
+    user_id: Optional[UUID]
+    doctor_id: Optional[UUID]
+    doctor_name: Optional[str]
+    patient_name: str
+    address: str
+    phone_number: str
+    complaint: str
+    preferred_date: datetime
+    preferred_time: Optional[str]
+    status: HomeVisitStatus
+    created_at: datetime
+
+    model_config = ConfigDict(from_attributes=True)
+
+
+# ========================
+# BOOKING (FITUR BARU)
+# ========================
 class HomeVisitCreate(BaseModel):
-    doctor_id: Optional[str] = None
+    doctor_id: Optional[UUID] = None
     doctor_name: Optional[str] = None
     specialization: Optional[str] = None
     date: date
@@ -17,34 +59,31 @@ class HomeVisitCreate(BaseModel):
 
 
 class HomeVisitResponse(BaseModel):
-    id: uuid.UUID
-    patient_id: uuid.UUID
-    doctor_id: Optional[uuid.UUID] = None
-    doctor_name: Optional[str] = None
-    specialization: Optional[str] = None
+    id: UUID
+    patient_id: UUID
+    doctor_id: Optional[UUID]
+    doctor_name: Optional[str]
+    specialization: Optional[str]
     date: date
     time: str
     address: str
-    notes: Optional[str] = None
-    status: str
+    notes: Optional[str]
+    status: HomeVisitStatus
     created_at: datetime
     updated_at: datetime
 
-    class Config:
-        from_attributes = True
+    model_config = ConfigDict(from_attributes=True)
 
 
 class HomeVisitTrackingResponse(BaseModel):
-    id: uuid.UUID
-    doctor_name: Optional[str] = None
-    specialization: Optional[str] = None
+    id: UUID
+    doctor_name: Optional[str]
+    specialization: Optional[str]
     date: date
     time: str
     address: str
-    notes: Optional[str] = None
+    notes: Optional[str]
     status: str
-    # Steps for timeline
     steps: list
 
-    class Config:
-        from_attributes = True
+    model_config = ConfigDict(from_attributes=True)

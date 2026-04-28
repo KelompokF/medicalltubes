@@ -4,7 +4,7 @@ import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
 import { toast } from "sonner";
-import { emergencyService } from "@/services/api";
+import { emergencyService, authService } from "@/services/api";
 
 interface AmbulanceService {
   id: string;
@@ -102,7 +102,7 @@ export default function EmergencyPage() {
       if (data.ambulances?.length === 0) {
         toast.info("Tidak ada layanan ambulans ditemukan di area ini. Coba perbesar radius pencarian.");
       }
-    } catch (error: any) {
+    } catch (error: unknown) {
       console.error("Error fetching ambulances:", error);
       toast.error("Gagal memuat data ambulans. Silakan coba lagi.");
     } finally {
@@ -131,7 +131,7 @@ export default function EmergencyPage() {
         ambulance: data.ambulance_assigned,
       });
       toast.success("Permintaan darurat terkirim! Bantuan sedang dalam perjalanan.");
-    } catch (error: any) {
+    } catch (error: unknown) {
       console.error("SOS Error:", error);
       toast.error("Gagal mengirim permintaan darurat. Silakan coba lagi.");
     } finally {
@@ -150,7 +150,7 @@ export default function EmergencyPage() {
       // Otherwise use the backend call endpoint
       await emergencyService.callAmbulance(ambulance.id);
       toast.success(`Menghubungi ${ambulance.name}...`);
-    } catch (error: any) {
+    } catch (error: unknown) {
       console.error("Call error:", error);
       toast.error("Gagal menghubungi ambulans.");
     }
@@ -165,8 +165,26 @@ export default function EmergencyPage() {
     }
   };
 
+  const [isLocationAutoShared, setIsLocationAutoShared] = useState<boolean | null>(null);
+
   useEffect(() => {
-    getLocation();
+    setIsLoadingLocation(true);
+    authService.getLocationSetting()
+      .then((res) => {
+        const isEnabled = res.data.is_location_enabled;
+        setIsLocationAutoShared(isEnabled);
+        if (isEnabled) {
+          getLocation();
+        } else {
+          setIsLoadingLocation(false);
+          setLocationError("Pengaturan Berbagi Lokasi Otomatis sedang nonaktif. Aktifkan di menu Profil atau tekan 'Cari Lokasi' secara manual.");
+        }
+      })
+      .catch((err) => {
+        console.error("Failed to get location setting", err);
+        // fallback
+        getLocation();
+      });
   }, [getLocation]);
 
   return (
@@ -230,7 +248,12 @@ export default function EmergencyPage() {
                 <Navigation className="h-5 w-5 text-success" />
               </div>
               <div className="flex-1 min-w-0">
-                <p className="text-sm text-muted-foreground">Lokasi Saat Ini</p>
+                <p className="text-sm text-muted-foreground flex items-center gap-2">
+                  Lokasi Saat Ini
+                  {isLocationAutoShared && (
+                    <Badge variant="outline" className="text-[10px] bg-primary/5 text-primary border-primary/20 h-5 px-1.5">Auto-Shared</Badge>
+                  )}
+                </p>
                 <p className="font-medium text-foreground text-sm truncate">
                   {location?.address || `${location?.lat.toFixed(6)}, ${location?.lng.toFixed(6)}`}
                 </p>

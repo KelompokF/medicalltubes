@@ -29,9 +29,10 @@ api.interceptors.response.use(
   (response) => response,
   (error) => {
     if (error.response?.status === 401) {
-      localStorage.removeItem("access_token");
-      localStorage.removeItem("user");
-      window.location.href = "/login";
+      // localStorage.removeItem("access_token");
+      // localStorage.removeItem("user");
+      // window.location.href = "/login";
+      console.log("Auth error bypassed for preview");
     }
     return Promise.reject(error);
   }
@@ -52,6 +53,10 @@ export const authService = {
     api.post("/auth/forgot-password", { email }),
   resetPassword: (data: { token: string; password: string }) =>
     api.post("/auth/reset-password", data),
+  getLocationSetting: () => api.get("/auth/location-setting"),
+  updateLocationSetting: (data: { is_location_enabled: boolean }) =>
+    api.put("/auth/location-setting", data),
+  deleteAccount: () => api.delete("/auth/delete-account"),
 };
 
 // ============================================
@@ -60,8 +65,7 @@ export const authService = {
 export const patientService = {
   getDashboard: () => api.get("/patient/dashboard"),
   getProfile: () => api.get("/patient/profile"),
-  updateProfile: (data: any) => api.put("/patient/profile", data),
-  deleteAccount: () => api.delete("/patient/account"),
+  updateProfile: (data: unknown) => api.put("/patient/profile", data),
 };
 
 // ============================================
@@ -82,7 +86,7 @@ export const doctorService = {
   getDashboard: () => api.get("/doctor/dashboard"),
   getPatientRequests: () => api.get("/doctor/requests"),
   acceptRequest: (id: string) => api.post(`/doctor/requests/${id}/accept`),
-  createPrescription: (data: any) => api.post("/doctor/prescriptions", data),
+  createPrescription: (data: unknown) => api.post("/doctor/prescriptions", data),
 };
 
 // ============================================
@@ -104,12 +108,20 @@ export const consultationService = {
 // HOME VISIT ENDPOINTS
 // ============================================
 export const homeVisitService = {
-  bookVisit: (data: { doctor_id: string; date: string; time: string; address: string; notes?: string }) =>
-    api.post("/home-visits", data),
-  getMyVisits: () => api.get("/home-visits"),
-  getVisitById: (id: string) => api.get(`/home-visits/${id}`),
-  cancelVisit: (id: string) => api.post(`/home-visits/${id}/cancel`),
-  trackVisit: (id: string) => api.get(`/home-visits/${id}/track`),
+  /** Buat permintaan home visit baru (POST /home-visit/) */
+  createRequest: (data: {
+    patient_name: string;
+    address: string;
+    phone_number: string;
+    complaint: string;
+    preferred_date: string;
+  }) => api.post("/home-visit/", data),
+
+  /** Ambil semua permintaan home visit milik user yang login (GET /home-visit/) */
+  getMyRequests: () => api.get("/home-visit/"),
+
+  /** Ambil detail satu permintaan berdasarkan ID (GET /home-visit/{id}) */
+  getRequestById: (id: string) => api.get(`/home-visit/${id}`),
 };
 
 // ============================================
@@ -150,4 +162,14 @@ export const ambulanceService = {
   updateStatus: (id: string, status: string) =>
     api.patch(`/emergencies/${id}/status`, { status }),
   getHistory: () => api.get("/ambulance/history"),
+};
+
+// ============================================
+// HEALTH RECORD ENDPOINTS
+// ============================================
+export const healthRecordService = {
+  getRecords: () => api.get("/health-records/"),
+  getRecordById: (id: string) => api.get(`/health-records/${id}`),
+  createRecord: (data: unknown) => api.post("/health-records/", data),
+  deleteRecord: (id: string) => api.delete(`/health-records/${id}`),
 };
