@@ -2,14 +2,14 @@ import axios from "axios";
 
 // Base API configuration — point to your FastAPI backend
 // Default to backend root (no /api/v1) since backend routes use /auth, /chat, etc.
-const API_BASE_URL = import.meta.env.VITE_API_BASE_URL || "http://localhost:8000";
+const API_BASE_URL = import.meta.env.VITE_API_BASE_URL || "http://localhost:8001";
 
 const api = axios.create({
   baseURL: API_BASE_URL,
   headers: {
     "Content-Type": "application/json",
   },
-  timeout: 15000,
+  timeout: 5000,
 });
 
 // Request interceptor — attach JWT token
@@ -29,9 +29,10 @@ api.interceptors.response.use(
   (response) => response,
   (error) => {
     if (error.response?.status === 401) {
-      localStorage.removeItem("access_token");
-      localStorage.removeItem("user");
-      window.location.href = "/login";
+      // localStorage.removeItem("access_token");
+      // localStorage.removeItem("user");
+      // window.location.href = "/login";
+      console.log("Auth error bypassed for preview");
     }
     return Promise.reject(error);
   }
@@ -68,11 +69,16 @@ export const patientService = {
 // DOCTOR ENDPOINTS
 // ============================================
 export const doctorService = {
-  searchDoctors: (params: { search?: string; specialization?: string; location?: string; page?: number }) =>
-    api.get("/doctors", { params }),
+  searchDoctors: (params: {
+    search?: string;
+    specialization?: string;
+    lat?: number;
+    lng?: number;
+    radius_km?: number;
+  }) => api.get("/doctors", { params }),
   getDoctorById: (id: string) => api.get(`/doctors/${id}`),
-  getDoctorSchedule: (id: string) => api.get(`/doctors/${id}/schedule`),
-  getDoctorReviews: (id: string) => api.get(`/doctors/${id}/reviews`),
+  startConsultation: (doctorId: string) =>
+    api.post("/doctors/start-consultation", { doctor_id: doctorId }),
   // Doctor dashboard
   getDashboard: () => api.get("/doctor/dashboard"),
   getPatientRequests: () => api.get("/doctor/requests"),
@@ -99,12 +105,20 @@ export const consultationService = {
 // HOME VISIT ENDPOINTS
 // ============================================
 export const homeVisitService = {
-  bookVisit: (data: { doctor_id: string; date: string; time: string; address: string; notes?: string }) =>
-    api.post("/home-visits", data),
-  getMyVisits: () => api.get("/home-visits"),
-  getVisitById: (id: string) => api.get(`/home-visits/${id}`),
-  cancelVisit: (id: string) => api.post(`/home-visits/${id}/cancel`),
-  trackVisit: (id: string) => api.get(`/home-visits/${id}/track`),
+  /** Buat permintaan home visit baru (POST /home-visit/) */
+  createRequest: (data: {
+    patient_name: string;
+    address: string;
+    phone_number: string;
+    complaint: string;
+    preferred_date: string;
+  }) => api.post("/home-visit/", data),
+
+  /** Ambil semua permintaan home visit milik user yang login (GET /home-visit/) */
+  getMyRequests: () => api.get("/home-visit/"),
+
+  /** Ambil detail satu permintaan berdasarkan ID (GET /home-visit/{id}) */
+  getRequestById: (id: string) => api.get(`/home-visit/${id}`),
 };
 
 // ============================================

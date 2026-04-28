@@ -90,8 +90,16 @@ export default function DoctorLayout() {
               <DropdownMenu>
                 <DropdownMenuTrigger asChild>
                   <Button variant="ghost" className="gap-2">
-                    <div className="h-8 w-8 rounded-full bg-success flex items-center justify-center text-success-foreground text-sm font-bold">SJ</div>
-                    <span className="hidden sm:inline text-sm font-medium">Dr. Sarah Johnson</span>
+                    <div className="h-8 w-8 rounded-full bg-success flex items-center justify-center text-success-foreground text-sm font-bold">
+                      {typeof window !== "undefined" && JSON.parse(localStorage.getItem("user") || "null")?.full_name 
+                        ? JSON.parse(localStorage.getItem("user") || "null").full_name.split(" ").filter((n: string) => n.length > 1 && !n.includes(".") && !n.includes(",")).map((n: string) => n[0]).join("").slice(0, 2) 
+                        : "DR"}
+                    </div>
+                    <span className="hidden sm:inline text-sm font-medium">
+                      {typeof window !== "undefined" && JSON.parse(localStorage.getItem("user") || "null")?.full_name 
+                        ? JSON.parse(localStorage.getItem("user") || "null").full_name 
+                        : "Doctor"}
+                    </span>
                     <ChevronDown className="h-4 w-4 text-muted-foreground" />
                   </Button>
                 </DropdownMenuTrigger>
