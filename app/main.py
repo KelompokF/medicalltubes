@@ -20,6 +20,16 @@ async def lifespan(app: FastAPI):
     """Jalankan startup tasks: buat semua tabel jika belum ada."""
     async with engine.begin() as conn:
         await conn.run_sync(Base.metadata.create_all)
+        # Add missing columns to existing 'users' table (create_all won't alter existing tables)
+        from sqlalchemy import text
+        alter_statements = [
+            "ALTER TABLE users ADD COLUMN IF NOT EXISTS place_of_birth VARCHAR",
+            "ALTER TABLE users ADD COLUMN IF NOT EXISTS date_of_birth DATE",
+            "ALTER TABLE users ADD COLUMN IF NOT EXISTS blood_type VARCHAR",
+            "ALTER TABLE users ADD COLUMN IF NOT EXISTS allergies VARCHAR",
+        ]
+        for stmt in alter_statements:
+            await conn.execute(text(stmt))
         print("Database tables initialized successfully")
     yield
 
