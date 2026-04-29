@@ -29,10 +29,9 @@ api.interceptors.response.use(
   (response) => response,
   (error) => {
     if (error.response?.status === 401) {
-      // localStorage.removeItem("access_token");
-      // localStorage.removeItem("user");
-      // window.location.href = "/login";
-      console.log("Auth error bypassed for preview");
+      localStorage.removeItem("access_token");
+      localStorage.removeItem("user");
+      window.location.href = "/login";
     }
     return Promise.reject(error);
   }
@@ -159,4 +158,13 @@ export const ambulanceService = {
   updateStatus: (requestId: string, status: "on_route" | "arrived" | "completed") =>
     api.post(`/ambulance/requests/${requestId}/status`, { status }),
   getHistory: () => api.get("/ambulance/history"),
+};
+
+// ============================================
+// PRESCRIPTION ENDPOINTS
+// ============================================
+export const prescriptionService = {
+  create: (data: any) => api.post("/prescriptions", data),
+  getRoomPrescriptions: (roomId: string) => api.get(`/prescriptions/room/${roomId}`),
+  getPatientPrescriptions: (patientId: string) => api.get(`/prescriptions/patient/${patientId}`),
 };

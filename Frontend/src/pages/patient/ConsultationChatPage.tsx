@@ -1,27 +1,56 @@
 import { useEffect, useRef, useState } from "react";
 import { useSearchParams, Link } from "react-router-dom";
-import { Send, ArrowLeft, Loader2, MessageCircle } from "lucide-react";
+import { Send, Loader2, MessageCircle, Lock, FileText, ChevronRight } from "lucide-react";
 import { Input } from "@/components/ui/input";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
-import api from "@/services/api";
+import api, { prescriptionService } from "@/services/api";
+import { toast } from "sonner";
+import {
+  Dialog,
+  DialogContent,
+  DialogDescription,
+  DialogHeader,
+  DialogTitle,
+  DialogTrigger,
+} from "@/components/ui/dialog";
 
-interface ChatMessage {
-  id: string | number;
-  sender: "user" | "doctor";
-  message: string;
-  timestamp: string;
+interface Medication {
+  name: string;
+  dosage: string;
+  duration: string;
+  instructions: string;
 }
 
-interface Conversation {
-  doctorId: string;
-  doctorName: string;
+interface Prescription {
+  id: string;
+  medications: Medication[];
+  notes?: string;
+  created_at: string;
+}
+
+interface ChatMessage {
+  sender_id: string;
+  receiver_id: string;
+  content: string;
+  created_at: string;
+}
+
+interface Room {
+  room_id: string;
+  partner_id: string;
+  partner_name: string;
+  status: string;
+  last_message?: string;
+  last_date?: string;
+  message_count: number;
 }
 
 export default function ConsultationChatPage() {
   const [searchParams] = useSearchParams();
   const doctorIdFromUrl = searchParams.get("doctor_id");
   const doctorNameFromUrl = searchParams.get("doctor_name");
+  const roomIdFromUrl = searchParams.get("room_id");
 
   // Current user info
   const user =
@@ -31,14 +60,16 @@ export default function ConsultationChatPage() {
   const userId = user?.id || user?.sub || null;
 
   // State
-  const [conversations, setConversations] = useState<Conversation[]>([]);
-  const [activeConversation, setActiveConversation] =
-    useState<Conversation | null>(null);
+  const [rooms, setRooms] = useState<Room[]>([]);
+  const [activeRoom, setActiveRoom] = useState<Room | null>(null);
   const [messages, setMessages] = useState<ChatMessage[]>([]);
   const [message, setMessage] = useState("");
   const [showSidebar, setShowSidebar] = useState(false);
   const [isLoadingHistory, setIsLoadingHistory] = useState(false);
   const [isConnected, setIsConnected] = useState(false);
+  const [sessionEnded, setSessionEnded] = useState(false);
+  const [prescriptions, setPrescriptions] = useState<Prescription[]>([]);
+  const [isPrescriptionModalOpen, setIsPrescriptionModalOpen] = useState(false);
 
   const wsRef = useRef<WebSocket | null>(null);
   const messagesEndRef = useRef<HTMLDivElement>(null);
@@ -48,64 +79,81 @@ export default function ConsultationChatPage() {
     messagesEndRef.current?.scrollIntoView({ behavior: "smooth" });
   }, [messages]);
 
-  // Load conversation list (unique partners from messages)
+  // Auto-create room if coming from search-doctor page
   useEffect(() => {
-    const loadConversations = async () => {
-      if (!userId) return;
+    const createRoom = async () => {
+      if (!doctorIdFromUrl || !userId) return;
       try {
-        // Fetch all conversations for this user from chat history
-        const response = await api.get("/chat/history");
-        const data = response.data;
-        if (Array.isArray(data)) {
-          const convs: Conversation[] = data.map((c: any) => ({
-            doctorId: c.partner_id,
-            doctorName: c.partner_name || `User ${c.partner_id.slice(0, 8)}`,
-          }));
-          setConversations(convs);
-        }
-      } catch {
-        // Fallback: start with empty or URL-based conversation
-      }
-
-      // If coming from search page with doctor_id, set as active
-      if (doctorIdFromUrl) {
-        const conv: Conversation = {
-          doctorId: doctorIdFromUrl,
-          doctorName: doctorNameFromUrl || "Dokter",
+        const res = await api.post("/chat/room", { doctor_id: doctorIdFromUrl });
+        const room: Room = {
+          room_id: res.data.room_id,
+          partner_id: res.data.doctor_id,
+          partner_name: res.data.doctor_name || doctorNameFromUrl || "Dokter",
+          status: res.data.status,
+          message_count: 0,
         };
-        setActiveConversation(conv);
-        // Add to conversations if not already there
-        setConversations((prev) => {
-          const exists = prev.find((c) => c.doctorId === doctorIdFromUrl);
-          if (!exists) return [conv, ...prev];
+        setActiveRoom(room);
+        setSessionEnded(room.status === "ended");
+        // Add to room list if not there
+        setRooms((prev) => {
+          const exists = prev.find((r) => r.room_id === room.room_id);
+          if (!exists) return [room, ...prev];
           return prev;
         });
+      } catch (err) {
+        console.error("Failed to create room:", err);
+        toast.error("Gagal memulai sesi chat. Silakan coba lagi.");
       }
     };
-    loadConversations();
-  }, [userId, doctorIdFromUrl, doctorNameFromUrl]);
+    createRoom();
+  }, [doctorIdFromUrl, userId, doctorNameFromUrl]);
 
-  // Load message history when active conversation changes
+  // Load room list
   useEffect(() => {
-    const loadMessages = async () => {
-      if (!userId || !activeConversation) return;
+    const loadRooms = async () => {
+      if (!userId) return;
+      try {
+        const res = await api.get("/chat/rooms");
+        if (Array.isArray(res.data)) {
+          setRooms(res.data);
+          
+          // Auto-select room from URL param room_id
+          if (roomIdFromUrl) {
+            const room = res.data.find((r: Room) => r.room_id === roomIdFromUrl);
+            if (room) {
+              setActiveRoom(room);
+              setSessionEnded(room.status === "ended");
+            }
+          } 
+          // Else auto-select first room if none selected and no doctor_id param
+          else if (!activeRoom && !doctorIdFromUrl && res.data.length > 0) {
+            setActiveRoom(res.data[0]);
+            setSessionEnded(res.data[0].status === "ended");
+          }
+        }
+      } catch (err) {
+        console.error("Failed to load rooms:", err);
+      }
+    };
+    loadRooms();
+  }, [userId]);
+
+  // Load messages and prescriptions when active room changes
+  useEffect(() => {
+    const loadData = async () => {
+      if (!activeRoom) return;
       setIsLoadingHistory(true);
       try {
-        const response = await api.get(
-          `/chat/messages/${userId}/${activeConversation.doctorId}`
-        );
-        const data = response.data;
-        if (Array.isArray(data)) {
-          const msgs: ChatMessage[] = data.map((m: any, idx: number) => ({
-            id: m.id || idx,
-            sender: m.sender_id === userId ? "user" : "doctor",
-            message: m.content,
-            timestamp: new Date(m.created_at).toLocaleTimeString("id-ID", {
-              hour: "2-digit",
-              minute: "2-digit",
-            }),
-          }));
-          setMessages(msgs);
+        // Load messages
+        const msgRes = await api.get(`/chat/room/${activeRoom.room_id}/messages`);
+        if (Array.isArray(msgRes.data)) {
+          setMessages(msgRes.data);
+        }
+        
+        // Load prescriptions
+        const presRes = await prescriptionService.getRoomPrescriptions(activeRoom.room_id);
+        if (Array.isArray(presRes.data)) {
+          setPrescriptions(presRes.data);
         }
       } catch {
         setMessages([]);
@@ -113,15 +161,15 @@ export default function ConsultationChatPage() {
         setIsLoadingHistory(false);
       }
     };
-    loadMessages();
-  }, [userId, activeConversation]);
+    loadData();
+  }, [activeRoom?.room_id]);
 
   // WebSocket connection
   useEffect(() => {
     if (!userId) return;
 
     const port = window.location.hostname === "localhost" ? "8001" : window.location.port;
-    const wsUrl = `${location.protocol === "https:" ? "wss" : "ws"}://${window.location.hostname}:${port}/ws/chat/${userId}`;
+    const wsUrl = `${window.location.protocol === "https:" ? "wss" : "ws"}://${window.location.hostname}:${port}/ws/chat/${userId}`;
     const ws = new WebSocket(wsUrl);
     wsRef.current = ws;
 
@@ -133,28 +181,37 @@ export default function ConsultationChatPage() {
     ws.onmessage = (event) => {
       try {
         const data = JSON.parse(event.data);
-        const isSenderUser = data.sender_id === userId;
-        // Only add if for current conversation
+
+        if (data.type === "end_session") {
+          setSessionEnded(true);
+          toast.info("Sesi konsultasi telah diakhiri oleh dokter.");
+          return;
+        }
+
+        if (data.type === "new_prescription") {
+          toast.success("Dokter telah mengirimkan resep obat baru!", {
+            description: "Klik untuk melihat detail resep.",
+            action: {
+              label: "Lihat",
+              onClick: () => setIsPrescriptionModalOpen(true)
+            }
+          });
+          // Refresh prescriptions
+          if (activeRoom) {
+            prescriptionService.getRoomPrescriptions(activeRoom.room_id).then(res => {
+              if (Array.isArray(res.data)) setPrescriptions(res.data);
+            });
+          }
+          return;
+        }
+
+        // Only add if for current active room
         if (
-          activeConversation &&
-          (data.sender_id === activeConversation.doctorId ||
-            data.receiver_id === activeConversation.doctorId)
+          activeRoom &&
+          (data.sender_id === activeRoom.partner_id ||
+            data.receiver_id === activeRoom.partner_id)
         ) {
-          const newMsg: ChatMessage = {
-            id: Date.now(),
-            sender: isSenderUser ? "user" : "doctor",
-            message: data.content,
-            timestamp: data.created_at
-              ? new Date(data.created_at).toLocaleTimeString("id-ID", {
-                  hour: "2-digit",
-                  minute: "2-digit",
-                })
-              : new Date().toLocaleTimeString("id-ID", {
-                  hour: "2-digit",
-                  minute: "2-digit",
-                }),
-          };
-          setMessages((prev) => [...prev, newMsg]);
+          setMessages((prev) => [...prev, data]);
         }
       } catch (e) {
         console.error("Invalid WS message", e);
@@ -172,43 +229,39 @@ export default function ConsultationChatPage() {
       wsRef.current = null;
     };
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [userId, activeConversation?.doctorId]);
+  }, [userId, activeRoom?.room_id]);
 
   const handleSend = () => {
-    if (!message.trim() || !activeConversation) return;
-
-    // Optimistic UI
-    const localMsg: ChatMessage = {
-      id: Date.now(),
-      sender: "user",
-      message: message,
-      timestamp: new Date().toLocaleTimeString("id-ID", {
-        hour: "2-digit",
-        minute: "2-digit",
-      }),
-    };
+    if (!message.trim() || !activeRoom || sessionEnded) return;
 
     // Send via WebSocket
     if (wsRef.current && wsRef.current.readyState === WebSocket.OPEN) {
       wsRef.current.send(
         JSON.stringify({
-          receiver_id: activeConversation.doctorId,
+          room_id: activeRoom.room_id,
+          receiver_id: activeRoom.partner_id,
           content: message,
         })
       );
-      // Don't add optimistic message since WS echo will add it
     } else {
-      // Fallback: add optimistic and warn
-      setMessages((prev) => [...prev, localMsg]);
-      console.warn("WebSocket not connected, message not sent to server");
+      console.warn("WebSocket not connected");
     }
 
     setMessage("");
   };
 
-  const selectConversation = (conv: Conversation) => {
-    setActiveConversation(conv);
+  const selectRoom = (room: Room) => {
+    setActiveRoom(room);
+    setSessionEnded(room.status === "ended");
     setShowSidebar(false);
+  };
+
+  const formatTime = (isoStr?: string) => {
+    if (!isoStr) return "";
+    return new Date(isoStr).toLocaleTimeString("id-ID", {
+      hour: "2-digit",
+      minute: "2-digit",
+    });
   };
 
   // No user logged in
@@ -246,7 +299,7 @@ export default function ConsultationChatPage() {
           </Button>
         </div>
         <div className="overflow-y-auto h-[calc(100%-90px)]">
-          {conversations.length === 0 && (
+          {rooms.length === 0 && (
             <div className="p-6 text-center text-sm text-muted-foreground">
               <MessageCircle className="h-6 w-6 mx-auto mb-2 text-muted-foreground/50" />
               <p>Belum ada percakapan.</p>
@@ -255,18 +308,18 @@ export default function ConsultationChatPage() {
               </p>
             </div>
           )}
-          {conversations.map((conv) => (
+          {rooms.map((room) => (
             <button
-              key={conv.doctorId}
-              onClick={() => selectConversation(conv)}
+              key={room.room_id}
+              onClick={() => selectRoom(room)}
               className={`w-full flex items-center gap-3 p-4 hover:bg-muted/50 transition-colors ${
-                activeConversation?.doctorId === conv.doctorId
+                activeRoom?.room_id === room.room_id
                   ? "bg-primary/5 border-r-2 border-primary"
                   : ""
               }`}
             >
               <div className="h-10 w-10 rounded-full medical-gradient flex items-center justify-center text-primary-foreground text-sm font-bold shrink-0">
-                {conv.doctorName
+                {room.partner_name
                   .split(" ")
                   .filter(
                     (n) =>
@@ -277,9 +330,19 @@ export default function ConsultationChatPage() {
                   .slice(0, 2)}
               </div>
               <div className="flex-1 min-w-0 text-left">
-                <span className="font-medium text-sm text-foreground block truncate">
-                  {conv.doctorName}
-                </span>
+                <div className="flex items-center justify-between">
+                  <span className="font-medium text-sm text-foreground block truncate">
+                    {room.partner_name}
+                  </span>
+                  {room.status === "ended" && (
+                    <Badge variant="secondary" className="text-[10px] shrink-0 ml-1">Ended</Badge>
+                  )}
+                </div>
+                {room.last_message && (
+                  <p className="text-xs text-muted-foreground truncate mt-0.5">
+                    {room.last_message}
+                  </p>
+                )}
               </div>
             </button>
           ))}
@@ -296,10 +359,10 @@ export default function ConsultationChatPage() {
           >
             ☰
           </button>
-          {activeConversation ? (
+          {activeRoom ? (
             <>
               <div className="h-9 w-9 rounded-full medical-gradient flex items-center justify-center text-primary-foreground text-sm font-bold">
-                {activeConversation.doctorName
+                {activeRoom.partner_name
                   .split(" ")
                   .filter(
                     (n) =>
@@ -309,18 +372,90 @@ export default function ConsultationChatPage() {
                   .join("")
                   .slice(0, 2)}
               </div>
-              <div>
+              <div className="flex-1">
                 <p className="font-semibold text-sm text-foreground">
-                  {activeConversation.doctorName}
+                  {activeRoom.partner_name}
                 </p>
                 <p className="text-xs text-muted-foreground flex items-center gap-1">
-                  <span
-                    className={`h-1.5 w-1.5 rounded-full ${
-                      isConnected ? "bg-success" : "bg-muted-foreground"
-                    }`}
-                  />
-                  {isConnected ? "Connected" : "Disconnected"}
+                  {sessionEnded ? (
+                    <><Lock className="h-3 w-3" /> Sesi Berakhir</>
+                  ) : (
+                    <>
+                      <span
+                        className={`h-1.5 w-1.5 rounded-full ${
+                          isConnected ? "bg-success" : "bg-muted-foreground"
+                        }`}
+                      />
+                      {isConnected ? "Connected" : "Disconnected"}
+                    </>
+                  )}
                 </p>
+              </div>
+              <div className="flex items-center gap-2">
+                <div className="flex items-center gap-1">
+                  <Lock className="h-3 w-3 text-success" />
+                  <span className="text-[10px] text-success font-medium hidden sm:inline">Encrypted</span>
+                </div>
+                
+                {prescriptions.length > 0 && (
+                  <Dialog open={isPrescriptionModalOpen} onOpenChange={setIsPrescriptionModalOpen}>
+                    <DialogTrigger asChild>
+                      <Button variant="outline" size="sm" className="gap-1.5 text-primary border-primary/20 hover:bg-primary/5 animate-pulse-slow">
+                        <FileText className="h-4 w-4" />
+                        <span className="hidden sm:inline">Resep ({prescriptions.length})</span>
+                      </Button>
+                    </DialogTrigger>
+                    <DialogContent className="sm:max-w-[500px] max-h-[80vh] overflow-y-auto">
+                      <DialogHeader>
+                        <DialogTitle>Resep Obat dari Dokter</DialogTitle>
+                        <DialogDescription>
+                          Daftar resep yang diberikan selama sesi konsultasi ini.
+                        </DialogDescription>
+                      </DialogHeader>
+                      <div className="space-y-4 py-4">
+                        {prescriptions.map((pres, idx) => (
+                          <div key={pres.id} className="border rounded-xl overflow-hidden bg-card shadow-sm">
+                            <div className="bg-primary/5 px-4 py-2 border-b flex justify-between items-center">
+                              <span className="text-xs font-bold text-primary uppercase tracking-wider">Resep #{prescriptions.length - idx}</span>
+                              <span className="text-[10px] text-muted-foreground">{new Date(pres.created_at).toLocaleDateString("id-ID", { day: 'numeric', month: 'short', year: 'numeric', hour: '2-digit', minute: '2-digit' })}</span>
+                            </div>
+                            <div className="p-4 space-y-4">
+                              <div className="space-y-2">
+                                {pres.medications.map((med, midx) => (
+                                  <div key={midx} className="flex items-start gap-3 p-3 rounded-lg bg-muted/30 border border-border/50">
+                                    <div className="h-8 w-8 rounded-full bg-primary/10 flex items-center justify-center shrink-0">
+                                      <span className="text-xs font-bold text-primary">{midx + 1}</span>
+                                    </div>
+                                    <div className="flex-1 min-w-0">
+                                      <p className="font-bold text-sm text-foreground">{med.name}</p>
+                                      <div className="flex flex-wrap gap-x-4 gap-y-1 mt-1">
+                                        <p className="text-xs text-muted-foreground flex items-center gap-1">
+                                          <span className="font-semibold text-foreground/70">Dosis:</span> {med.dosage}
+                                        </p>
+                                        <p className="text-xs text-muted-foreground flex items-center gap-1">
+                                          <span className="font-semibold text-foreground/70">Durasi:</span> {med.duration}
+                                        </p>
+                                      </div>
+                                      <p className="text-xs text-primary font-medium mt-1.5 flex items-center gap-1">
+                                        <ChevronRight className="h-3 w-3" /> {med.instructions}
+                                      </p>
+                                    </div>
+                                  </div>
+                                ))}
+                              </div>
+                              {pres.notes && (
+                                <div className="p-3 rounded-lg bg-accent/5 border border-accent/20">
+                                  <p className="text-[10px] uppercase font-bold text-accent tracking-widest mb-1">Catatan Dokter</p>
+                                  <p className="text-xs text-muted-foreground italic leading-relaxed">"{pres.notes}"</p>
+                                </div>
+                              )}
+                            </div>
+                          </div>
+                        ))}
+                      </div>
+                    </DialogContent>
+                  </Dialog>
+                )}
               </div>
             </>
           ) : (
@@ -332,7 +467,7 @@ export default function ConsultationChatPage() {
 
         {/* Messages */}
         <div className="flex-1 overflow-y-auto p-4 space-y-3">
-          {!activeConversation && (
+          {!activeRoom && (
             <div className="flex flex-col items-center justify-center h-full text-center">
               <MessageCircle className="h-12 w-12 text-muted-foreground/30 mb-3" />
               <p className="text-muted-foreground text-sm">
@@ -347,7 +482,7 @@ export default function ConsultationChatPage() {
             </div>
           )}
 
-          {activeConversation && isLoadingHistory && (
+          {activeRoom && isLoadingHistory && (
             <div className="flex items-center justify-center py-8">
               <Loader2 className="h-5 w-5 text-primary animate-spin mr-2" />
               <span className="text-sm text-muted-foreground">
@@ -356,67 +491,79 @@ export default function ConsultationChatPage() {
             </div>
           )}
 
-          {activeConversation && !isLoadingHistory && messages.length === 0 && (
+          {activeRoom && !isLoadingHistory && messages.length === 0 && (
             <div className="flex flex-col items-center justify-center h-full text-center">
               <MessageCircle className="h-10 w-10 text-muted-foreground/30 mb-3" />
               <p className="text-muted-foreground text-sm">
                 Belum ada pesan. Kirim pesan untuk memulai konsultasi.
               </p>
+              <p className="text-[10px] text-success mt-2 flex items-center gap-1">
+                <Lock className="h-3 w-3" /> Pesan terenkripsi end-to-end
+              </p>
             </div>
           )}
 
-          {messages.map((msg) => (
-            <div
-              key={msg.id}
-              className={`flex ${
-                msg.sender === "user" ? "justify-end" : "justify-start"
-              }`}
-            >
+          {messages.map((msg, idx) => {
+            const isMe = msg.sender_id === userId;
+            return (
               <div
-                className={`max-w-[75%] px-4 py-2.5 rounded-2xl text-sm ${
-                  msg.sender === "user"
-                    ? "medical-gradient text-primary-foreground rounded-br-md"
-                    : "bg-muted text-foreground rounded-bl-md"
-                }`}
+                key={idx}
+                className={`flex ${isMe ? "justify-end" : "justify-start"}`}
               >
-                <p>{msg.message}</p>
-                <p
-                  className={`text-[10px] mt-1 ${
-                    msg.sender === "user"
-                      ? "text-primary-foreground/60"
-                      : "text-muted-foreground"
+                <div
+                  className={`max-w-[75%] px-4 py-2.5 rounded-2xl text-sm ${
+                    isMe
+                      ? "medical-gradient text-primary-foreground rounded-br-md"
+                      : "bg-muted text-foreground rounded-bl-md"
                   }`}
                 >
-                  {msg.timestamp}
-                </p>
+                  <p>{msg.content}</p>
+                  <p
+                    className={`text-[10px] mt-1 ${
+                      isMe
+                        ? "text-primary-foreground/60"
+                        : "text-muted-foreground"
+                    }`}
+                  >
+                    {formatTime(msg.created_at)}
+                  </p>
+                </div>
               </div>
-            </div>
-          ))}
+            );
+          })}
           <div ref={messagesEndRef} />
         </div>
 
         {/* Input */}
-        {activeConversation && (
+        {activeRoom && (
           <div className="p-4 border-t">
-            <div className="flex items-center gap-2">
-              <Input
-                placeholder="Ketik pesan..."
-                value={message}
-                onChange={(e) => setMessage(e.target.value)}
-                onKeyDown={(e) => e.key === "Enter" && handleSend()}
-                className="flex-1"
-                disabled={!isConnected}
-              />
-              <Button
-                size="icon"
-                onClick={handleSend}
-                disabled={!message.trim() || !isConnected}
-                className="medical-gradient text-primary-foreground shrink-0"
-              >
-                <Send className="h-4 w-4" />
-              </Button>
-            </div>
-            {!isConnected && (
+            {sessionEnded ? (
+              <div className="bg-muted/50 rounded-lg p-3 text-center border border-dashed">
+                <p className="text-sm text-muted-foreground font-medium">
+                  Sesi konsultasi ini telah berakhir.
+                </p>
+              </div>
+            ) : (
+              <div className="flex items-center gap-2">
+                <Input
+                  placeholder="Ketik pesan..."
+                  value={message}
+                  onChange={(e) => setMessage(e.target.value)}
+                  onKeyDown={(e) => e.key === "Enter" && handleSend()}
+                  className="flex-1"
+                  disabled={!isConnected}
+                />
+                <Button
+                  size="icon"
+                  onClick={handleSend}
+                  disabled={!message.trim() || !isConnected}
+                  className="medical-gradient text-primary-foreground shrink-0"
+                >
+                  <Send className="h-4 w-4" />
+                </Button>
+              </div>
+            )}
+            {!isConnected && !sessionEnded && (
               <p className="text-xs text-destructive mt-1">
                 Koneksi terputus. Mencoba menghubungkan ulang...
               </p>
