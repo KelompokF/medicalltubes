@@ -1,7 +1,7 @@
-import { useState } from "react";
+import { useState, useEffect, useRef } from "react";
 import { useQuery } from "@tanstack/react-query";
 import { authService } from "@/services/api";
-import { Link, useLocation, Outlet } from "react-router-dom";
+import { Link, useLocation, Outlet, useNavigate } from "react-router-dom";
 import {
   LayoutDashboard, Search, MessageSquare, History, Home, AlertTriangle,
   User, Bell, ChevronDown, Menu, X, LogOut, Settings, Heart
@@ -10,6 +10,7 @@ import { Button } from "@/components/ui/button";
 import {
   DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuSeparator, DropdownMenuTrigger
 } from "@/components/ui/dropdown-menu";
+import { toast } from "sonner";
 
 const patientNav = [
   { label: "Dashboard", path: "/dashboard", icon: LayoutDashboard },
@@ -37,8 +38,62 @@ export default function PatientLayout({ userName = "John Doe", userInitials = "J
     const parts = (meData.full_name || "").split(" ").filter(Boolean);
     userInitials = parts.length ? parts.map(p => p[0]).slice(0,2).join("") : userInitials;
   }
+  const [notifications, setNotifications] = useState<any[]>([]);
   const location = useLocation();
+  const navigate = useNavigate();
   const isActive = (path: string) => location.pathname === path;
+
+  // WebSocket for notifications
+  const userId = meData?.id || JSON.parse(localStorage.getItem("user") || "{}")?.id;
+  const wsRef = useRef<WebSocket | null>(null);
+
+  useEffect(() => {
+    if (!userId) return;
+
+    const connectWS = () => {
+      const port = window.location.hostname === "localhost" ? "8001" : window.location.port;
+      const wsUrl = `${window.location.protocol === "https:" ? "wss" : "ws"}://${window.location.hostname}:${port}/ws/chat/${userId}`;
+      
+      const ws = new WebSocket(wsUrl);
+      wsRef.current = ws;
+
+      ws.onmessage = (event) => {
+        try {
+          const data = JSON.parse(event.data);
+          
+          if (data.receiver_id === userId && data.sender_id !== userId) {
+            setNotifications(prev => [
+              {
+                id: Date.now(),
+                title: "Pesan Baru",
+                description: data.content,
+                sender_id: data.sender_id,
+                time: new Date().toLocaleTimeString("id-ID", { hour: "2-digit", minute: "2-digit" })
+              },
+              ...prev
+            ]);
+
+            if (!location.pathname.includes("/chat")) {
+              toast("Pesan Baru dari Dokter", {
+                description: data.content,
+                action: {
+                  label: "Lihat Chat",
+                  onClick: () => navigate("/chat")
+                },
+              });
+            }
+          }
+        } catch (e) {
+          console.error("WS notification error", e);
+        }
+      };
+
+      ws.onclose = () => setTimeout(connectWS, 3000);
+    };
+
+    connectWS();
+    return () => wsRef.current?.close();
+  }, [userId, location.pathname, navigate]);
 
   return (
     <div className="min-h-screen bg-background">
@@ -90,15 +145,42 @@ export default function PatientLayout({ userName = "John Doe", userInitials = "J
                 <DropdownMenuTrigger asChild>
                   <Button variant="ghost" size="icon" className="relative">
                     <Bell className="h-5 w-5" />
-                    <span className="absolute -top-0.5 -right-0.5 h-4 w-4 rounded-full bg-emergency text-[10px] font-bold text-emergency-foreground flex items-center justify-center">3</span>
+                    {notifications.length > 0 && (
+                      <span className="absolute -top-0.5 -right-0.5 h-4 w-4 rounded-full bg-emergency text-[10px] font-bold text-emergency-foreground flex items-center justify-center animate-pulse">
+                        {notifications.length}
+                      </span>
+                    )}
                   </Button>
                 </DropdownMenuTrigger>
                 <DropdownMenuContent align="end" className="w-72">
-                  <div className="px-3 py-2 font-semibold text-sm">Notifications</div>
+                  <div className="px-3 py-2 font-semibold text-sm flex justify-between items-center">
+                    <span>Notifications</span>
+                    {notifications.length > 0 && (
+                      <Button variant="ghost" size="sm" className="h-auto p-0 text-[10px] text-primary" onClick={() => setNotifications([])}>Clear all</Button>
+                    )}
+                  </div>
                   <DropdownMenuSeparator />
-                  <DropdownMenuItem>New consultation request</DropdownMenuItem>
-                  <DropdownMenuItem>Appointment reminder for tomorrow</DropdownMenuItem>
-                  <DropdownMenuItem>Prescription updated</DropdownMenuItem>
+                  {notifications.length === 0 ? (
+                    <div className="px-3 py-4 text-center text-xs text-muted-foreground">
+                      No new notifications
+                    </div>
+                  ) : (
+                    notifications.map((n) => (
+                      <DropdownMenuItem key={n.id} className="flex flex-col items-start gap-1 p-3 cursor-pointer" onClick={() => navigate("/chat")}>
+                        <div className="flex justify-between w-full">
+                          <span className="font-semibold text-xs">{n.title}</span>
+                          <span className="text-[10px] text-muted-foreground">{n.time}</span>
+                        </div>
+                        <p className="text-xs text-muted-foreground line-clamp-2">{n.description}</p>
+                      </DropdownMenuItem>
+                    ))
+                  )}
+                  {notifications.length === 0 && (
+                    <>
+                      <DropdownMenuItem className="text-xs">Appointment reminder for tomorrow</DropdownMenuItem>
+                      <DropdownMenuItem className="text-xs">Prescription updated</DropdownMenuItem>
+                    </>
+                  )}
                 </DropdownMenuContent>
               </DropdownMenu>
               <DropdownMenu>

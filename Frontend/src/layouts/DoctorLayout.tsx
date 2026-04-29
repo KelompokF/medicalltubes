@@ -1,5 +1,5 @@
-import { useState } from "react";
-import { Link, useLocation, Outlet } from "react-router-dom";
+import { useState, useEffect, useRef } from "react";
+import { Link, useLocation, Outlet, useNavigate } from "react-router-dom";
 import {
   LayoutDashboard, Users, Calendar, Pill, MessageSquare,
   ClipboardList, Settings, Bell, ChevronDown, Menu, X, LogOut, Stethoscope, Home
@@ -8,6 +8,7 @@ import { Button } from "@/components/ui/button";
 import {
   DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuSeparator, DropdownMenuTrigger
 } from "@/components/ui/dropdown-menu";
+import { toast } from "sonner";
 
 const doctorNav = [
   { label: "Dashboard", path: "/doctor-dashboard", icon: LayoutDashboard },
@@ -20,10 +21,84 @@ const doctorNav = [
   { label: "Settings", path: "/doctor-dashboard/settings", icon: Settings },
 ];
 
+interface Notification {
+  id: number;
+  title: string;
+  description: string;
+  sender_id: string;
+  time: string;
+}
+
 export default function DoctorLayout() {
   const [sidebarOpen, setSidebarOpen] = useState(false);
+  const [notifications, setNotifications] = useState<Notification[]>([]);
   const location = useLocation();
+  const navigate = useNavigate();
   const isActive = (path: string) => location.pathname === path;
+
+  // Get current user
+  const user = typeof window !== "undefined" ? JSON.parse(localStorage.getItem("user") || "null") : null;
+  const doctorId = user?.id || user?.sub || null;
+  const wsRef = useRef<WebSocket | null>(null);
+
+  useEffect(() => {
+    if (!doctorId) return;
+
+    const connectWS = () => {
+      const port = window.location.hostname === "localhost" ? "8001" : window.location.port;
+      const wsUrl = `${window.location.protocol === "https:" ? "wss" : "ws"}://${window.location.hostname}:${port}/ws/chat/${doctorId}`;
+      
+      const ws = new WebSocket(wsUrl);
+      wsRef.current = ws;
+
+      ws.onmessage = (event) => {
+        try {
+          const data = JSON.parse(event.data);
+          
+          // Only notify if it's a message for me (receiver) and I'm not the sender
+          if (data.receiver_id === doctorId && data.sender_id !== doctorId) {
+            // Add to notification list
+            setNotifications(prev => [
+              {
+                id: Date.now(),
+                title: "Pesan Baru",
+                description: data.content,
+                sender_id: data.sender_id,
+                time: new Date().toLocaleTimeString("id-ID", { hour: "2-digit", minute: "2-digit" })
+              },
+              ...prev
+            ]);
+
+            // Show toast if not on the specific consultation page
+            // (Simplification: always show toast if not on consultations page)
+            if (!location.pathname.includes("/doctor-dashboard/consultations")) {
+              toast("Pesan Baru dari Pasien", {
+                description: data.content,
+                action: {
+                  label: "Lihat Chat",
+                  onClick: () => navigate("/doctor-dashboard/consultations")
+                },
+              });
+            }
+          }
+        } catch (e) {
+          console.error("Error parsing WS message in Layout", e);
+        }
+      };
+
+      ws.onclose = () => {
+        setTimeout(connectWS, 3000); // Reconnect after 3s
+      };
+    };
+
+    connectWS();
+
+    return () => {
+      if (wsRef.current) {
+        wsRef.current.close();
+      }
+    };
+  }, [doctorId, location.pathname, navigate]);
 
   return (
     <div className="min-h-screen bg-background">
@@ -76,15 +151,42 @@ export default function DoctorLayout() {
                 <DropdownMenuTrigger asChild>
                   <Button variant="ghost" size="icon" className="relative">
                     <Bell className="h-5 w-5" />
-                    <span className="absolute -top-0.5 -right-0.5 h-4 w-4 rounded-full bg-emergency text-[10px] font-bold text-emergency-foreground flex items-center justify-center">8</span>
+                    {notifications.length > 0 && (
+                      <span className="absolute -top-0.5 -right-0.5 h-4 w-4 rounded-full bg-emergency text-[10px] font-bold text-emergency-foreground flex items-center justify-center animate-pulse">
+                        {notifications.length}
+                      </span>
+                    )}
                   </Button>
                 </DropdownMenuTrigger>
                 <DropdownMenuContent align="end" className="w-72">
-                  <div className="px-3 py-2 font-semibold text-sm">Notifications</div>
+                  <div className="px-3 py-2 font-semibold text-sm flex justify-between items-center">
+                    <span>Notifications</span>
+                    {notifications.length > 0 && (
+                      <Button variant="ghost" size="sm" className="h-auto p-0 text-[10px] text-primary" onClick={() => setNotifications([])}>Clear all</Button>
+                    )}
+                  </div>
                   <DropdownMenuSeparator />
-                  <DropdownMenuItem>5 pending consultation requests</DropdownMenuItem>
-                  <DropdownMenuItem>Home visit scheduled for 2:00 PM</DropdownMenuItem>
-                  <DropdownMenuItem>New patient message received</DropdownMenuItem>
+                  {notifications.length === 0 ? (
+                    <div className="px-3 py-4 text-center text-xs text-muted-foreground">
+                      No new notifications
+                    </div>
+                  ) : (
+                    notifications.map((n) => (
+                      <DropdownMenuItem key={n.id} className="flex flex-col items-start gap-1 p-3 cursor-pointer" onClick={() => navigate("/doctor-dashboard/consultations")}>
+                        <div className="flex justify-between w-full">
+                          <span className="font-semibold text-xs">{n.title}</span>
+                          <span className="text-[10px] text-muted-foreground">{n.time}</span>
+                        </div>
+                        <p className="text-xs text-muted-foreground line-clamp-2">{n.description}</p>
+                      </DropdownMenuItem>
+                    ))
+                  )}
+                  {notifications.length === 0 && (
+                    <>
+                      <DropdownMenuItem className="text-xs">5 pending consultation requests</DropdownMenuItem>
+                      <DropdownMenuItem className="text-xs">Home visit scheduled for 2:00 PM</DropdownMenuItem>
+                    </>
+                  )}
                 </DropdownMenuContent>
               </DropdownMenu>
               <DropdownMenu>
