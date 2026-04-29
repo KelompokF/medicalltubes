@@ -55,6 +55,11 @@ export const authService = {
     api.post("/auth/reset-password", data),
 };
 
+export const userService = {
+  updateAccessibility: (data: { high_contrast_enabled?: boolean; contrast_mode?: string; large_text_enabled?: boolean; color_blind_enabled?: boolean }) =>
+    api.patch("/users/me/accessibility", data),
+};
+
 // ============================================
 // PATIENT ENDPOINTS
 // ============================================

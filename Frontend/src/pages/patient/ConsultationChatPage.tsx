@@ -146,13 +146,13 @@ export default function ConsultationChatPage() {
             message: data.content,
             timestamp: data.created_at
               ? new Date(data.created_at).toLocaleTimeString("id-ID", {
-                  hour: "2-digit",
-                  minute: "2-digit",
-                })
+                hour: "2-digit",
+                minute: "2-digit",
+              })
               : new Date().toLocaleTimeString("id-ID", {
-                  hour: "2-digit",
-                  minute: "2-digit",
-                }),
+                hour: "2-digit",
+                minute: "2-digit",
+              }),
           };
           setMessages((prev) => [...prev, newMsg]);
         }
@@ -230,9 +230,8 @@ export default function ConsultationChatPage() {
     <div className="animate-fade-in h-[calc(100vh-200px)] flex rounded-xl border overflow-hidden bg-card">
       {/* Sidebar */}
       <div
-        className={`${
-          showSidebar ? "block" : "hidden"
-        } md:block w-full md:w-80 border-r flex-shrink-0`}
+        className={`${showSidebar ? "block" : "hidden"
+          } md:block w-full md:w-80 border-r flex-shrink-0`}
       >
         <div className="p-4 border-b">
           <h2 className="font-semibold text-sm text-foreground mb-2">
@@ -259,11 +258,10 @@ export default function ConsultationChatPage() {
             <button
               key={conv.doctorId}
               onClick={() => selectConversation(conv)}
-              className={`w-full flex items-center gap-3 p-4 hover:bg-muted/50 transition-colors ${
-                activeConversation?.doctorId === conv.doctorId
+              className={`w-full flex items-center gap-3 p-4 hover:bg-muted/50 transition-colors ${activeConversation?.doctorId === conv.doctorId
                   ? "bg-primary/5 border-r-2 border-primary"
                   : ""
-              }`}
+                }`}
             >
               <div className="h-10 w-10 rounded-full medical-gradient flex items-center justify-center text-primary-foreground text-sm font-bold shrink-0">
                 {conv.doctorName
@@ -315,9 +313,8 @@ export default function ConsultationChatPage() {
                 </p>
                 <p className="text-xs text-muted-foreground flex items-center gap-1">
                   <span
-                    className={`h-1.5 w-1.5 rounded-full ${
-                      isConnected ? "bg-success" : "bg-muted-foreground"
-                    }`}
+                    className={`h-1.5 w-1.5 rounded-full ${isConnected ? "bg-success" : "bg-muted-foreground"
+                      }`}
                   />
                   {isConnected ? "Connected" : "Disconnected"}
                 </p>
@@ -368,24 +365,21 @@ export default function ConsultationChatPage() {
           {messages.map((msg) => (
             <div
               key={msg.id}
-              className={`flex ${
-                msg.sender === "user" ? "justify-end" : "justify-start"
-              }`}
+              className={`flex ${msg.sender === "user" ? "justify-end" : "justify-start"
+                }`}
             >
               <div
-                className={`max-w-[75%] px-4 py-2.5 rounded-2xl text-sm ${
-                  msg.sender === "user"
+                className={`max-w-[75%] px-4 py-2.5 rounded-2xl text-sm ${msg.sender === "user"
                     ? "medical-gradient text-primary-foreground rounded-br-md"
                     : "bg-muted text-foreground rounded-bl-md"
-                }`}
+                  }`}
               >
                 <p>{msg.message}</p>
                 <p
-                  className={`text-[10px] mt-1 ${
-                    msg.sender === "user"
+                  className={`text-[10px] mt-1 ${msg.sender === "user"
                       ? "text-primary-foreground/60"
                       : "text-muted-foreground"
-                  }`}
+                    }`}
                 >
                   {msg.timestamp}
                 </p>

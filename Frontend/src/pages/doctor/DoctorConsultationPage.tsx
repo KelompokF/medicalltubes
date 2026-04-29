@@ -53,7 +53,7 @@ export default function DoctorConsultationPage() {
       try {
         // Fetch all conversations for this doctor
         const response = await api.get("/chat/history");
-        
+
         const data = response.data;
         if (Array.isArray(data)) {
           const convs: Conversation[] = data.map((c: any) => ({
@@ -120,7 +120,7 @@ export default function DoctorConsultationPage() {
       try {
         const data = JSON.parse(event.data);
         const isSenderDoctor = data.sender_id === doctorId;
-        
+
         // If it's a new conversation from a new patient, we might need to reload conversations
         // For now, just add message if it's for the active conversation
         if (
@@ -134,13 +134,13 @@ export default function DoctorConsultationPage() {
             message: data.content,
             timestamp: data.created_at
               ? new Date(data.created_at).toLocaleTimeString("id-ID", {
-                  hour: "2-digit",
-                  minute: "2-digit",
-                })
+                hour: "2-digit",
+                minute: "2-digit",
+              })
               : new Date().toLocaleTimeString("id-ID", {
-                  hour: "2-digit",
-                  minute: "2-digit",
-                }),
+                hour: "2-digit",
+                minute: "2-digit",
+              }),
           };
           setMessages((prev) => [...prev, newMsg]);
         }
@@ -215,9 +215,8 @@ export default function DoctorConsultationPage() {
     <div className="animate-fade-in h-[calc(100vh-140px)] flex rounded-xl shadow-card overflow-hidden bg-card border border-border/50">
       {/* Sidebar */}
       <div
-        className={`${
-          showSidebar ? "block" : "hidden"
-        } md:block w-full md:w-80 border-r border-border/50 flex-shrink-0 bg-muted/10`}
+        className={`${showSidebar ? "block" : "hidden"
+          } md:block w-full md:w-80 border-r border-border/50 flex-shrink-0 bg-muted/10`}
       >
         <div className="p-4 border-b border-border/50 bg-card">
           <h2 className="font-semibold text-lg text-foreground mb-1">
@@ -239,11 +238,10 @@ export default function DoctorConsultationPage() {
             <button
               key={conv.patientId}
               onClick={() => selectConversation(conv)}
-              className={`w-full flex items-center gap-3 p-4 transition-colors border-b border-border/50 last:border-0 ${
-                activeConversation?.patientId === conv.patientId
+              className={`w-full flex items-center gap-3 p-4 transition-colors border-b border-border/50 last:border-0 ${activeConversation?.patientId === conv.patientId
                   ? "bg-primary/10 border-l-4 border-l-primary"
                   : "hover:bg-muted/50 border-l-4 border-l-transparent"
-              }`}
+                }`}
             >
               <div className="h-10 w-10 rounded-full bg-secondary text-secondary-foreground flex items-center justify-center text-sm font-bold shrink-0">
                 {conv.patientName
@@ -261,7 +259,7 @@ export default function DoctorConsultationPage() {
                   </span>
                   {conv.lastDate && (
                     <span className="text-[10px] text-muted-foreground shrink-0">
-                      {new Date(conv.lastDate).toLocaleTimeString("id-ID", {hour: "2-digit", minute: "2-digit"})}
+                      {new Date(conv.lastDate).toLocaleTimeString("id-ID", { hour: "2-digit", minute: "2-digit" })}
                     </span>
                   )}
                 </div>
@@ -356,24 +354,21 @@ export default function DoctorConsultationPage() {
             return (
               <div
                 key={msg.id}
-                className={`flex ${
-                  isDoctor ? "justify-end" : "justify-start"
-                }`}
+                className={`flex ${isDoctor ? "justify-end" : "justify-start"
+                  }`}
               >
                 <div
-                  className={`max-w-[75%] px-4 py-3 text-sm shadow-sm ${
-                    isDoctor
+                  className={`max-w-[75%] px-4 py-3 text-sm shadow-sm ${isDoctor
                       ? "bg-primary text-primary-foreground rounded-2xl rounded-tr-sm"
                       : "bg-card border border-border/50 text-foreground rounded-2xl rounded-tl-sm"
-                  }`}
+                    }`}
                 >
                   <p className="leading-relaxed">{msg.message}</p>
                   <div
-                    className={`flex items-center justify-end gap-1 mt-1.5 ${
-                      isDoctor
+                    className={`flex items-center justify-end gap-1 mt-1.5 ${isDoctor
                         ? "text-primary-foreground/70"
                         : "text-muted-foreground/70"
-                    }`}
+                      }`}
                   >
                     <span className="text-[10px] font-medium">{msg.timestamp}</span>
                   </div>

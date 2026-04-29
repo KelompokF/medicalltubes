@@ -52,3 +52,9 @@ class User(Base):
     date_of_birth = Column(Date, nullable=True)
     blood_type = Column(String, nullable=True)
     allergies = Column(String, nullable=True)
+    
+    # Accessibility preferences
+    high_contrast_enabled = Column(Boolean, default=False)
+    contrast_mode = Column(String, default='normal')  # normal, dark, light, yellow
+    large_text_enabled = Column(Boolean, default=False)
+    color_blind_enabled = Column(Boolean, default=False)

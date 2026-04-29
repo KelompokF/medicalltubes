@@ -25,9 +25,20 @@ class UserResponse(BaseModel):
     date_of_birth: Optional[date] = None
     blood_type: Optional[str] = None
     allergies: Optional[str] = None
+    # Accessibility
+    high_contrast_enabled: bool = False
+    contrast_mode: str = "normal"
+    large_text_enabled: bool = False
+    color_blind_enabled: bool = False
 
     class Config:
         from_attributes = True
+
+class AccessibilityUpdate(BaseModel):
+    high_contrast_enabled: Optional[bool] = None
+    contrast_mode: Optional[str] = None
+    large_text_enabled: Optional[bool] = None
+    color_blind_enabled: Optional[bool] = None
 
 class LocationSharingUpdate(BaseModel):
     enabled: bool

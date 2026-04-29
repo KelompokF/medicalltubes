@@ -3,6 +3,7 @@
 @tailwind base;
 @tailwind components;
 @tailwind utilities;
+
 @layer base {
   :root {
     --background: 210 20% 98%;
@@ -88,14 +89,86 @@
     --sidebar-accent: 215 25% 15%;
     --sidebar-accent-foreground: 210 20% 85%;
     --sidebar-border: 215 20% 18%;
-    --sidebar-ring: 213 94% 58%;
   }
+
+  .contrast-dark {
+    --background: 0 0% 0% !important;
+    --foreground: 0 0% 100% !important;
+    --card: 0 0% 0% !important;
+    --card-foreground: 0 0% 100% !important;
+    --primary: 0 0% 100% !important;
+    --primary-foreground: 0 0% 0% !important;
+    --border: 0 0% 100% !important;
+    --sidebar-background: 0 0% 0% !important;
+    --sidebar-foreground: 0 0% 100% !important;
+    --sidebar-primary: 0 0% 100% !important;
+    --sidebar-primary-foreground: 0 0% 0% !important;
+    background-color: black !important;
+    color: white !important;
+  }
+
+  .contrast-light {
+    --background: 0 0% 100% !important;
+    --foreground: 0 0% 0% !important;
+    --card: 0 0% 100% !important;
+    --card-foreground: 0 0% 0% !important;
+    --primary: 0 0% 0% !important;
+    --primary-foreground: 0 0% 100% !important;
+    --border: 0 0% 0% !important;
+    --sidebar-background: 0 0% 100% !important;
+    --sidebar-foreground: 0 0% 0% !important;
+    --sidebar-primary: 0 0% 0% !important;
+    --sidebar-primary-foreground: 0 0% 100% !important;
+    background-color: white !important;
+    color: black !important;
+  }
+
+  .contrast-yellow {
+    --background: 0 0% 0% !important;
+    --foreground: 60 100% 50% !important;
+    --card: 0 0% 0% !important;
+    --card-foreground: 60 100% 50% !important;
+    --primary: 60 100% 50% !important;
+    --primary-foreground: 0 0% 0% !important;
+    --border: 60 100% 50% !important;
+    --sidebar-background: 0 0% 0% !important;
+    --sidebar-foreground: 60 100% 50% !important;
+    --sidebar-primary: 60 100% 50% !important;
+    --sidebar-primary-foreground: 0 0% 0% !important;
+    background-color: black !important;
+    color: #ffff00 !important;
+  }
+
+  /* Alias for backward compatibility */
+  .high-contrast {
+    --background: 0 0% 0% !important;
+    --foreground: 0 0% 100% !important;
+    --card: 0 0% 0% !important;
+    --card-foreground: 0 0% 100% !important;
+    --primary: 0 0% 100% !important;
+    --primary-foreground: 0 0% 0% !important;
+    --border: 0 0% 100% !important;
+    background-color: black !important;
+    color: white !important;
+  }
+
+  .color-blind {
+    --destructive: 24 100% 50%; /* Orange instead of Red */
+    --emergency: 24 100% 50%;
+    --success: 210 100% 50%; /* Blue instead of Green */
+    --success-foreground: 0 0% 100%;
+  }
+}
+
+html.large-text {
+  font-size: 115%;
 }
 
 @layer base {
   * {
     @apply border-border;
   }
+
   body {
     @apply bg-background text-foreground font-sans antialiased;
   }
@@ -105,30 +178,44 @@
   .medical-gradient {
     background: var(--gradient-medical);
   }
+
   .hero-gradient {
     background: var(--gradient-hero);
   }
+
   .card-gradient {
     background: var(--gradient-card);
   }
+
   .shadow-card {
     box-shadow: var(--shadow-card);
   }
+
   .shadow-card-hover {
     box-shadow: var(--shadow-card-hover);
   }
+
   .shadow-elevated {
     box-shadow: var(--shadow-elevated);
   }
+
   .animate-float {
     animation: float 6s ease-in-out infinite;
   }
+
   .animate-pulse-slow {
     animation: pulse 3s cubic-bezier(0.4, 0, 0.6, 1) infinite;
   }
 }
 
 @keyframes float {
-  0%, 100% { transform: translateY(0); }
-  50% { transform: translateY(-10px); }
+
+  0%,
+  100% {
+    transform: translateY(0);
+  }
+
+  50% {
+    transform: translateY(-10px);
+  }
 }
