@@ -1,6 +1,6 @@
 import { useState, useEffect } from "react";
 import { useQuery } from "@tanstack/react-query";
-import { authService, userService } from "@/services/api";
+import { authService, userService, patientService } from "@/services/api";
 import { Link, useLocation, Outlet } from "react-router-dom";
 import {
   LayoutDashboard, Search, MessageSquare, History, Home, AlertTriangle,
@@ -45,6 +45,7 @@ export default function PatientLayout({ userName = "John Doe", userInitials = "J
     const parts = (meData.full_name || "").split(" ").filter(Boolean);
     userInitials = parts.length ? parts.map(p => p[0]).slice(0, 2).join("") : userInitials;
   }
+
   const location = useLocation();
   const isActive = (path: string) => location.pathname === path;
 

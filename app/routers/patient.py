@@ -27,6 +27,8 @@ async def get_profile(current_user: User = Depends(get_current_user), db: AsyncS
         date_of_birth=None,
         blood_type=None,
         allergies=None,
+        high_contrast_enabled=False,
+        large_text_enabled=False,
         created_at=current_user.created_at,
     )
 
@@ -44,6 +46,8 @@ async def update_profile(payload: PatientProfileCreateUpdate, current_user: User
             date_of_birth=payload.date_of_birth,
             blood_type=payload.blood_type,
             allergies=payload.allergies,
+            high_contrast_enabled=payload.high_contrast_enabled,
+            large_text_enabled=payload.large_text_enabled,
         )
         db.add(profile)
         await db.commit()
@@ -57,6 +61,8 @@ async def update_profile(payload: PatientProfileCreateUpdate, current_user: User
     profile.date_of_birth = payload.date_of_birth
     profile.blood_type = payload.blood_type
     profile.allergies = payload.allergies
+    profile.high_contrast_enabled = payload.high_contrast_enabled
+    profile.large_text_enabled = payload.large_text_enabled
 
     db.add(profile)
     await db.commit()

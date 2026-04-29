@@ -1,4 +1,4 @@
-from sqlalchemy import Column, String, Date, DateTime, ForeignKey
+from sqlalchemy import Column, String, Date, DateTime, ForeignKey, Boolean
 from sqlalchemy.dialects.postgresql import UUID
 from datetime import datetime
 import uuid
@@ -16,4 +16,6 @@ class PatientProfile(Base):
     date_of_birth = Column(Date, nullable=True)
     blood_type = Column(String, nullable=True)
     allergies = Column(String, nullable=True)
+    high_contrast_enabled = Column(Boolean, default=False)
+    large_text_enabled = Column(Boolean, default=False)
     created_at = Column(DateTime, default=datetime.utcnow)
