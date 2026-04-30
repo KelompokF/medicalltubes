@@ -65,6 +65,7 @@ export default function PatientLayout({
   const navigate = useNavigate();
   const isActive = (path: string) => location.pathname === path;
 
+<<<<<<< Updated upstream
   // WebSocket for notifications
   const userId = meData?.id || JSON.parse(localStorage.getItem("user") || "{}")?.id;
   const wsRef = useRef<WebSocket | null>(null);
@@ -117,6 +118,8 @@ export default function PatientLayout({
     return () => wsRef.current?.close();
   }, [userId, location.pathname, navigate]);
 
+=======
+>>>>>>> Stashed changes
   return (
     <div className="min-h-screen bg-background">
 

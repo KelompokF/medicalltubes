@@ -1,10 +1,11 @@
-import { useState, useEffect } from "react";
-import { Calendar, MapPin, FileText, Phone, User, Clock, Stethoscope, AlertCircle } from "lucide-react";
+import { useState, useEffect, FormEvent } from "react";
+import { Calendar, MapPin, Phone, User, Stethoscope } from "lucide-react";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Textarea } from "@/components/ui/textarea";
+<<<<<<< Updated upstream
 import {
   Select,
   SelectContent,
@@ -12,43 +13,24 @@ import {
   SelectTrigger,
   SelectValue,
 } from "@/components/ui/select";
+=======
+>>>>>>> Stashed changes
 import { toast } from "sonner";
 import api, { doctorService } from "@/services/api";
 
 // Ambil tanggal hari ini dalam format YYYY-MM-DD untuk input min
 const todayStr = new Date().toISOString().split("T")[0];
 
-interface Schedule {
-  id: string;
-  day_of_week: string;
-  start_time: string;
-  end_time: string;
-  is_active: boolean;
-}
+const hariMap = ["Minggu", "Senin", "Selasa", "Rabu", "Kamis", "Jumat", "Sabtu"];
 
-interface Doctor {
-  id: string;
-  doctor_id: string;
-  name: string;
-  specialization?: string;
-  hospital_name?: string;
-  experience_years: number;
-  fee: number;
-  rating: number;
-  is_available: boolean;
-  schedules: Schedule[];
-}
-
-const dayOfWeekIndonesian: { [key: string]: string } = {
-  monday: "Senin",
-  tuesday: "Selasa",
-  wednesday: "Rabu",
-  thursday: "Kamis",
-  friday: "Jumat",
-  saturday: "Sabtu",
-  sunday: "Minggu",
+const getHariIndonesia = (dateString: string): string => {
+  // Fix timezone offset issue: parse as local date
+  const [year, month, day] = dateString.split("-").map(Number);
+  const localDate = new Date(year, month - 1, day);
+  return hariMap[localDate.getDay()];
 };
 
+<<<<<<< Updated upstream
 const dayOfWeekEnglish: { [key: string]: string } = {
   senin: "monday",
   selasa: "tuesday",
@@ -60,10 +42,31 @@ const dayOfWeekEnglish: { [key: string]: string } = {
 };
 
 export default function HomeVisitBookingPage() {
+=======
+interface AvailableDoctor {
+  doctor_id: string;
+  name: string;
+  specialization: string;
+}
+
+export default function HomeVisitBookingPage() {
+  // --- Schedule state ---
+  const [selectedDate, setSelectedDate] = useState("");
+  const [selectedHari, setSelectedHari] = useState("");
+  const [availableDoctors, setAvailableDoctors] = useState<AvailableDoctor[]>([]);
+  const [selectedDoctor, setSelectedDoctor] = useState("");
+  const [availableTimes, setAvailableTimes] = useState<string[]>([]);
+  const [selectedTime, setSelectedTime] = useState("");
+  const [loadingDoctors, setLoadingDoctors] = useState(false);
+  const [loadingTimes, setLoadingTimes] = useState(false);
+
+  // --- Form state ---
+>>>>>>> Stashed changes
   const [patientName, setPatientName] = useState("");
   const [address, setAddress] = useState("");
   const [phoneNumber, setPhoneNumber] = useState("");
   const [complaint, setComplaint] = useState("");
+<<<<<<< Updated upstream
   const [preferredDate, setPreferredDate] = useState("");
   const [preferredTime, setPreferredTime] = useState("");
   const [selectedDoctorId, setSelectedDoctorId] = useState("");
@@ -71,12 +74,39 @@ export default function HomeVisitBookingPage() {
   const [isLoading, setIsLoading] = useState(false);
   const [isFetchingDoctors, setIsFetchingDoctors] = useState(false);
   const [availableTimeSlots, setAvailableTimeSlots] = useState<string[]>([]);
+=======
+  const [loading, setLoading] = useState(false);
+  const [error, setError] = useState<string | null>(null);
+>>>>>>> Stashed changes
 
-  /** Ambil daftar dokter dengan jadwal mereka saat komponen dimuat */
+  // =====================
+  // STEP 1: Saat user pilih tanggal → auto load dokter
+  // =====================
   useEffect(() => {
-    const fetchDoctorsWithSchedules = async () => {
-      setIsFetchingDoctors(true);
+    if (!selectedDate) {
+      setSelectedHari("");
+      setAvailableDoctors([]);
+      setSelectedDoctor("");
+      setAvailableTimes([]);
+      setSelectedTime("");
+      setError(null);
+      return;
+    }
+
+    const loadDoctors = async () => {
+      const hari = getHariIndonesia(selectedDate);
+      setSelectedHari(hari);
+      setSelectedDoctor("");
+      setAvailableTimes([]);
+      setSelectedTime("");
+      setLoadingDoctors(true);
+      setError(null);
+
+      console.log("Tanggal:", selectedDate);
+      console.log("Hari:", hari);
+
       try {
+<<<<<<< Updated upstream
         const response = await doctorService.getDoctorSchedules();
         const docs = Array.isArray(response.data) ? response.data : response.data.doctors || [];
         setDoctors(docs);
@@ -84,20 +114,41 @@ export default function HomeVisitBookingPage() {
         console.error("Gagal mengambil daftar dokter:", err);
         toast.error("Gagal mengambil daftar dokter. Silakan refresh halaman.");
         setDoctors([]);
+=======
+        const res = await homeVisitScheduleService.getAvailableDoctors(hari);
+        const doctors: AvailableDoctor[] = res.data || [];
+        setAvailableDoctors(doctors);
+
+        console.log("Doctors:", doctors);
+
+        // Auto-select jika hanya 1 dokter
+        if (doctors.length === 1) {
+          setSelectedDoctor(doctors[0].doctor_id);
+        }
+      } catch (err: any) {
+        console.error(err);
+        setAvailableDoctors([]);
+        setError("Tidak dapat memuat data dokter. Periksa koneksi ke server.");
+>>>>>>> Stashed changes
       } finally {
-        setIsFetchingDoctors(false);
+        setLoadingDoctors(false);
       }
     };
-    fetchDoctorsWithSchedules();
-  }, []);
 
-  /** Update available time slots ketika tanggal atau dokter berubah */
+    loadDoctors();
+  }, [selectedDate]);
+
+  // =====================
+  // STEP 2: Saat user pilih dokter → auto load jam
+  // =====================
   useEffect(() => {
-    if (!preferredDate || !selectedDoctorId) {
-      setAvailableTimeSlots([]);
+    if (!selectedDoctor || !selectedHari) {
+      setAvailableTimes([]);
+      setSelectedTime("");
       return;
     }
 
+<<<<<<< Updated upstream
     const selectedDoctor = doctors.find(d => d.id === selectedDoctorId);
     if (!selectedDoctor || !selectedDoctor.schedules) {
       setAvailableTimeSlots([]);
@@ -124,11 +175,43 @@ export default function HomeVisitBookingPage() {
 
     setAvailableTimeSlots(slots.length > 0 ? slots : []);
   }, [preferredDate, selectedDoctorId, doctors]);
+=======
+    const loadTimes = async () => {
+      setLoadingTimes(true);
+      setSelectedTime("");
 
-  /** Kirim permintaan home visit ke backend */
-  const handleSubmit = async (e: React.FormEvent) => {
+      console.log("Selected:", selectedDoctor);
+
+      try {
+        const res = await homeVisitScheduleService.getAvailableTimes(selectedDoctor, selectedHari);
+        const times: string[] = res.data || [];
+        setAvailableTimes(times);
+
+        console.log("Times:", times);
+
+        // Auto-select jika hanya 1 jam
+        if (times.length === 1) {
+          setSelectedTime(times[0]);
+        }
+      } catch (err: any) {
+        console.error(err);
+        setAvailableTimes([]);
+      } finally {
+        setLoadingTimes(false);
+      }
+    };
+>>>>>>> Stashed changes
+
+    loadTimes();
+  }, [selectedDoctor, selectedHari]);
+
+  // =====================
+  // SUBMIT
+  // =====================
+  const handleSubmit = async (e: FormEvent<HTMLFormElement>) => {
     e.preventDefault();
 
+<<<<<<< Updated upstream
     if (!patientName || !address || !phoneNumber || !complaint || !preferredDate || !preferredTime || !selectedDoctorId) {
       toast.error("Semua field harus diisi termasuk pemilihan dokter dan jadwal");
       return;
@@ -141,17 +224,29 @@ export default function HomeVisitBookingPage() {
     }
 
     setIsLoading(true);
+=======
+    if (!isFormValid) {
+      toast.error("Semua field harus diisi");
+      return;
+    }
+
+    setLoading(true);
+>>>>>>> Stashed changes
     try {
       const selectedDoc = doctors.find(d => d.id === selectedDoctorId);
       
       const payload = {
         patient_name: patientName,
+<<<<<<< Updated upstream
         doctor_id: selectedDoc?.doctor_id, // Use the actual doctor user ID
+=======
+        doctor_id: selectedDoctor,
+>>>>>>> Stashed changes
         address,
         phone_number: phoneNumber,
         complaint,
-        preferred_date: new Date(preferredDate).toISOString(),
-        preferred_time: preferredTime,
+        preferred_date: new Date(selectedDate).toISOString(),
+        preferred_time: selectedTime,
       };
       
       console.log("Sending payload:", payload);
@@ -165,21 +260,37 @@ export default function HomeVisitBookingPage() {
       setAddress("");
       setPhoneNumber("");
       setComplaint("");
-      setPreferredDate("");
-      setPreferredTime("");
-      setSelectedDoctorId("");
-      setAvailableTimeSlots([]);
+      setSelectedDate("");
+      setSelectedTime("");
+      setSelectedDoctor("");
+      setAvailableTimes([]);
+      setAvailableDoctors([]);
+      setSelectedHari("");
     } catch (err: any) {
       console.error("Error submitting form:", err.response?.data || err);
       const detail = err?.response?.data?.detail;
       toast.error(typeof detail === "string" ? detail : "Gagal mengirim permintaan. Silakan coba lagi.");
     } finally {
-      setIsLoading(false);
+      setLoading(false);
     }
   };
 
+<<<<<<< Updated upstream
   const isFormValid = patientName && address && phoneNumber && complaint && preferredDate && preferredTime && selectedDoctorId;
   const selectedDoctor = doctors.find(d => d.id === selectedDoctorId);
+=======
+  const isFormValid = Boolean(
+    patientName &&
+    address &&
+    phone &&
+    complaint &&
+    selectedDate &&
+    selectedTime &&
+    selectedDoctor
+  );
+>>>>>>> Stashed changes
+
+  const selectedDoctorData = availableDoctors.find((d) => d.doctor_id === selectedDoctor);
 
   return (
     <div className="space-y-6 animate-fade-in">
@@ -193,10 +304,21 @@ export default function HomeVisitBookingPage() {
         </Button>
       </div>
 
+<<<<<<< Updated upstream
+=======
+      {error && (
+        <div className="rounded-xl border border-destructive/20 bg-destructive/10 p-4 text-destructive">
+          <p className="font-medium">Terjadi kesalahan saat memuat data Home Visit.</p>
+          <p className="text-sm mt-1">{error}</p>
+        </div>
+      )}
+
+>>>>>>> Stashed changes
       <form onSubmit={handleSubmit}>
         <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
           <div className="lg:col-span-2 space-y-6">
 
+<<<<<<< Updated upstream
             {/* Pilih Dokter */}
             <Card className="shadow-card border-primary/20 bg-primary/5">
               <CardHeader>
@@ -321,12 +443,20 @@ export default function HomeVisitBookingPage() {
             <Card className="shadow-card">
               <CardHeader>
                 <CardTitle className="flex items-center gap-2">
+=======
+            {/* SECTION 1: Jadwal Kunjungan */}
+            <Card className="shadow-card border-primary/20 bg-primary/5 relative z-30 overflow-visible">
+              <CardHeader>
+                <CardTitle className="flex items-center gap-2">
+>>>>>>> Stashed changes
                   <Calendar className="h-5 w-5 text-primary" />
                   Jadwal Kunjungan
                 </CardTitle>
               </CardHeader>
-              <CardContent className="space-y-4">
+              <CardContent className="grid grid-cols-1 md:grid-cols-3 gap-4 relative z-40 overflow-visible">
+                {/* Kiri: Tanggal */}
                 <div>
+<<<<<<< Updated upstream
                   <Label htmlFor="preferred-date">Tanggal <span className="text-destructive">*</span></Label>
                   <Input 
                     id="preferred-date" 
@@ -340,12 +470,24 @@ export default function HomeVisitBookingPage() {
                     className="mt-1" 
                     required 
                     disabled={!selectedDoctorId}
+=======
+                  <Label htmlFor="date-select">Tanggal <span className="text-destructive">*</span></Label>
+                  <Input
+                    id="date-select"
+                    type="date"
+                    value={selectedDate}
+                    onChange={(e) => setSelectedDate(e.target.value)}
+                    min={todayStr}
+                    className="mt-1 bg-background"
+                    required
+>>>>>>> Stashed changes
                   />
-                  {!selectedDoctorId && (
-                    <p className="text-xs text-muted-foreground mt-1">Pilih dokter terlebih dahulu</p>
+                  {selectedHari && (
+                    <p className="text-[10px] text-muted-foreground mt-1">Hari: {selectedHari}</p>
                   )}
                 </div>
 
+<<<<<<< Updated upstream
                 {preferredDate && selectedDoctorId && (
                   <div>
                     <Label htmlFor="preferred-time">Jadwal Tersedia <span className="text-destructive">*</span></Label>
@@ -376,6 +518,105 @@ export default function HomeVisitBookingPage() {
             {/* Alamat & Keluhan */}
             <Card className="shadow-card">
               <CardHeader><CardTitle className="flex items-center gap-2"><MapPin className="h-5 w-5 text-primary" /> Alamat & Keluhan</CardTitle></CardHeader>
+=======
+                {/* Tengah: Dokter */}
+                <div className="relative z-50">
+                  <Label htmlFor="doctor-select">Dokter <span className="text-destructive">*</span></Label>
+                  <select
+                    id="doctor-select"
+                    value={selectedDoctor}
+                    onChange={(e) => setSelectedDoctor(e.target.value)}
+                    className="flex h-10 w-full rounded-md border border-input bg-background px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-ring mt-1"
+                    required
+                  >
+                    <option value="">
+                      {loadingDoctors
+                        ? "Memuat dokter..."
+                        : availableDoctors.length === 0 && selectedDate
+                          ? "Tidak ada dokter tersedia"
+                          : "Pilih dokter"}
+                    </option>
+                    {availableDoctors.map((doc) => (
+                      <option key={doc.doctor_id} value={doc.doctor_id}>
+                        {doc.name} {doc.specialization ? `- ${doc.specialization}` : ""}
+                      </option>
+                    ))}
+                  </select>
+                </div>
+
+                {/* Kanan: Jam */}
+                <div className="relative z-50">
+                  <Label htmlFor="time-select">Jam <span className="text-destructive">*</span></Label>
+                  <select
+                    id="time-select"
+                    value={selectedTime}
+                    onChange={(e) => setSelectedTime(e.target.value)}
+                    className="flex h-10 w-full rounded-md border border-input bg-background px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-ring mt-1"
+                    required
+                  >
+                    <option value="">
+                      {loadingTimes
+                        ? "Memuat jam..."
+                        : availableTimes.length === 0 && selectedDoctor
+                          ? "Tidak ada jadwal"
+                          : "Pilih jam"}
+                    </option>
+                    {availableTimes.map((jam) => (
+                      <option key={jam} value={jam}>
+                        {jam}
+                      </option>
+                    ))}
+                  </select>
+                </div>
+              </CardContent>
+            </Card>
+
+            {/* SECTION 2: Informasi Pasien */}
+            <Card className="shadow-card">
+              <CardHeader>
+                <CardTitle className="flex items-center gap-2">
+                  <User className="h-5 w-5 text-primary" />
+                  Informasi Pasien
+                </CardTitle>
+              </CardHeader>
+              <CardContent className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+                <div>
+                  <Label htmlFor="patient-name">Nama Lengkap Pasien <span className="text-destructive">*</span></Label>
+                  <Input
+                    id="patient-name"
+                    value={patientName}
+                    onChange={(e) => setPatientName(e.target.value)}
+                    placeholder="Nama lengkap"
+                    className="mt-1"
+                    required
+                  />
+                </div>
+                <div>
+                  <Label htmlFor="phone-number">Nomor Telepon <span className="text-destructive">*</span></Label>
+                  <div className="relative mt-1">
+                    <Phone className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
+                    <Input
+                      id="phone-number"
+                      value={phone}
+                      onChange={(e) => setPhone(e.target.value)}
+                      placeholder="08xx"
+                      className="pl-9"
+                      required
+                    />
+                  </div>
+                </div>
+              </CardContent>
+            </Card>
+
+            {/* SECTION 3: Alamat & Keluhan */}
+            <Card className="shadow-card">
+              <CardHeader>
+                <CardTitle className="flex items-center gap-2">
+                  <MapPin className="h-5 w-5 text-primary" />
+                  Alamat &amp; Keluhan
+                </CardTitle>
+              </CardHeader>
+>>>>>>> Stashed changes
               <CardContent className="space-y-4">
                 <div>
                   <Label htmlFor="address">Alamat Lengkap <span className="text-destructive">*</span></Label>
@@ -383,7 +624,67 @@ export default function HomeVisitBookingPage() {
                 </div>
                 <div>
                   <Label htmlFor="complaint">Keluhan <span className="text-destructive">*</span></Label>
+<<<<<<< Updated upstream
                   <Textarea id="complaint" value={complaint} onChange={(e) => setComplaint(e.target.value)} placeholder="Deskripsikan kondisi kesehatan Anda" className="mt-1" required />
+=======
+                  <Textarea
+                    id="complaint"
+                    value={complaint}
+                    onChange={(e) => setComplaint(e.target.value)}
+                    placeholder="Deskripsikan kondisi kesehatan Anda"
+                    className="mt-1"
+                    required
+                  />
+                </div>
+              </CardContent>
+            </Card>
+
+          </div>
+
+          {/* SECTION 4: Ringkasan & Submit */}
+          <div className="space-y-6">
+            <Card className="shadow-card sticky top-24">
+              <CardHeader>
+                <CardTitle>Ringkasan</CardTitle>
+              </CardHeader>
+              <CardContent className="space-y-3 text-sm">
+                <div className="flex justify-between font-medium text-primary border-b pb-2">
+                  <span>Dokter</span>
+                  <span className="text-right">
+                    {selectedDoctorData
+                      ? `${selectedDoctorData.name}${selectedDoctorData.specialization ? `, ${selectedDoctorData.specialization}` : ""}`
+                      : "-"}
+                  </span>
+                </div>
+                <div className="flex justify-between border-b pb-2">
+                  <span>Pasien</span>
+                  <span className="text-right">{patientName || "-"}</span>
+                </div>
+                <div className="flex justify-between border-b pb-2">
+                  <span>Tanggal</span>
+                  <span className="text-right">{selectedDate ? `${selectedDate} (${selectedHari})` : "-"}</span>
+                </div>
+                <div className="flex justify-between border-b pb-2">
+                  <span>Jam</span>
+                  <span className="text-right">{selectedTime || "-"}</span>
+                </div>
+                <div className="flex justify-between border-b pb-2 flex-col gap-1">
+                  <span>Alamat:</span>
+                  <span className="text-muted-foreground whitespace-pre-wrap">{address || "-"}</span>
+                </div>
+                <div className="flex justify-between flex-col gap-1">
+                  <span>Keluhan:</span>
+                  <span className="text-muted-foreground whitespace-pre-wrap">{complaint || "-"}</span>
+                </div>
+                <div className="pt-4">
+                  <Button
+                    type="submit"
+                    className="w-full medical-gradient text-primary-foreground"
+                    disabled={!isFormValid || loading}
+                  >
+                    {loading ? "Mengirim..." : "Konfirmasi & Pesan"}
+                  </Button>
+>>>>>>> Stashed changes
                 </div>
               </CardContent>
             </Card>
