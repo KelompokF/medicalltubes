@@ -18,6 +18,12 @@ class HealthRecord(Base):
     heart_rate = Column(Integer, nullable=True)       # bpm
     weight = Column(Float, nullable=True)             # kg
     height = Column(Float, nullable=True)             # cm
+    
+    # Riwayat Penyakit (Baru)
+    diagnosed_conditions = Column(String, nullable=True) # Daftar penyakit yang diderita
+    allergies = Column(String, nullable=True)            # Riwayat alergi
+    current_medications = Column(String, nullable=True)  # Obat yang sedang dikonsumsi
+    
     notes = Column(String, nullable=True)             # Catatan tambahan atau gejala
 
     created_at = Column(DateTime, default=datetime.utcnow)

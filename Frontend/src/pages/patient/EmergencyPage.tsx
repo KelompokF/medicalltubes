@@ -4,7 +4,8 @@ import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
 import { toast } from "sonner";
-import { emergencyService } from "@/services/api";
+import { emergencyService, patientService } from "@/services/api";
+import { useQuery } from "@tanstack/react-query";
 
 interface AmbulanceService {
   id: string;
@@ -31,7 +32,7 @@ export default function EmergencyPage() {
   const [ambulances, setAmbulances] = useState<AmbulanceService[]>([]);
   const [location, setLocation] = useState<UserLocation | null>(null);
   const [locationError, setLocationError] = useState<string | null>(null);
-  const [isLoadingLocation, setIsLoadingLocation] = useState(true);
+  const [isLoadingLocation, setIsLoadingLocation] = useState(false);
   const [isLoadingAmbulances, setIsLoadingAmbulances] = useState(false);
   const [isSending, setIsSending] = useState(false);
   const [emergencyStatus, setEmergencyStatus] = useState<{
@@ -41,6 +42,13 @@ export default function EmergencyPage() {
     ambulance?: AmbulanceService;
   } | null>(null);
   const [radiusKm, setRadiusKm] = useState(50);
+
+  // Fetch location sharing setting from user profile
+  const { data: locationSetting } = useQuery({
+    queryKey: ["locationSharing"],
+    queryFn: () => patientService.getLocationSharing().then((r) => r.data),
+  });
+  const isLocationSharingEnabled = locationSetting?.location_sharing_enabled ?? null;
 
   // Get user's GPS location
   const getLocation = useCallback(() => {
@@ -165,9 +173,15 @@ export default function EmergencyPage() {
     }
   };
 
+  // Auto-fetch location hanya jika setting lokasi sudah dimuat dan diaktifkan
   useEffect(() => {
-    getLocation();
-  }, [getLocation]);
+    if (isLocationSharingEnabled === null) return; // masih loading
+    if (isLocationSharingEnabled) {
+      getLocation();
+    } else {
+      setIsLoadingLocation(false); // tidak loading, tapi juga tidak auto-fetch
+    }
+  }, [getLocation, isLocationSharingEnabled]);
 
   return (
     <div className="space-y-6 animate-fade-in">
@@ -200,7 +214,27 @@ export default function EmergencyPage() {
       {/* Current Location */}
       <Card className="shadow-card">
         <CardContent className="p-5">
-          {isLoadingLocation ? (
+          {isLocationSharingEnabled === false ? (
+            // Lokasi dinonaktifkan
+            <div className="flex items-center gap-3">
+              <div className="rounded-full bg-warning/10 p-3">
+                <AlertTriangle className="h-5 w-5 text-warning" />
+              </div>
+              <div className="flex-1">
+                <p className="text-sm font-medium text-foreground">Lokasi Otomatis Dinonaktifkan</p>
+                <p className="text-xs text-muted-foreground">
+                  Aktifkan berbagi lokasi di Profil atau klik tombol di bawah untuk mendapatkan lokasi secara manual.
+                </p>
+              </div>
+              <Button size="sm" variant="outline" onClick={getLocation} disabled={isLoadingLocation}>
+                {isLoadingLocation ? (
+                  <Loader2 className="h-4 w-4 animate-spin" />
+                ) : (
+                  <><Navigation className="h-4 w-4 mr-1" />Dapatkan Lokasi</>
+                )}
+              </Button>
+            </div>
+          ) : isLoadingLocation ? (
             <div className="flex items-center gap-3">
               <div className="rounded-full bg-primary/10 p-3">
                 <Loader2 className="h-5 w-5 text-primary animate-spin" />

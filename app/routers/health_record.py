@@ -26,6 +26,9 @@ async def create_health_record(
         heart_rate=record_in.heart_rate,
         weight=record_in.weight,
         height=record_in.height,
+        diagnosed_conditions=record_in.diagnosed_conditions,
+        allergies=record_in.allergies,
+        current_medications=record_in.current_medications,
         notes=record_in.notes,
     )
     if record_in.date:

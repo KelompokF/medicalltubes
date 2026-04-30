@@ -27,6 +27,10 @@ async def lifespan(app: FastAPI):
             "ALTER TABLE users ADD COLUMN IF NOT EXISTS date_of_birth DATE",
             "ALTER TABLE users ADD COLUMN IF NOT EXISTS blood_type VARCHAR",
             "ALTER TABLE users ADD COLUMN IF NOT EXISTS allergies VARCHAR",
+            "ALTER TABLE users ADD COLUMN IF NOT EXISTS location_sharing_enabled BOOLEAN DEFAULT FALSE",
+            "ALTER TABLE health_records ADD COLUMN IF NOT EXISTS diagnosed_conditions VARCHAR",
+            "ALTER TABLE health_records ADD COLUMN IF NOT EXISTS allergies VARCHAR",
+            "ALTER TABLE health_records ADD COLUMN IF NOT EXISTS current_medications VARCHAR",
         ]
         for stmt in alter_statements:
             await conn.execute(text(stmt))

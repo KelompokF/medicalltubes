@@ -4,7 +4,7 @@ import { authService } from "@/services/api";
 import { Link, useLocation, Outlet, useNavigate } from "react-router-dom";
 import {
   LayoutDashboard, Search, MessageSquare, History, Home, AlertTriangle,
-  User, Bell, ChevronDown, Menu, X, LogOut, Settings, Heart
+  User, Bell, ChevronDown, Menu, X, LogOut, Settings, Heart, ClipboardList
 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import {
@@ -20,6 +20,7 @@ const patientNav = [
   { label: "Home Visit", path: "/home-visit", icon: Home },
   { label: "Home Visit History", path: "/home-visit-history", icon: History },
   { label: "Tracking", path: "/tracking", icon: Home },
+  { label: "Medical Records", path: "/health-records", icon: ClipboardList },
   { label: "Emergency", path: "/emergency", icon: AlertTriangle },
   { label: "Profile", path: "/profile", icon: User },
 ];
