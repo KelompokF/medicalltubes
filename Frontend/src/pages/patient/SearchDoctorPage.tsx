@@ -25,7 +25,8 @@ import {
 } from "@/components/ui/select";
 import { Badge } from "@/components/ui/badge";
 import { toast } from "sonner";
-import { doctorService } from "@/services/api";
+import { doctorService, patientService } from "@/services/api";
+import { useQuery } from "@tanstack/react-query";
 
 interface Doctor {
   id: string;
@@ -63,6 +64,13 @@ export default function SearchDoctorPage() {
   >("idle");
   const [nearbyMode, setNearbyMode] = useState(false);
   const [radiusKm, setRadiusKm] = useState(50);
+
+  // Check location sharing setting
+  const { data: locationSetting } = useQuery({
+    queryKey: ["locationSharing"],
+    queryFn: () => patientService.getLocationSharing().then((r) => r.data),
+  });
+  const isLocationSharingEnabled = locationSetting?.location_sharing_enabled ?? null;
 
   // Get user location
   const getLocation = useCallback(() => {
@@ -122,10 +130,15 @@ export default function SearchDoctorPage() {
     }
   }, [search, specialization, nearbyMode, location, radiusKm]);
 
-  // Get location on mount
+  // Auto-fetch location hanya jika setting lokasi sudah dimuat dan diaktifkan
   useEffect(() => {
-    getLocation();
-  }, [getLocation]);
+    if (isLocationSharingEnabled === null) return; // masih loading
+    if (isLocationSharingEnabled) {
+      getLocation();
+    } else {
+      setLocationStatus("idle"); // tidak auto-fetch, user harus manual
+    }
+  }, [getLocation, isLocationSharingEnabled]);
 
   // Fetch doctors when filters change (debounced for search)
   useEffect(() => {

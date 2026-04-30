@@ -17,7 +17,7 @@ import {
   LogOut,
   Settings,
   Heart,
-  FileText // ✅ TAMBAHAN
+  ClipboardList
 } from "lucide-react";
 
 import { Button } from "@/components/ui/button";
@@ -30,19 +30,15 @@ import {
 } from "@/components/ui/dropdown-menu";
 import { toast } from "sonner";
 
-// ✅ UPDATED NAV MENU
+// UPDATED NAV MENU
 const patientNav = [
   { label: "Dashboard", path: "/dashboard", icon: LayoutDashboard },
   { label: "Search Doctor", path: "/search-doctor", icon: Search },
   { label: "Chat", path: "/chat", icon: MessageSquare },
   { label: "Chat History", path: "/chat-history", icon: History },
-
-  // 🔥 NEW FEATURE
-  { label: "Health Records", path: "/health-records", icon: FileText },
-
   { label: "Home Visit", path: "/home-visit", icon: Home },
   { label: "Home Visit History", path: "/home-visit-history", icon: History },
-  { label: "Tracking", path: "/tracking", icon: Home },
+  { label: "Medical Records", path: "/health-records", icon: ClipboardList },
   { label: "Emergency", path: "/emergency", icon: AlertTriangle },
   { label: "Profile", path: "/profile", icon: User },
 ];

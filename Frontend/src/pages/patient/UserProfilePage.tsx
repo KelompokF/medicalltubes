@@ -1,7 +1,7 @@
 import { useState } from "react";
 import { User, Shield, Trash2, Camera, MapPin } from "lucide-react";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
-import { patientService, authService } from "@/services/api";
+import { patientService } from "@/services/api";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -25,22 +25,35 @@ export default function UserProfilePage() {
     }
   });
 
-  const { data: locationData } = useQuery({ 
-    queryKey: ["locationSetting"], 
-    queryFn: () => authService.getLocationSetting().then((r) => r.data) 
+  // Location Sharing Query & Mutation (with optimistic update)
+  const { data: locationData, isLoading: isLocationLoading } = useQuery({ 
+    queryKey: ["locationSharing"], 
+    queryFn: () => patientService.getLocationSharing().then((r) => r.data) 
   });
 
   const locationMutation = useMutation({
-    mutationFn: (payload: { is_location_enabled: boolean }) => authService.updateLocationSetting(payload).then((r) => r.data),
-    onSuccess: () => {
-      queryClient.invalidateQueries({ queryKey: ["locationSetting"] });
-      toast.success("Pengaturan lokasi berhasil disimpan!");
+    mutationFn: (enabled: boolean) => patientService.updateLocationSharing(enabled).then((r) => r.data),
+    onMutate: async (enabled: boolean) => {
+      await queryClient.cancelQueries({ queryKey: ["locationSharing"] });
+      const previous = queryClient.getQueryData(["locationSharing"]);
+      queryClient.setQueryData(["locationSharing"], (old: any) => ({
+        ...old,
+        location_sharing_enabled: enabled,
+      }));
+      return { previous };
     },
-    onError: () => toast.error("Gagal menyimpan pengaturan lokasi.")
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ["locationSharing"] });
+      toast.success("Pengaturan lokasi berhasil diperbarui!");
+    },
+    onError: (_err, _enabled, context: any) => {
+      queryClient.setQueryData(["locationSharing"], context?.previous);
+      toast.error("Gagal memperbarui pengaturan lokasi. Silakan coba lagi.");
+    },
   });
 
   const deleteMutation = useMutation({
-    mutationFn: () => authService.deleteAccount(),
+    mutationFn: () => patientService.deleteAccount(),
     onSuccess: () => {
       localStorage.removeItem("access_token");
       localStorage.removeItem("user");
@@ -131,17 +144,24 @@ export default function UserProfilePage() {
 
           {/* Privacy & Location */}
           <Card className="shadow-card">
-            <CardHeader><CardTitle className="flex items-center gap-2"><MapPin className="h-5 w-5 text-primary" />Privacy & Location</CardTitle></CardHeader>
+            <CardHeader>
+              <CardTitle className="flex items-center gap-2">
+                <MapPin className="h-5 w-5 text-primary" />
+                Privacy & Location
+              </CardTitle>
+            </CardHeader>
             <CardContent className="space-y-4">
               <div className="flex items-center justify-between">
                 <div className="space-y-0.5">
                   <Label className="text-base">Bagikan Lokasi Secara Otomatis</Label>
-                  <p className="text-sm text-muted-foreground">Izinkan aplikasi mengirim lokasi terkinimu secara otomatis saat darurat.</p>
+                  <p className="text-sm text-muted-foreground">
+                    Izinkan aplikasi mengirim lokasi terkinimu secara otomatis saat dalam kondisi darurat.
+                  </p>
                 </div>
                 <Switch 
-                  checked={locationData?.is_location_enabled || false}
-                  onCheckedChange={(checked) => locationMutation.mutate({ is_location_enabled: checked })}
-                  disabled={locationMutation.isPending}
+                  checked={locationData?.location_sharing_enabled ?? false}
+                  onCheckedChange={(checked) => locationMutation.mutate(checked)}
+                  disabled={locationMutation.isPending || isLocationLoading}
                 />
               </div>
             </CardContent>

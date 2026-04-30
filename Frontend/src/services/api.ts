@@ -3,7 +3,7 @@ import axios from "axios";
 // Base API configuration — point to your FastAPI backend
 // Default to backend root (no /api/v1) since backend routes use /auth, /chat, etc.
 const API_BASE_URL =
-  import.meta.env.VITE_API_BASE_URL || "http://127.0.0.1:8000";
+  import.meta.env.VITE_API_BASE_URL || "http://localhost:8001";
 
 const api = axios.create({
   baseURL: API_BASE_URL,
@@ -53,10 +53,6 @@ export const authService = {
     api.post("/auth/forgot-password", { email }),
   resetPassword: (data: { token: string; password: string }) =>
     api.post("/auth/reset-password", data),
-  getLocationSetting: () => api.get("/auth/location-setting"),
-  updateLocationSetting: (data: { is_location_enabled: boolean }) =>
-    api.put("/auth/location-setting", data),
-  deleteAccount: () => api.delete("/auth/delete-account"),
 };
 
 // ============================================
@@ -65,7 +61,12 @@ export const authService = {
 export const patientService = {
   getDashboard: () => api.get("/patient/dashboard"),
   getProfile: () => api.get("/patient/profile"),
-  updateProfile: (data: unknown) => api.put("/patient/profile", data),
+  updateProfile: (data: any) => api.put("/patient/profile", data),
+  deleteAccount: () => api.delete("/patient/account"),
+  // Location Sharing
+  getLocationSharing: () => api.get("/users/me/location-sharing"),
+  updateLocationSharing: (enabled: boolean) =>
+    api.patch("/users/me/location-sharing", { enabled }),
 };
 
 // ============================================
@@ -86,7 +87,7 @@ export const doctorService = {
   getDashboard: () => api.get("/doctor/dashboard"),
   getPatientRequests: () => api.get("/doctor/requests"),
   acceptRequest: (id: string) => api.post(`/doctor/requests/${id}/accept`),
-  createPrescription: (data: unknown) => api.post("/doctor/prescriptions", data),
+  createPrescription: (data: any) => api.post("/doctor/prescriptions", data),
 };
 
 // ============================================
@@ -165,20 +166,20 @@ export const ambulanceService = {
 };
 
 // ============================================
-// HEALTH RECORD ENDPOINTS
-// ============================================
-export const healthRecordService = {
-  getRecords: () => api.get("/health-records/"),
-  getRecordById: (id: string) => api.get(`/health-records/${id}`),
-  createRecord: (data: unknown) => api.post("/health-records/", data),
-  deleteRecord: (id: string) => api.delete(`/health-records/${id}`),
-};
-
-// ============================================
 // PRESCRIPTION ENDPOINTS
 // ============================================
 export const prescriptionService = {
   create: (data: any) => api.post("/prescriptions", data),
   getRoomPrescriptions: (roomId: string) => api.get(`/prescriptions/room/${roomId}`),
   getPatientPrescriptions: (patientId: string) => api.get(`/prescriptions/patient/${patientId}`),
+};
+
+// ============================================
+// HEALTH RECORD ENDPOINTS
+// ============================================
+export const healthRecordService = {
+  getRecords: () => api.get("/health-records"),
+  getRecordById: (id: string) => api.get(`/health-records/${id}`),
+  createRecord: (data: any) => api.post("/health-records", data),
+  deleteRecord: (id: string) => api.delete(`/health-records/${id}`),
 };
