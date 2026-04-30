@@ -30,6 +30,7 @@ from app.schemas.emergency import (
     NearbyAmbulancesResponse,
     EmergencyRequest,
     EmergencyRequestResponse,
+    EmergencyStatusUpdate,
 )
 
 router = APIRouter(prefix="/emergencies", tags=["Emergency"])
