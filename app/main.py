@@ -5,14 +5,14 @@ from app.routers import auth, health_record, user, emergency
 from app.routers.patient import router as patient_router
 from app.routers.dashboard import router as dashboard_router
 from app.routers.chat import router as chat_router
-from app.routers.chat_history import router as chat_history_router
 from app.routers.home_visit import router as home_visit_router
 from app.routers.doctor import router as doctor_router
 from app.Websocket.chat import router as websocket_router
-from app.routers.home_visit import router as home_visit_router
 from app.database import engine, Base
-# Ensure doctor_profile model is loaded for create_all
+# Ensure models are loaded for create_all
 import app.models.doctor_profile  # noqa: F401
+import app.models.chat_room  # noqa: F401
+import app.models.prescription  # noqa: F401
 
 
 @asynccontextmanager
@@ -44,7 +44,7 @@ app = FastAPI(
 # CORS — allow frontend origins during development
 app.add_middleware(
     CORSMiddleware,
-    allow_origin_regex=r"^https?://(localhost|127\.0\.0\.1)(:[0-9]+)?$",
+    allow_origins=["http://localhost:8080", "http://127.0.0.1:8080", "http://localhost:5173"],
     allow_credentials=True,
     allow_methods=["*"],
     allow_headers=["*"],
@@ -57,10 +57,11 @@ app.include_router(health_record.router)
 app.include_router(patient_router)
 app.include_router(dashboard_router)
 app.include_router(chat_router)
-app.include_router(chat_history_router)
 app.include_router(websocket_router)
 app.include_router(home_visit_router)  
 
+from app.routers.prescription import router as prescription_router
+app.include_router(prescription_router)
 app.include_router(emergency.router)
 app.include_router(doctor_router)
 

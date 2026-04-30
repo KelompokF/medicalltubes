@@ -30,10 +30,9 @@ api.interceptors.response.use(
   (response) => response,
   (error) => {
     if (error.response?.status === 401) {
-      // localStorage.removeItem("access_token");
-      // localStorage.removeItem("user");
-      // window.location.href = "/login";
-      console.log("Auth error bypassed for preview");
+      localStorage.removeItem("access_token");
+      localStorage.removeItem("user");
+      window.location.href = "/login";
     }
     return Promise.reject(error);
   }
@@ -173,4 +172,13 @@ export const healthRecordService = {
   getRecordById: (id: string) => api.get(`/health-records/${id}`),
   createRecord: (data: unknown) => api.post("/health-records/", data),
   deleteRecord: (id: string) => api.delete(`/health-records/${id}`),
+};
+
+// ============================================
+// PRESCRIPTION ENDPOINTS
+// ============================================
+export const prescriptionService = {
+  create: (data: any) => api.post("/prescriptions", data),
+  getRoomPrescriptions: (roomId: string) => api.get(`/prescriptions/room/${roomId}`),
+  getPatientPrescriptions: (patientId: string) => api.get(`/prescriptions/patient/${patientId}`),
 };
