@@ -110,7 +110,7 @@ export default function EmergencyPage() {
       if (data.ambulances?.length === 0) {
         toast.info("Tidak ada layanan ambulans ditemukan di area ini. Coba perbesar radius pencarian.");
       }
-    } catch (error: any) {
+    } catch (error: unknown) {
       console.error("Error fetching ambulances:", error);
       toast.error("Gagal memuat data ambulans. Silakan coba lagi.");
     } finally {
@@ -139,7 +139,7 @@ export default function EmergencyPage() {
         ambulance: data.ambulance_assigned,
       });
       toast.success("Permintaan darurat terkirim! Bantuan sedang dalam perjalanan.");
-    } catch (error: any) {
+    } catch (error: unknown) {
       console.error("SOS Error:", error);
       toast.error("Gagal mengirim permintaan darurat. Silakan coba lagi.");
     } finally {
@@ -150,15 +150,13 @@ export default function EmergencyPage() {
   // Call a specific ambulance
   const handleCallAmbulance = async (ambulance: AmbulanceService) => {
     try {
-      // If there's a real phone number, try to call it
       if (ambulance.phone) {
         window.open(`tel:${ambulance.phone}`, "_self");
         return;
       }
-      // Otherwise use the backend call endpoint
       await emergencyService.callAmbulance(ambulance.id);
       toast.success(`Menghubungi ${ambulance.name}...`);
-    } catch (error: any) {
+    } catch (error: unknown) {
       console.error("Call error:", error);
       toast.error("Gagal menghubungi ambulans.");
     }
@@ -179,7 +177,8 @@ export default function EmergencyPage() {
     if (isLocationSharingEnabled) {
       getLocation();
     } else {
-      setIsLoadingLocation(false); // tidak loading, tapi juga tidak auto-fetch
+      setIsLoadingLocation(false);
+      setLocationError("Pengaturan Berbagi Lokasi Otomatis sedang nonaktif. Aktifkan di menu Profil atau tekan 'Dapatkan Lokasi' secara manual.");
     }
   }, [getLocation, isLocationSharingEnabled]);
 
@@ -214,8 +213,7 @@ export default function EmergencyPage() {
       {/* Current Location */}
       <Card className="shadow-card">
         <CardContent className="p-5">
-          {isLocationSharingEnabled === false ? (
-            // Lokasi dinonaktifkan
+          {isLocationSharingEnabled === false && !location ? (
             <div className="flex items-center gap-3">
               <div className="rounded-full bg-warning/10 p-3">
                 <AlertTriangle className="h-5 w-5 text-warning" />
@@ -244,7 +242,7 @@ export default function EmergencyPage() {
                 <p className="font-medium text-foreground">Mengakses GPS Anda...</p>
               </div>
             </div>
-          ) : locationError ? (
+          ) : locationError && !location ? (
             <div className="flex items-center gap-3">
               <div className="rounded-full bg-destructive/10 p-3">
                 <AlertTriangle className="h-5 w-5 text-destructive" />
@@ -264,9 +262,14 @@ export default function EmergencyPage() {
                 <Navigation className="h-5 w-5 text-success" />
               </div>
               <div className="flex-1 min-w-0">
-                <p className="text-sm text-muted-foreground">Lokasi Saat Ini</p>
+                <p className="text-sm text-muted-foreground flex items-center gap-2">
+                  Lokasi Saat Ini
+                  {isLocationSharingEnabled && (
+                    <Badge variant="outline" className="text-[10px] bg-primary/5 text-primary border-primary/20 h-5 px-1.5">Auto-Shared</Badge>
+                  )}
+                </p>
                 <p className="font-medium text-foreground text-sm truncate">
-                  {location?.address || `${location?.lat.toFixed(6)}, ${location?.lng.toFixed(6)}`}
+                  {location?.address || (location ? `${location.lat.toFixed(6)}, ${location.lng.toFixed(6)}` : "Lokasi belum didapatkan")}
                 </p>
               </div>
               <Button size="sm" variant="outline" onClick={getLocation}>
@@ -367,16 +370,14 @@ export default function EmergencyPage() {
                     <Badge
                       variant="default"
                       className={
-                        amb.source.includes("ambulance_station")
+                        amb.source.includes("station")
                           ? "bg-emergency/10 text-emergency border-emergency/20 shrink-0"
                           : "bg-success/10 text-success border-success/20 shrink-0"
                       }
                     >
-                      {amb.source.includes("ambulance_station")
+                      {amb.source.includes("station")
                         ? "Ambulans"
-                        : amb.source.includes("hospital")
-                        ? "Rumah Sakit"
-                        : "Darurat"}
+                        : "Rumah Sakit"}
                     </Badge>
                   </div>
 
@@ -393,12 +394,6 @@ export default function EmergencyPage() {
                       <Clock className="h-3.5 w-3.5" />
                       ETA: {amb.eta_text}
                     </p>
-                    {amb.phone && (
-                      <p className="flex items-center gap-2">
-                        <Phone className="h-3.5 w-3.5" />
-                        {amb.phone}
-                      </p>
-                    )}
                   </div>
 
                   <div className="flex gap-2">

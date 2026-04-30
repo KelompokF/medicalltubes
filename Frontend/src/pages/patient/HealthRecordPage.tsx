@@ -9,9 +9,9 @@ import {
   ClipboardList, 
   AlertCircle, 
   Pill,
-  ChevronRight,
   Trash2,
-  Calendar
+  Calendar,
+  Loader2
 } from "lucide-react";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { healthRecordService } from "@/services/api";
@@ -23,9 +23,11 @@ import { Textarea } from "@/components/ui/textarea";
 import { Badge } from "@/components/ui/badge";
 import { toast } from "sonner";
 import { format } from "date-fns";
+import ConfirmModal from "@/components/ConfirmModal";
 
 export default function HealthRecordPage() {
   const [isAdding, setIsAdding] = useState(false);
+  const [deleteId, setDeleteId] = useState<string | null>(null);
   const queryClient = useQueryClient();
 
   const { data: records, isLoading } = useQuery({
@@ -58,7 +60,9 @@ export default function HealthRecordPage() {
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ["healthRecords"] });
       toast.success("Catatan berhasil dihapus.");
+      setDeleteId(null);
     },
+    onError: () => toast.error("Gagal menghapus catatan."),
   });
 
   const [form, setForm] = useState({
@@ -223,6 +227,7 @@ export default function HealthRecordPage() {
               <div className="flex justify-end gap-3 pt-4">
                 <Button type="button" variant="outline" onClick={() => setIsAdding(false)}>Batal</Button>
                 <Button type="submit" className="medical-gradient text-white px-8" disabled={createMutation.isPending}>
+                  {createMutation.isPending && <Loader2 className="mr-2 h-4 w-4 animate-spin" />}
                   {createMutation.isPending ? "Menyimpan..." : "Simpan Catatan Kesehatan"}
                 </Button>
               </div>
@@ -238,7 +243,7 @@ export default function HealthRecordPage() {
           
           {isLoading ? (
             <div className="text-center py-20">
-              <div className="animate-spin h-8 w-8 border-4 border-primary border-t-transparent rounded-full mx-auto"></div>
+              <Loader2 className="animate-spin h-8 w-8 text-primary mx-auto" />
               <p className="mt-4 text-muted-foreground text-sm">Memuat riwayat...</p>
             </div>
           ) : records?.length === 0 ? (
@@ -322,9 +327,7 @@ export default function HealthRecordPage() {
                           variant="ghost" 
                           size="icon" 
                           className="text-muted-foreground hover:text-destructive transition-colors"
-                          onClick={() => {
-                            if(confirm("Hapus catatan ini?")) deleteMutation.mutate(record.id);
-                          }}
+                          onClick={() => setDeleteId(record.id)}
                         >
                           <Trash2 className="h-4 w-4" />
                         </Button>
@@ -337,6 +340,16 @@ export default function HealthRecordPage() {
           )}
         </div>
       )}
+
+      <ConfirmModal 
+        open={!!deleteId} 
+        onOpenChange={(open) => !open && setDeleteId(null)} 
+        title="Hapus Catatan" 
+        description="Apakah Anda yakin ingin menghapus catatan kesehatan ini? Data yang dihapus tidak dapat dikembalikan." 
+        onConfirm={() => deleteId && deleteMutation.mutate(deleteId)} 
+        confirmText={deleteMutation.isPending ? "Menghapus..." : "Hapus"} 
+        variant="destructive" 
+      />
     </div>
   );
 }

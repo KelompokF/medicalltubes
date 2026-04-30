@@ -30,6 +30,7 @@ from app.models.ambulance import AmbulanceService  # noqa: F401
 
 target_metadata = Base.metadata
 
+
 def run_migrations_offline() -> None:
     """Jalankan migrations dalam mode 'offline'."""
     url = _get_sqlalchemy_url()

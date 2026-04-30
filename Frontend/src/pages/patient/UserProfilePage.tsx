@@ -19,7 +19,7 @@ export default function UserProfilePage() {
   const { data } = useQuery({ queryKey: ["patientProfile"], queryFn: () => patientService.getProfile().then((r) => r.data) });
 
   const mutation = useMutation({
-    mutationFn: (payload: any) => patientService.updateProfile(payload).then((r) => r.data),
+    mutationFn: (payload: Record<string, unknown>) => patientService.updateProfile(payload).then((r) => r.data),
     onSuccess: (data) => {
       queryClient.setQueryData(["patientProfile"], data);
     }
@@ -34,11 +34,8 @@ export default function UserProfilePage() {
   const locationMutation = useMutation({
     mutationFn: (enabled: boolean) => patientService.updateLocationSharing(enabled).then((r) => r.data),
     onMutate: async (enabled: boolean) => {
-      // Cancel any in-flight refetches
       await queryClient.cancelQueries({ queryKey: ["locationSharing"] });
-      // Snapshot previous value
       const previous = queryClient.getQueryData(["locationSharing"]);
-      // Optimistically update the cache so UI flips instantly
       queryClient.setQueryData(["locationSharing"], (old: any) => ({
         ...old,
         location_sharing_enabled: enabled,
@@ -50,10 +47,21 @@ export default function UserProfilePage() {
       toast.success("Pengaturan lokasi berhasil diperbarui!");
     },
     onError: (_err, _enabled, context: any) => {
-      // Rollback to previous value if server call fails
       queryClient.setQueryData(["locationSharing"], context?.previous);
       toast.error("Gagal memperbarui pengaturan lokasi. Silakan coba lagi.");
     },
+  });
+
+  const deleteMutation = useMutation({
+    mutationFn: () => patientService.deleteAccount(),
+    onSuccess: () => {
+      localStorage.removeItem("access_token");
+      localStorage.removeItem("user");
+      window.location.href = "/login";
+    },
+    onError: () => {
+      toast.error("Gagal menghapus akun. Silakan coba lagi.");
+    }
   });
 
   const [form, setForm] = useState({
@@ -186,7 +194,18 @@ export default function UserProfilePage() {
         </div>
       </div>
 
-      <ConfirmModal open={showDelete} onOpenChange={setShowDelete} title="Delete Account" description="This action cannot be undone. All your data will be permanently deleted." onConfirm={() => { setShowDelete(false); toast.error("Account deleted."); }} confirmText="Delete" variant="destructive" />
+      <ConfirmModal 
+        open={showDelete} 
+        onOpenChange={setShowDelete} 
+        title="Delete Account" 
+        description="This action cannot be undone. All your data will be permanently deleted." 
+        onConfirm={() => { 
+          setShowDelete(false); 
+          deleteMutation.mutate(); 
+        }} 
+        confirmText={deleteMutation.isPending ? "Deleting..." : "Delete"} 
+        variant="destructive" 
+      />
     </div>
   );
 }
