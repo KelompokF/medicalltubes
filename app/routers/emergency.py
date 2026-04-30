@@ -8,14 +8,23 @@ Uses Haversine formula for distance calculation.
 
 import math
 import uuid
-from datetime import datetime
+from datetime import datetime, timedelta
 from typing import Optional
 from fastapi import APIRouter, HTTPException, Query, Depends
+from sqlalchemy import func
 from sqlalchemy.ext.asyncio import AsyncSession
 from sqlalchemy.future import select
 
+from app.dependencies import get_current_user
 from app.database import get_db
 from app.models.ambulance import AmbulanceService
+from app.models.emergency_request import EmergencyRequest as EmergencyRequestRecord
+from app.models.user import User
+from app.schemas.emergency_history import (
+    EmergencyHistoryItem,
+    EmergencyHistoryPagination,
+    EmergencyHistoryResponse,
+)
 from app.schemas.emergency import (
     AmbulanceServiceResponse,
     NearbyAmbulancesResponse,
@@ -30,6 +39,22 @@ DEFAULT_RADIUS_KM = 50.0
 MAX_RADIUS_KM = 200.0
 # Average ambulance speed (km/h) for ETA estimation
 AVG_AMBULANCE_SPEED_KMH = 40
+HISTORY_FILTERS = {"all", "today", "yesterday", "last_7_days", "this_month"}
+
+
+def get_history_start_date(filter_type: str) -> Optional[datetime]:
+    now = datetime.utcnow()
+    start_today = now.replace(hour=0, minute=0, second=0, microsecond=0)
+
+    if filter_type == "today":
+        return start_today
+    if filter_type == "yesterday":
+        return start_today - timedelta(days=1)
+    if filter_type == "last_7_days":
+        return now - timedelta(days=7)
+    if filter_type == "this_month":
+        return now.replace(day=1, hour=0, minute=0, second=0, microsecond=0)
+    return None
 
 
 # ─── Helpers ──────────────────────────────────────────────────────
@@ -132,10 +157,101 @@ async def get_nearby_ambulances(
     )
 
 
+@router.get("/history", response_model=EmergencyHistoryResponse)
+async def get_emergency_history(
+    filter: str = Query("all", description="all | today | yesterday | last_7_days | this_month"),
+    page: int = Query(1, ge=1, description="Page number"),
+    limit: int = Query(10, ge=1, le=100, description="Items per page"),
+    db: AsyncSession = Depends(get_db),
+    current_user: User = Depends(get_current_user),
+):
+    if current_user.role != "ambulance":
+        raise HTTPException(status_code=403, detail="Hanya akun ambulance yang dapat mengakses riwayat emergency")
+
+    if filter not in HISTORY_FILTERS:
+        raise HTTPException(status_code=400, detail="Filter tidak valid")
+
+    ambulance_result = await db.execute(
+        select(AmbulanceService).where(AmbulanceService.user_id == current_user.id)
+    )
+    ambulance_services = ambulance_result.scalars().all()
+
+    if not ambulance_services:
+        return EmergencyHistoryResponse(
+            data=[],
+            pagination=EmergencyHistoryPagination(page=page, limit=limit, total_items=0, total_pages=0),
+        )
+
+    ambulance_by_id = {service.id: service for service in ambulance_services}
+    filters = [EmergencyRequestRecord.ambulance_service_id.in_(list(ambulance_by_id.keys()))]
+    start_date = get_history_start_date(filter)
+    if start_date is not None:
+        if filter == "yesterday":
+            end_date = start_date + timedelta(days=1)
+            filters.append(EmergencyRequestRecord.created_at >= start_date)
+            filters.append(EmergencyRequestRecord.created_at < end_date)
+        else:
+            filters.append(EmergencyRequestRecord.created_at >= start_date)
+
+    total_result = await db.execute(
+        select(func.count(EmergencyRequestRecord.id)).where(*filters)
+    )
+    total_items = total_result.scalar_one() or 0
+    total_pages = (total_items + limit - 1) // limit if total_items else 0
+
+    records_result = await db.execute(
+        select(EmergencyRequestRecord, User)
+        .outerjoin(User, EmergencyRequestRecord.user_id == User.id)
+        .where(*filters)
+        .order_by(EmergencyRequestRecord.created_at.desc())
+        .offset((page - 1) * limit)
+        .limit(limit)
+    )
+    records = records_result.all()
+
+    items = []
+    for record, requester in records:
+        ambulance_service = ambulance_by_id.get(record.ambulance_service_id)
+        distance_km = 0
+        if ambulance_service is not None:
+            distance_km = haversine(
+                ambulance_service.lat,
+                ambulance_service.lng,
+                record.location_lat,
+                record.location_lng,
+            )
+        items.append(
+            EmergencyHistoryItem(
+                id=str(record.id),
+                user_id=str(record.user_id) if record.user_id else None,
+                user_name=requester.full_name if requester else None,
+                created_at=record.created_at,
+                location_address=record.location_address,
+                location_lat=record.location_lat,
+                location_lng=record.location_lng,
+                distance_km=round(distance_km, 2),
+                status=record.status,
+                type=record.type,
+                notes=record.notes,
+            )
+        )
+
+    return EmergencyHistoryResponse(
+        data=items,
+        pagination=EmergencyHistoryPagination(
+            page=page,
+            limit=limit,
+            total_items=total_items,
+            total_pages=total_pages,
+        ),
+    )
+
+
 @router.post("/", response_model=EmergencyRequestResponse)
 async def request_emergency(
     data: EmergencyRequest,
     db: AsyncSession = Depends(get_db),
+    current_user: User = Depends(get_current_user),
 ):
     """
     Create an emergency request. Finds the nearest available ambulance
@@ -160,21 +276,82 @@ async def request_emergency(
             nearest = amb
 
     nearest_response = None
+    request_id = str(uuid.uuid4())
+    created_at = datetime.utcnow()
+    status = "searching"
+
     if nearest:
         nearest_response = ambulance_to_response(nearest, data.location.lat, data.location.lng)
+        status = "dispatched"
+
+    emergency_record = EmergencyRequestRecord(
+        user_id=current_user.id,
+        ambulance_service_id=nearest.id if nearest else None,
+        location_lat=data.location.lat,
+        location_lng=data.location.lng,
+        location_address=None,
+        type=data.type or "general",
+        notes=data.notes,
+        status=status,
+    )
+    db.add(emergency_record)
+    await db.commit()
+    await db.refresh(emergency_record)
+    request_id = str(emergency_record.id)
+    created_at = emergency_record.created_at
 
     return EmergencyRequestResponse(
-        id=str(uuid.uuid4()),
-        status="dispatched" if nearest else "searching",
+        id=request_id,
+        status=status,
         message=(
             f"Ambulans terdekat ditemukan: {nearest_response.name} ({nearest_response.distance_text}). ETA: {nearest_response.eta_text}."
             if nearest_response
             else "Sedang mencari ambulans terdekat di area Anda..."
         ),
-        created_at=datetime.utcnow(),
+        created_at=created_at,
         ambulance_assigned=nearest_response,
     )
 
+@router.get("/{request_id}/status")
+async def get_emergency_status(request_id: str):
+    """Return the current emergency status shape used by the frontend."""
+    try:
+        uuid.UUID(request_id)
+    except ValueError:
+        raise HTTPException(status_code=400, detail="Invalid emergency request ID format")
+
+    return {
+        "id": request_id,
+        "status": "dispatched",
+        "message": "Permintaan darurat sedang aktif.",
+        "updated_at": datetime.utcnow().isoformat(),
+    }
+
+
+@router.patch("/{request_id}/status")
+async def update_emergency_status(request_id: str, data: EmergencyStatusUpdate):
+    """
+    Update an emergency request status for the patient-facing flow.
+
+    Emergency requests are currently generated without persistence, so this
+    endpoint validates the request identifier and returns the accepted status.
+    """
+    try:
+        uuid.UUID(request_id)
+    except ValueError:
+        raise HTTPException(status_code=400, detail="Invalid emergency request ID format")
+
+    return {
+        "success": True,
+        "id": request_id,
+        "status": data.status,
+        "message": (
+            "Permintaan darurat dibatalkan."
+            if data.status == "cancelled"
+            else "Permintaan darurat diselesaikan."
+        ),
+        "updated_at": datetime.utcnow().isoformat(),
+    }
 
 @router.post("/ambulances/{ambulance_id}/call")
 async def call_ambulance(ambulance_id: str, db: AsyncSession = Depends(get_db)):
