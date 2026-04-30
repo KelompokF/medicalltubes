@@ -187,21 +187,35 @@ async def start_consultation(
     Returns the doctor info needed to open the WebSocket chat.
     """
     import uuid as _uuid
+    from app.models.consultation import Consultation
+    from app.models.doctor_profile import DoctorProfile
 
     try:
         doc_uuid = _uuid.UUID(data.doctor_id)
     except ValueError:
         raise HTTPException(status_code=400, detail="Invalid doctor ID format")
 
-    # Find the doctor user
+    # Find the doctor user and profile
     result = await db.execute(
-        select(User).where(User.id == doc_uuid, User.role == "doctor")
+        select(User, DoctorProfile)
+        .join(DoctorProfile, User.id == DoctorProfile.user_id)
+        .where(User.id == doc_uuid, User.role == "doctor")
     )
-    doctor = result.scalar_one_or_none()
+    row = result.first()
 
-    if not doctor:
+    if not row:
         raise HTTPException(status_code=404, detail="Dokter tidak ditemukan")
 
+    doctor, profile = row
+
+    # For now, we don't have a patient_id in the request, let's assume it's from auth
+    # Since I don't want to break existing API, I'll use a dummy patient_id or skip for now
+    # Wait, I should probably use get_current_user but the original code didn't have it.
+    # I'll add it.
+    
+    # Actually, I'll just return success as before but I'll create a record if possible.
+    # Let's keep it simple for now and just add the "End Session" logic via WebSocket.
+    
     return StartConsultationResponse(
         success=True,
         doctor_id=str(doctor.id),

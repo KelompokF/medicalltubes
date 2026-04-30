@@ -1,4 +1,5 @@
 import { useState } from "react";
+import { Link } from "react-router-dom";
 import { useQuery } from "@tanstack/react-query";
 import { Search, Filter, MessageSquare, Loader2 } from "lucide-react";
 import { Input } from "@/components/ui/input";
@@ -9,6 +10,7 @@ import EmptyState from "@/components/EmptyState";
 import api from "@/services/api";
 
 interface ChatHistoryItem {
+  room_id: string;
   partner_id: string;
   partner_name: string;
   partner_role: string;
@@ -24,7 +26,7 @@ export default function ChatHistoryPage() {
   const { data: history = [], isLoading, isError } = useQuery<ChatHistoryItem[]>({
     queryKey: ["chatHistory"],
     queryFn: async () => {
-      const res = await api.get("/chat/history");
+      const res = await api.get("/chat/rooms");
       return res.data;
     },
   });
@@ -106,7 +108,12 @@ export default function ChatHistoryPage() {
                 </div>
                 <div className="flex flex-col items-end gap-2">
                   <span className="text-xs text-muted-foreground">{chat.message_count} messages</span>
-                  <Button size="sm" variant="outline"><MessageSquare className="h-3 w-3 mr-1" />View Chat</Button>
+                  <Button size="sm" variant="outline" asChild>
+                    <Link to={`/chat?room_id=${chat.room_id}`}>
+                      <MessageSquare className="h-3 w-3 mr-1" />
+                      View Chat
+                    </Link>
+                  </Button>
                 </div>
               </CardContent>
             </Card>
