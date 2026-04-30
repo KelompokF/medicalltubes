@@ -23,10 +23,16 @@ def _get_sqlalchemy_url():
 
 # Import semua model agar Alembic bisa detect perubahan (autogenerate)
 
-from app.models.home_visit import HomeVisit, HomeVisitRequest  # noqa: F401
-from app.models.patient_profile import PatientProfile  # noqa: F401
-from app.models.consultation import Consultation  # noqa: F401
 from app.models.ambulance import AmbulanceService  # noqa: F401
+from app.models.consultation import Consultation  # noqa: F401
+from app.models.doctor_profile import DoctorProfile  # noqa: F401
+from app.models.emergency_request import EmergencyRequest  # noqa: F401
+from app.models.health_record import HealthRecord  # noqa: F401
+from app.models.home_visit import HomeVisit, HomeVisitRequest  # noqa: F401
+from app.models.message import Message  # noqa: F401
+from app.models.patient_profile import PatientProfile  # noqa: F401
+from app.models.user import User  # noqa: F401
+from app.database import Base
 
 target_metadata = Base.metadata
 

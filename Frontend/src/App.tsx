@@ -26,6 +26,7 @@ import AdminDashboard from "@/pages/admin/AdminDashboard";
 import DoctorDashboard from "@/pages/doctor/DoctorDashboard";
 import DoctorConsultationPage from "@/pages/doctor/DoctorConsultationPage";
 import AmbulanceDashboard from "@/pages/ambulance/AmbulanceDashboard";
+import AmbulanceHistoryPage from "@/pages/ambulance/AmbulanceHistoryPage";
 import NotFound from "@/pages/NotFound";
 
 const queryClient = new QueryClient({
@@ -101,7 +102,7 @@ const App = () => (
             <Route path="/ambulance-dashboard/active" element={<ComingSoon title="Active Emergencies" />} />
             <Route path="/ambulance-dashboard/tracking" element={<ComingSoon title="Live Tracking" />} />
             <Route path="/ambulance-dashboard/fleet" element={<ComingSoon title="Fleet Status" />} />
-            <Route path="/ambulance-dashboard/history" element={<ComingSoon title="Emergency History" />} />
+            <Route path="/ambulance-dashboard/history" element={<AmbulanceHistoryPage />} />
             <Route path="/ambulance-dashboard/settings" element={<ComingSoon title="Ambulance Settings" />} />
           </Route>
 

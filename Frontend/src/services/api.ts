@@ -2,8 +2,7 @@ import axios from "axios";
 
 // Base API configuration — point to your FastAPI backend
 // Default to backend root (no /api/v1) since backend routes use /auth, /chat, etc.
-const API_BASE_URL =
-  import.meta.env.VITE_API_BASE_URL || "http://localhost:8001";
+const API_BASE_URL = import.meta.env.VITE_API_BASE_URL || "http://localhost:8000";
 
 const api = axios.create({
   baseURL: API_BASE_URL,
@@ -131,9 +130,16 @@ export const homeVisitService = {
 export const emergencyService = {
   requestEmergency: (data: { location: { lat: number; lng: number }; type?: string }) =>
     api.post("/emergencies", data),
-  getNearbyAmbulances: (lat: number, lng: number) =>
-    api.get("/emergencies/ambulances", { params: { lat, lng } }),
+  getNearbyAmbulances: (lat: number, lng: number, radiusKm?: number) =>
+    api.get("/emergencies/ambulances", { params: { lat, lng, radius_km: radiusKm } }),
+  getEmergencyHistory: (params?: {
+    filter?: "all" | "today" | "yesterday" | "last_7_days" | "this_month";
+    page?: number;
+    limit?: number;
+  }) => api.get("/emergencies/history", { params }),
   getEmergencyStatus: (id: string) => api.get(`/emergencies/${id}/status`),
+  updateEmergencyStatus: (id: string, status: "cancelled" | "completed") =>
+    api.patch(`/emergencies/${id}/status`, { status }),
   callAmbulance: (ambulanceId: string) =>
     api.post(`/emergencies/ambulances/${ambulanceId}/call`),
 };

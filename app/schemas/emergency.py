@@ -1,5 +1,5 @@
 from pydantic import BaseModel
-from typing import List, Optional
+from typing import List, Optional, Literal
 from datetime import datetime
 
 class AmbulanceServiceResponse(BaseModel):
@@ -38,3 +38,6 @@ class EmergencyRequestResponse(BaseModel):
     message: str
     created_at: datetime
     ambulance_assigned: Optional[AmbulanceServiceResponse] = None
+
+class EmergencyStatusUpdate(BaseModel):
+    status: Literal["cancelled", "completed"]
