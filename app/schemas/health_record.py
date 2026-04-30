@@ -8,6 +8,9 @@ class HealthRecordBase(BaseModel):
     heart_rate: Optional[int] = None
     weight: Optional[float] = None
     height: Optional[float] = None
+    diagnosed_conditions: Optional[str] = None
+    allergies: Optional[str] = None
+    current_medications: Optional[str] = None
     notes: Optional[str] = None
     date: Optional[datetime] = None  # If not provided, backend uses utcnow
 

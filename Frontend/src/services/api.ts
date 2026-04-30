@@ -2,7 +2,8 @@ import axios from "axios";
 
 // Base API configuration — point to your FastAPI backend
 // Default to backend root (no /api/v1) since backend routes use /auth, /chat, etc.
-const API_BASE_URL = import.meta.env.VITE_API_BASE_URL || "http://localhost:8001";
+const API_BASE_URL =
+  import.meta.env.VITE_API_BASE_URL || "http://localhost:8001";
 
 const api = axios.create({
   baseURL: API_BASE_URL,
@@ -29,10 +30,9 @@ api.interceptors.response.use(
   (response) => response,
   (error) => {
     if (error.response?.status === 401) {
-      // localStorage.removeItem("access_token");
-      // localStorage.removeItem("user");
-      // window.location.href = "/login";
-      console.log("Auth error bypassed for preview");
+      localStorage.removeItem("access_token");
+      localStorage.removeItem("user");
+      window.location.href = "/login";
     }
     return Promise.reject(error);
   }
@@ -63,6 +63,10 @@ export const patientService = {
   getProfile: () => api.get("/patient/profile"),
   updateProfile: (data: any) => api.put("/patient/profile", data),
   deleteAccount: () => api.delete("/patient/account"),
+  // Location Sharing
+  getLocationSharing: () => api.get("/users/me/location-sharing"),
+  updateLocationSharing: (enabled: boolean) =>
+    api.patch("/users/me/location-sharing", { enabled }),
 };
 
 // ============================================
@@ -163,4 +167,23 @@ export const ambulanceService = {
   updateStatus: (requestId: string, status: "on_route" | "arrived" | "completed") =>
     api.post(`/ambulance/requests/${requestId}/status`, { status }),
   getHistory: () => api.get("/ambulance/history"),
+};
+
+// ============================================
+// PRESCRIPTION ENDPOINTS
+// ============================================
+export const prescriptionService = {
+  create: (data: any) => api.post("/prescriptions", data),
+  getRoomPrescriptions: (roomId: string) => api.get(`/prescriptions/room/${roomId}`),
+  getPatientPrescriptions: (patientId: string) => api.get(`/prescriptions/patient/${patientId}`),
+};
+
+// ============================================
+// HEALTH RECORD ENDPOINTS
+// ============================================
+export const healthRecordService = {
+  getRecords: () => api.get("/health-records"),
+  getRecordById: (id: string) => api.get(`/health-records/${id}`),
+  createRecord: (data: any) => api.post("/health-records", data),
+  deleteRecord: (id: string) => api.delete(`/health-records/${id}`),
 };
