@@ -14,6 +14,7 @@ import PatientLoginPage from "@/pages/auth/PatientLoginPage";
 import PatientDashboard from "@/pages/patient/PatientDashboard";
 import SearchDoctorPage from "@/pages/patient/SearchDoctorPage";
 import DoctorDetailPage from "@/pages/patient/DoctorDetailPage";
+import HealthRecordPage from "@/pages/patient/HealthRecordPage";
 import ConsultationChatPage from "@/pages/patient/ConsultationChatPage";
 import ChatHistoryPage from "@/pages/patient/ChatHistoryPage";
 import HomeVisitBookingPage from "@/pages/patient/HomeVisitBookingPage";
@@ -53,7 +54,7 @@ const App = () => (
     <TooltipProvider>
       <Toaster />
       <Sonner />
-      <BrowserRouter>
+      <BrowserRouter future={{ v7_startTransition: true, v7_relativeSplatPath: true }}>
         <Routes>
           <Route path="/" element={<LandingPage />} />
           <Route path="/login" element={<PatientLoginPage />} />
@@ -65,6 +66,7 @@ const App = () => (
             <Route path="/dashboard" element={<PatientDashboard />} />
             <Route path="/search-doctor" element={<SearchDoctorPage />} />
             <Route path="/doctor/:id" element={<DoctorDetailPage />} />
+            <Route path="/health-records" element={<HealthRecordPage />} />
             <Route path="/chat" element={<ConsultationChatPage />} />
             <Route path="/chat-history" element={<ChatHistoryPage />} />
             <Route path="/home-visit" element={<HomeVisitBookingPage />} />
