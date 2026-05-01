@@ -26,6 +26,7 @@ import AdminDashboard from "@/pages/admin/AdminDashboard";
 import DoctorDashboard from "@/pages/doctor/DoctorDashboard";
 import DoctorConsultationPage from "@/pages/doctor/DoctorConsultationPage";
 import AmbulanceDashboard from "@/pages/ambulance/AmbulanceDashboard";
+import AmbulanceActivePage from "@/pages/ambulance/AmbulanceActivePage";
 import AmbulanceHistoryPage from "@/pages/ambulance/AmbulanceHistoryPage";
 import NotFound from "@/pages/NotFound";
 
@@ -99,7 +100,7 @@ const App = () => (
           {/* Ambulance Routes */}
           <Route element={<AmbulanceLayout />}>
             <Route path="/ambulance-dashboard" element={<AmbulanceDashboard />} />
-            <Route path="/ambulance-dashboard/active" element={<ComingSoon title="Active Emergencies" />} />
+            <Route path="/ambulance-dashboard/active" element={<AmbulanceActivePage />} />
             <Route path="/ambulance-dashboard/tracking" element={<ComingSoon title="Live Tracking" />} />
             <Route path="/ambulance-dashboard/fleet" element={<ComingSoon title="Fleet Status" />} />
             <Route path="/ambulance-dashboard/history" element={<AmbulanceHistoryPage />} />
