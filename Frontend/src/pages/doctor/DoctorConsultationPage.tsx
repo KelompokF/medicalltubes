@@ -28,13 +28,14 @@ import {
 } from "@/components/ui/dialog";
 import { Label } from "@/components/ui/label";
 import { Textarea } from "@/components/ui/textarea";
-import { Plus, Trash2, FileText } from "lucide-react";
+import { Plus, Trash2, FileText, Check, CheckCheck } from "lucide-react";
 
 interface ChatMessage {
   sender_id: string;
   receiver_id: string;
   content: string;
   created_at: string;
+  is_read?: boolean;
 }
 
 interface Room {
@@ -88,20 +89,22 @@ export default function DoctorConsultationPage() {
       const res = await api.get("/chat/rooms");
       if (Array.isArray(res.data)) {
         setRooms(res.data);
-        
-        // Auto-select room from URL param (only on first load)
-        if (roomIdFromUrl && !activeRoom) {
-          const room = res.data.find((r: Room) => r.room_id === roomIdFromUrl);
-          if (room) {
-            setActiveRoom(room);
-            setSessionEnded(room.status === "ended");
-          }
-        }
       }
     } catch (err) {
       console.error("Failed to refresh rooms:", err);
     }
   };
+
+  // Auto-select room when URL param changes or rooms load
+  useEffect(() => {
+    if (roomIdFromUrl && rooms.length > 0) {
+      const room = rooms.find((r) => r.room_id === roomIdFromUrl);
+      if (room && room.room_id !== activeRoom?.room_id) {
+        setActiveRoom(room);
+        setSessionEnded(room.status === "ended");
+      }
+    }
+  }, [roomIdFromUrl, rooms, activeRoom]);
 
   // Load room list
   useEffect(() => {
@@ -117,6 +120,10 @@ export default function DoctorConsultationPage() {
         const res = await api.get(`/chat/room/${activeRoom.room_id}/messages`);
         if (Array.isArray(res.data)) {
           setMessages(res.data);
+          
+          if (wsRef.current && wsRef.current.readyState === WebSocket.OPEN) {
+            wsRef.current.send(JSON.stringify({ type: "read_receipt", room_id: activeRoom.room_id, sender_id: activeRoom.partner_id }));
+          }
         }
       } catch {
         setMessages([]);
@@ -153,6 +160,13 @@ export default function DoctorConsultationPage() {
           return;
         }
 
+        if (data.type === "read_receipt_update") {
+          if (activeRoom && data.room_id === activeRoom.room_id) {
+            setMessages(prev => prev.map(m => m.sender_id === doctorId ? { ...m, is_read: true } : m));
+          }
+          return;
+        }
+
         // Only add if for current active room
         if (
           activeRoom &&
@@ -160,6 +174,12 @@ export default function DoctorConsultationPage() {
             data.receiver_id === activeRoom.partner_id)
         ) {
           setMessages((prev) => [...prev, data]);
+          
+          if (data.sender_id === activeRoom.partner_id && data.receiver_id === doctorId) {
+            if (ws.readyState === WebSocket.OPEN) {
+              ws.send(JSON.stringify({ type: "read_receipt", room_id: activeRoom.room_id, sender_id: activeRoom.partner_id }));
+            }
+          }
         }
 
         // Always refresh rooms to show latest message/new patients in sidebar
@@ -616,6 +636,13 @@ export default function DoctorConsultationPage() {
                     }`}
                   >
                     <span className="text-[10px] font-medium">{formatTime(msg.created_at)}</span>
+                    {isDoctor && (
+                      msg.is_read ? (
+                        <CheckCheck className="h-3 w-3 text-blue-300" />
+                      ) : (
+                        <Check className="h-3 w-3" />
+                      )
+                    )}
                   </div>
                 </div>
               </div>

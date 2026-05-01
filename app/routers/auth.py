@@ -55,7 +55,7 @@ async def login(data: UserLogin, db: AsyncSession = Depends(get_db)):
     
     if not verify_password(data.password, user.hashed_password):
         logger.warning(f"LOGIN DEBUG: Password verification FAILED for email={data.email}")
-        raise HTTPException(status_code=401, detail="Email atau password salah")
+        raise HTTPException(status_code=401, detail="Wrong Password or Email")
         
     if getattr(user, 'is_deleted', False):
         raise HTTPException(status_code=403, detail="Akun telah dihapus")
@@ -105,3 +105,19 @@ async def delete_account(
     await db.commit()
 
     return {"message": "Akun berhasil dihapus"}
+
+from pydantic import BaseModel
+from app.dependencies import get_current_user
+
+class ChangePasswordRequest(BaseModel):
+    current_password: str
+    new_password: str
+
+@router.put("/change-password")
+async def change_password(data: ChangePasswordRequest, current_user: User = Depends(get_current_user), db: AsyncSession = Depends(get_db)):
+    if not verify_password(data.current_password, current_user.hashed_password):
+        raise HTTPException(status_code=400, detail="Current password incorrect")
+    current_user.hashed_password = hash_password(data.new_password)
+    db.add(current_user)
+    await db.commit()
+    return {"detail": "Password updated successfully"}

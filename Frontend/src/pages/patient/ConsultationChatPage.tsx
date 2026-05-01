@@ -1,6 +1,6 @@
 import { useEffect, useRef, useState } from "react";
 import { useSearchParams, Link } from "react-router-dom";
-import { Send, Loader2, MessageCircle, Lock, FileText, ChevronRight } from "lucide-react";
+import { Send, Loader2, MessageCircle, Lock, FileText, ChevronRight, Check, CheckCheck } from "lucide-react";
 import { Input } from "@/components/ui/input";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
@@ -34,6 +34,7 @@ interface ChatMessage {
   receiver_id: string;
   content: string;
   created_at: string;
+  is_read?: boolean;
 }
 
 interface Room {
@@ -117,16 +118,8 @@ export default function ConsultationChatPage() {
         if (Array.isArray(res.data)) {
           setRooms(res.data);
           
-          // Auto-select room from URL param room_id
-          if (roomIdFromUrl) {
-            const room = res.data.find((r: Room) => r.room_id === roomIdFromUrl);
-            if (room) {
-              setActiveRoom(room);
-              setSessionEnded(room.status === "ended");
-            }
-          } 
-          // Else auto-select first room if none selected and no doctor_id param
-          else if (!activeRoom && !doctorIdFromUrl && res.data.length > 0) {
+          // Auto-select first room if none selected, no doctor_id param, and no roomIdFromUrl
+          if (!activeRoom && !doctorIdFromUrl && !roomIdFromUrl && res.data.length > 0) {
             setActiveRoom(res.data[0]);
             setSessionEnded(res.data[0].status === "ended");
           }
@@ -138,6 +131,17 @@ export default function ConsultationChatPage() {
     loadRooms();
   }, [userId]);
 
+  // Auto-select room when URL param changes or rooms load
+  useEffect(() => {
+    if (roomIdFromUrl && rooms.length > 0) {
+      const room = rooms.find((r) => r.room_id === roomIdFromUrl);
+      if (room && room.room_id !== activeRoom?.room_id) {
+        setActiveRoom(room);
+        setSessionEnded(room.status === "ended");
+      }
+    }
+  }, [roomIdFromUrl, rooms, activeRoom]);
+
   // Load messages and prescriptions when active room changes
   useEffect(() => {
     const loadData = async () => {
@@ -148,6 +152,10 @@ export default function ConsultationChatPage() {
         const msgRes = await api.get(`/chat/room/${activeRoom.room_id}/messages`);
         if (Array.isArray(msgRes.data)) {
           setMessages(msgRes.data);
+          
+          if (wsRef.current && wsRef.current.readyState === WebSocket.OPEN) {
+            wsRef.current.send(JSON.stringify({ type: "read_receipt", room_id: activeRoom.room_id, sender_id: activeRoom.partner_id }));
+          }
         }
         
         // Load prescriptions
@@ -188,6 +196,13 @@ export default function ConsultationChatPage() {
           return;
         }
 
+        if (data.type === "read_receipt_update") {
+          if (activeRoom && data.room_id === activeRoom.room_id) {
+            setMessages(prev => prev.map(m => m.sender_id === userId ? { ...m, is_read: true } : m));
+          }
+          return;
+        }
+
         if (data.type === "new_prescription") {
           toast.success("Dokter telah mengirimkan resep obat baru!", {
             description: "Klik untuk melihat detail resep.",
@@ -212,6 +227,12 @@ export default function ConsultationChatPage() {
             data.receiver_id === activeRoom.partner_id)
         ) {
           setMessages((prev) => [...prev, data]);
+          
+          if (data.sender_id === activeRoom.partner_id && data.receiver_id === userId) {
+            if (ws.readyState === WebSocket.OPEN) {
+              ws.send(JSON.stringify({ type: "read_receipt", room_id: activeRoom.room_id, sender_id: activeRoom.partner_id }));
+            }
+          }
         }
       } catch (e) {
         console.error("Invalid WS message", e);
@@ -518,15 +539,22 @@ export default function ConsultationChatPage() {
                   }`}
                 >
                   <p>{msg.content}</p>
-                  <p
-                    className={`text-[10px] mt-1 ${
+                  <div
+                    className={`flex items-center justify-end gap-1 mt-1 ${
                       isMe
                         ? "text-primary-foreground/60"
                         : "text-muted-foreground"
                     }`}
                   >
-                    {formatTime(msg.created_at)}
-                  </p>
+                    <span className="text-[10px] font-medium">{formatTime(msg.created_at)}</span>
+                    {isMe && (
+                      msg.is_read ? (
+                        <CheckCheck className="h-3 w-3 text-blue-300" />
+                      ) : (
+                        <Check className="h-3 w-3" />
+                      )
+                    )}
+                  </div>
                 </div>
               </div>
             );

@@ -31,7 +31,10 @@ api.interceptors.response.use(
     if (error.response?.status === 401) {
       localStorage.removeItem("access_token");
       localStorage.removeItem("user");
-      window.location.href = "/login";
+      // Only redirect if not already on the login page to avoid endless loops and lost error toasts
+      if (window.location.pathname !== "/login" && window.location.pathname !== "/") {
+        window.location.href = "/login";
+      }
     }
     return Promise.reject(error);
   }
@@ -52,6 +55,8 @@ export const authService = {
     api.post("/auth/forgot-password", { email }),
   resetPassword: (data: { token: string; password: string }) =>
     api.post("/auth/reset-password", data),
+  changePassword: (data: { current_password: string; new_password: string }) =>
+    api.put("/auth/change-password", data),
 };
 
 // ============================================
