@@ -13,15 +13,15 @@ router = APIRouter()
 async def chat(websocket: WebSocket, user_id: str):
     """
     WebSocket endpoint untuk real-time chat.
-    Kirim JSON: {"room_id": "...", "receiver_id": "...", "content": "..."}
-    
-    Pesan akan disimpan ke chat room sebagai encrypted JSON blob.
     """
+    print(f"DEBUG WS: User {user_id} attempting to connect...")
     await manager.connect(user_id, websocket)
+    print(f"DEBUG WS: User {user_id} connected successfully.")
 
     try:
         while True:
             data = await websocket.receive_json()
+            print(f"DEBUG WS: Received data from {user_id}: {data}")
 
             room_id = data.get("room_id")
             receiver_id = data.get("receiver_id")

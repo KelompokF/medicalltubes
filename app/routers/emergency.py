@@ -30,6 +30,7 @@ from app.schemas.emergency import (
     NearbyAmbulancesResponse,
     EmergencyRequest,
     EmergencyRequestResponse,
+    EmergencyStatusUpdate,
 )
 
 router = APIRouter(prefix="/emergencies", tags=["Emergency"])
@@ -313,38 +314,63 @@ async def request_emergency(
     )
 
 @router.get("/{request_id}/status")
-async def get_emergency_status(request_id: str):
-    """Return the current emergency status shape used by the frontend."""
+async def get_emergency_status(
+    request_id: str,
+    db: AsyncSession = Depends(get_db),
+):
+    """Return the current emergency status from the database."""
     try:
-        uuid.UUID(request_id)
+        req_uuid = uuid.UUID(request_id)
     except ValueError:
         raise HTTPException(status_code=400, detail="Invalid emergency request ID format")
 
+    result = await db.execute(
+        select(EmergencyRequestRecord).where(EmergencyRequestRecord.id == req_uuid)
+    )
+    record = result.scalar_one_or_none()
+
+    if not record:
+        raise HTTPException(status_code=404, detail="Permintaan darurat tidak ditemukan")
+
     return {
-        "id": request_id,
-        "status": "dispatched",
-        "message": "Permintaan darurat sedang aktif.",
+        "id": str(record.id),
+        "status": record.status,
+        "message": f"Permintaan darurat {record.status}.",
         "updated_at": datetime.utcnow().isoformat(),
     }
 
 
 @router.patch("/{request_id}/status")
-async def update_emergency_status(request_id: str, data: EmergencyStatusUpdate):
-    """
-    Update an emergency request status for the patient-facing flow.
-
-    Emergency requests are currently generated without persistence, so this
-    endpoint validates the request identifier and returns the accepted status.
-    """
+async def update_emergency_status(
+    request_id: str,
+    data: EmergencyStatusUpdate,
+    db: AsyncSession = Depends(get_db),
+):
+    """Update an emergency request status in the database."""
     try:
-        uuid.UUID(request_id)
+        req_uuid = uuid.UUID(request_id)
     except ValueError:
         raise HTTPException(status_code=400, detail="Invalid emergency request ID format")
 
+    result = await db.execute(
+        select(EmergencyRequestRecord).where(EmergencyRequestRecord.id == req_uuid)
+    )
+    record = result.scalar_one_or_none()
+
+    if not record:
+        raise HTTPException(status_code=404, detail="Permintaan darurat tidak ditemukan")
+
+    record.status = data.status
+    if data.status == "completed":
+        record.completed_at = datetime.utcnow()
+
+    await db.commit()
+    await db.refresh(record)
+
     return {
         "success": True,
-        "id": request_id,
-        "status": data.status,
+        "id": str(record.id),
+        "status": record.status,
         "message": (
             "Permintaan darurat dibatalkan."
             if data.status == "cancelled"

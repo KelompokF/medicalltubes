@@ -25,6 +25,7 @@ import UserProfilePage from "@/pages/patient/UserProfilePage";
 import AdminDashboard from "@/pages/admin/AdminDashboard";
 import DoctorDashboard from "@/pages/doctor/DoctorDashboard";
 import DoctorConsultationPage from "@/pages/doctor/DoctorConsultationPage";
+import DoctorSchedulePage from "@/pages/doctor/DoctorSchedulePage";
 import AmbulanceDashboard from "@/pages/ambulance/AmbulanceDashboard";
 import AmbulanceHistoryPage from "@/pages/ambulance/AmbulanceHistoryPage";
 import NotFound from "@/pages/NotFound";
@@ -90,7 +91,7 @@ const App = () => (
             <Route path="/doctor-dashboard/patients" element={<ComingSoon title="My Patients" />} />
             <Route path="/doctor-dashboard/consultations" element={<DoctorConsultationPage />} />
             <Route path="/doctor-dashboard/home-visits" element={<ComingSoon title="Home Visits" />} />
-            <Route path="/doctor-dashboard/schedule" element={<ComingSoon title="Schedule Management" />} />
+            <Route path="/doctor-dashboard/schedule" element={<DoctorSchedulePage />} />
             <Route path="/doctor-dashboard/prescriptions" element={<ComingSoon title="Prescriptions" />} />
             <Route path="/doctor-dashboard/records" element={<ComingSoon title="Medical Records" />} />
             <Route path="/doctor-dashboard/settings" element={<ComingSoon title="Doctor Settings" />} />

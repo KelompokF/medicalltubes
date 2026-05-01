@@ -31,6 +31,7 @@ class Location(BaseModel):
 class EmergencyRequest(BaseModel):
     location: Location
     type: Optional[str] = "general"
+    notes: Optional[str] = None
 
 class EmergencyRequestResponse(BaseModel):
     id: str
