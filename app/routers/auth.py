@@ -44,7 +44,7 @@ async def login(data: UserLogin, db: AsyncSession = Depends(get_db)):
     logger.warning(f"LOGIN DEBUG: User found: email={user.email}, role={user.role}, hash_prefix={user.hashed_password[:20] if user.hashed_password else 'NONE'}")
     if not verify_password(data.password, user.hashed_password):
         logger.warning(f"LOGIN DEBUG: Password verification FAILED for email={data.email}")
-        raise HTTPException(status_code=401, detail="Email atau password salah")
+        raise HTTPException(status_code=401, detail="Wrong Password or Email")
 
     token = create_access_token({"sub": str(user.id), "role": getattr(user, 'role', 'patient')})
     return {"access_token": token, "token_type": "bearer"}
