@@ -25,7 +25,7 @@ import {
 } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
 import { toast } from "sonner";
-import { doctorService } from "@/services/api";
+import { doctorService, doctorScheduleService, DoctorScheduleResponse } from "@/services/api";
 
 interface DoctorDetail {
   id: string;
@@ -50,17 +50,27 @@ export default function DoctorDetailPage() {
   const { id } = useParams();
   const navigate = useNavigate();
   const [doctor, setDoctor] = useState<DoctorDetail | null>(null);
+  const [schedule, setSchedule] = useState<DoctorScheduleResponse | null>(null);
   const [isLoading, setIsLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
 
   useEffect(() => {
-    const fetchDoctor = async () => {
+    const fetchDoctorData = async () => {
       if (!id) return;
       setIsLoading(true);
       setError(null);
       try {
-        const response = await doctorService.getDoctorById(id);
-        setDoctor(response.data);
+        // Fetch doctor profile
+        const docRes = await doctorService.getDoctorById(id);
+        setDoctor(docRes.data);
+
+        // Fetch doctor schedule
+        try {
+          const schedRes = await doctorScheduleService.getSchedule(id);
+          setSchedule(schedRes.data);
+        } catch (schedErr) {
+          console.warn("Jadwal tidak ditemukan atau error:", schedErr);
+        }
       } catch (err: any) {
         console.error("Error fetching doctor:", err);
         setError("Dokter tidak ditemukan.");
@@ -68,7 +78,7 @@ export default function DoctorDetailPage() {
         setIsLoading(false);
       }
     };
-    fetchDoctor();
+    fetchDoctorData();
   }, [id]);
 
   const formatCurrency = (amount: number) => {
@@ -209,6 +219,39 @@ export default function DoctorDetailPage() {
               <p className="text-muted-foreground leading-relaxed">
                 {doctor.about || "Informasi dokter belum tersedia."}
               </p>
+            </CardContent>
+          </Card>
+
+          {/* Schedule Section - NEW */}
+          <Card className="shadow-card">
+            <CardHeader>
+              <CardTitle className="flex items-center gap-2">
+                <Calendar className="h-5 w-5 text-primary" />
+                Jadwal Praktik (Home Visit)
+              </CardTitle>
+            </CardHeader>
+            <CardContent>
+              {!schedule || schedule.schedule.length === 0 ? (
+                <p className="text-sm text-muted-foreground italic">
+                  Belum ada jadwal praktik yang tersedia.
+                </p>
+              ) : (
+                <div className="space-y-4">
+                  {schedule.schedule.map((day) => (
+                    <div key={day.hari} className="space-y-2">
+                      <p className="text-sm font-semibold text-foreground">{day.hari}</p>
+                      <div className="flex flex-wrap gap-2">
+                        {day.slots.map((slot) => (
+                          <Badge key={slot} variant="outline" className="bg-primary/5 border-primary/20 text-primary px-3 py-1">
+                            <Clock className="h-3 w-3 mr-1" />
+                            {slot}
+                          </Badge>
+                        ))}
+                      </div>
+                    </div>
+                  ))}
+                </div>
+              )}
             </CardContent>
           </Card>
 

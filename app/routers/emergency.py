@@ -381,17 +381,28 @@ async def request_emergency(
     )
 
 @router.get("/{request_id}/status")
-async def get_emergency_status(request_id: str):
-    """Return the current emergency status shape used by the frontend."""
+async def get_emergency_status(
+    request_id: str,
+    db: AsyncSession = Depends(get_db),
+):
+    """Return the current emergency status from the database."""
     try:
-        uuid.UUID(request_id)
+        req_uuid = uuid.UUID(request_id)
     except ValueError:
         raise HTTPException(status_code=400, detail="Invalid emergency request ID format")
 
+    result = await db.execute(
+        select(EmergencyRequestRecord).where(EmergencyRequestRecord.id == req_uuid)
+    )
+    record = result.scalar_one_or_none()
+
+    if not record:
+        raise HTTPException(status_code=404, detail="Permintaan darurat tidak ditemukan")
+
     return {
-        "id": request_id,
-        "status": "dispatched",
-        "message": "Permintaan darurat sedang aktif.",
+        "id": str(record.id),
+        "status": record.status,
+        "message": f"Permintaan darurat {record.status}.",
         "updated_at": datetime.utcnow().isoformat(),
     }
 

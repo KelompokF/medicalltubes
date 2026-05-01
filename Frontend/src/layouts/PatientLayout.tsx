@@ -29,6 +29,8 @@ import {
   DropdownMenuTrigger
 } from "@/components/ui/dropdown-menu";
 import { toast } from "sonner";
+import { AccessibilityProvider } from "@/contexts/AccessibilityContext";
+import AccessibilityPanel from "@/components/AccessibilityPanel";
 
 // UPDATED NAV MENU
 const patientNav = [
@@ -118,7 +120,8 @@ export default function PatientLayout({
   }, [userId, location.pathname, navigate]);
 
   return (
-    <div className="min-h-screen bg-background">
+    <AccessibilityProvider>
+    <div className="patient-shell min-h-screen bg-background">
 
       {/* Overlay mobile */}
       {sidebarOpen && (
@@ -301,5 +304,8 @@ export default function PatientLayout({
         </footer>
       </div>
     </div>
+    {/* Floating Accessibility Panel — portal to body, always above everything */}
+    <AccessibilityPanel />
+    </AccessibilityProvider>
   );
 }
