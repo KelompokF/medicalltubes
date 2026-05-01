@@ -88,20 +88,22 @@ export default function DoctorConsultationPage() {
       const res = await api.get("/chat/rooms");
       if (Array.isArray(res.data)) {
         setRooms(res.data);
-        
-        // Auto-select room from URL param (only on first load)
-        if (roomIdFromUrl && !activeRoom) {
-          const room = res.data.find((r: Room) => r.room_id === roomIdFromUrl);
-          if (room) {
-            setActiveRoom(room);
-            setSessionEnded(room.status === "ended");
-          }
-        }
       }
     } catch (err) {
       console.error("Failed to refresh rooms:", err);
     }
   };
+
+  // Auto-select room when URL param changes or rooms load
+  useEffect(() => {
+    if (roomIdFromUrl && rooms.length > 0) {
+      const room = rooms.find((r) => r.room_id === roomIdFromUrl);
+      if (room && room.room_id !== activeRoom?.room_id) {
+        setActiveRoom(room);
+        setSessionEnded(room.status === "ended");
+      }
+    }
+  }, [roomIdFromUrl, rooms, activeRoom]);
 
   // Load room list
   useEffect(() => {

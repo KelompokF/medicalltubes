@@ -26,6 +26,7 @@ interface Notification {
   title: string;
   description: string;
   sender_id: string;
+  room_id?: string;
   time: string;
 }
 
@@ -44,7 +45,10 @@ export default function DoctorLayout() {
   useEffect(() => {
     if (!doctorId) return;
 
+    let isMounted = true;
     const connectWS = () => {
+      if (!isMounted) return;
+      
       const port = window.location.hostname === "localhost" ? "8001" : window.location.port;
       const wsUrl = `${window.location.protocol === "https:" ? "wss" : "ws"}://${window.location.hostname}:${port}/ws/chat/${doctorId}`;
       
@@ -64,19 +68,19 @@ export default function DoctorLayout() {
                 title: "Pesan Baru",
                 description: data.content,
                 sender_id: data.sender_id,
+                room_id: data.room_id,
                 time: new Date().toLocaleTimeString("id-ID", { hour: "2-digit", minute: "2-digit" })
               },
               ...prev
             ]);
 
             // Show toast if not on the specific consultation page
-            // (Simplification: always show toast if not on consultations page)
-            if (!location.pathname.includes("/doctor-dashboard/consultations")) {
+            if (!window.location.pathname.includes("/doctor-dashboard/consultations")) {
               toast("Pesan Baru dari Pasien", {
                 description: data.content,
                 action: {
                   label: "Lihat Chat",
-                  onClick: () => navigate("/doctor-dashboard/consultations")
+                  onClick: () => navigate(`/doctor-dashboard/consultations?room_id=${data.room_id}`)
                 },
               });
             }
@@ -87,18 +91,21 @@ export default function DoctorLayout() {
       };
 
       ws.onclose = () => {
-        setTimeout(connectWS, 3000); // Reconnect after 3s
+        if (isMounted) {
+          setTimeout(connectWS, 3000); // Reconnect after 3s
+        }
       };
     };
 
     connectWS();
 
     return () => {
+      isMounted = false;
       if (wsRef.current) {
         wsRef.current.close();
       }
     };
-  }, [doctorId, location.pathname, navigate]);
+  }, [doctorId, navigate]);
 
   return (
     <div className="min-h-screen bg-background">
@@ -172,7 +179,7 @@ export default function DoctorLayout() {
                     </div>
                   ) : (
                     notifications.map((n) => (
-                      <DropdownMenuItem key={n.id} className="flex flex-col items-start gap-1 p-3 cursor-pointer" onClick={() => navigate("/doctor-dashboard/consultations")}>
+                      <DropdownMenuItem key={n.id} className="flex flex-col items-start gap-1 p-3 cursor-pointer" onClick={() => navigate(n.room_id ? `/doctor-dashboard/consultations?room_id=${n.room_id}` : "/doctor-dashboard/consultations")}>
                         <div className="flex justify-between w-full">
                           <span className="font-semibold text-xs">{n.title}</span>
                           <span className="text-[10px] text-muted-foreground">{n.time}</span>

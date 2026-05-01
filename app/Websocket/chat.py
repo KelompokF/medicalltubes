@@ -33,18 +33,8 @@ async def chat(websocket: WebSocket, user_id: str):
 
             now = datetime.utcnow().isoformat()
 
-            message_data = {
-                "sender_id": user_id,
-                "receiver_id": receiver_id,
-                "content": content,
-                "created_at": now,
-            }
-
-            # Kirim ke receiver dan sender secara real-time
-            await manager.send_message(receiver_id, message_data)
-            await manager.send_message(user_id, message_data)
-
-            # Simpan ke chat room (encrypted)
+            # Simpan ke chat room (encrypted) dan cari room_id
+            found_room_id = room_id
             try:
                 async with AsyncSessionLocal() as db:
                     room = None
@@ -76,6 +66,21 @@ async def chat(websocket: WebSocket, user_id: str):
                             )
                         )
                         room = result.scalar_one_or_none()
+
+                    if room:
+                        found_room_id = str(room.id)
+                        
+                    message_data = {
+                        "sender_id": user_id,
+                        "receiver_id": receiver_id,
+                        "content": content,
+                        "created_at": now,
+                        "room_id": found_room_id,
+                    }
+
+                    # Kirim ke receiver dan sender secara real-time
+                    await manager.send_message(receiver_id, message_data)
+                    await manager.send_message(user_id, message_data)
 
                     if room:
                         # Decrypt existing messages, append, re-encrypt

@@ -50,7 +50,10 @@ export default function PatientLayout({ userName = "John Doe", userInitials = "J
   useEffect(() => {
     if (!userId) return;
 
+    let isMounted = true;
     const connectWS = () => {
+      if (!isMounted) return;
+      
       const port = window.location.hostname === "localhost" ? "8001" : window.location.port;
       const wsUrl = `${window.location.protocol === "https:" ? "wss" : "ws"}://${window.location.hostname}:${port}/ws/chat/${userId}`;
       
@@ -68,17 +71,18 @@ export default function PatientLayout({ userName = "John Doe", userInitials = "J
                 title: "Pesan Baru",
                 description: data.content,
                 sender_id: data.sender_id,
+                room_id: data.room_id,
                 time: new Date().toLocaleTimeString("id-ID", { hour: "2-digit", minute: "2-digit" })
               },
               ...prev
             ]);
 
-            if (!location.pathname.includes("/chat")) {
+            if (!window.location.pathname.includes("/chat")) {
               toast("Pesan Baru dari Dokter", {
                 description: data.content,
                 action: {
                   label: "Lihat Chat",
-                  onClick: () => navigate("/chat")
+                  onClick: () => navigate(`/chat?room_id=${data.room_id}`)
                 },
               });
             }
@@ -88,12 +92,19 @@ export default function PatientLayout({ userName = "John Doe", userInitials = "J
         }
       };
 
-      ws.onclose = () => setTimeout(connectWS, 3000);
+      ws.onclose = () => {
+        if (isMounted) {
+          setTimeout(connectWS, 3000);
+        }
+      };
     };
 
     connectWS();
-    return () => wsRef.current?.close();
-  }, [userId, location.pathname, navigate]);
+    return () => {
+      isMounted = false;
+      wsRef.current?.close();
+    };
+  }, [userId, navigate]);
 
   return (
     <div className="min-h-screen bg-background">
@@ -166,7 +177,7 @@ export default function PatientLayout({ userName = "John Doe", userInitials = "J
                     </div>
                   ) : (
                     notifications.map((n) => (
-                      <DropdownMenuItem key={n.id} className="flex flex-col items-start gap-1 p-3 cursor-pointer" onClick={() => navigate("/chat")}>
+                      <DropdownMenuItem key={n.id} className="flex flex-col items-start gap-1 p-3 cursor-pointer" onClick={() => navigate(n.room_id ? `/chat?room_id=${n.room_id}` : "/chat")}>
                         <div className="flex justify-between w-full">
                           <span className="font-semibold text-xs">{n.title}</span>
                           <span className="text-[10px] text-muted-foreground">{n.time}</span>

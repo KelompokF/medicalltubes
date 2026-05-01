@@ -117,16 +117,8 @@ export default function ConsultationChatPage() {
         if (Array.isArray(res.data)) {
           setRooms(res.data);
           
-          // Auto-select room from URL param room_id
-          if (roomIdFromUrl) {
-            const room = res.data.find((r: Room) => r.room_id === roomIdFromUrl);
-            if (room) {
-              setActiveRoom(room);
-              setSessionEnded(room.status === "ended");
-            }
-          } 
-          // Else auto-select first room if none selected and no doctor_id param
-          else if (!activeRoom && !doctorIdFromUrl && res.data.length > 0) {
+          // Auto-select first room if none selected, no doctor_id param, and no roomIdFromUrl
+          if (!activeRoom && !doctorIdFromUrl && !roomIdFromUrl && res.data.length > 0) {
             setActiveRoom(res.data[0]);
             setSessionEnded(res.data[0].status === "ended");
           }
@@ -137,6 +129,17 @@ export default function ConsultationChatPage() {
     };
     loadRooms();
   }, [userId]);
+
+  // Auto-select room when URL param changes or rooms load
+  useEffect(() => {
+    if (roomIdFromUrl && rooms.length > 0) {
+      const room = rooms.find((r) => r.room_id === roomIdFromUrl);
+      if (room && room.room_id !== activeRoom?.room_id) {
+        setActiveRoom(room);
+        setSessionEnded(room.status === "ended");
+      }
+    }
+  }, [roomIdFromUrl, rooms, activeRoom]);
 
   // Load messages and prescriptions when active room changes
   useEffect(() => {
