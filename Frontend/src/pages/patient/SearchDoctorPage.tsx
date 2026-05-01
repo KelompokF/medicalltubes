@@ -262,7 +262,7 @@ export default function SearchDoctorPage() {
             className="pl-10"
           />
         </div>
-        
+
         <div className="relative w-full sm:w-56">
           <Filter className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground pointer-events-none" />
           <select
@@ -410,7 +410,7 @@ export default function SearchDoctorPage() {
             <Search className="h-6 w-6 text-muted-foreground" />
           </div>
           <p className="text-muted-foreground">
-            Tidak ada dokter ditemukan sesuai kriteria pencarian.
+            Tidak Menemukan Nama Dokter Yang Sesuai Dengan Kriteria Pencarian
           </p>
           {nearbyMode && (
             <Button
