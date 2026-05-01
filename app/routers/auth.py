@@ -76,3 +76,19 @@ async def me(authorization: str = Header(None), db: AsyncSession = Depends(get_d
         raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="User not found")
 
     return user
+
+from pydantic import BaseModel
+from app.dependencies import get_current_user
+
+class ChangePasswordRequest(BaseModel):
+    current_password: str
+    new_password: str
+
+@router.put("/change-password")
+async def change_password(data: ChangePasswordRequest, current_user: User = Depends(get_current_user), db: AsyncSession = Depends(get_db)):
+    if not verify_password(data.current_password, current_user.hashed_password):
+        raise HTTPException(status_code=400, detail="Current password incorrect")
+    current_user.hashed_password = hash_password(data.new_password)
+    db.add(current_user)
+    await db.commit()
+    return {"detail": "Password updated successfully"}

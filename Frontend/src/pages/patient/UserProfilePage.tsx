@@ -1,7 +1,7 @@
-import { useState } from "react";
+import { useState, useEffect } from "react";
 import { User, Shield, Trash2, Camera } from "lucide-react";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
-import { patientService } from "@/services/api";
+import { patientService, authService } from "@/services/api";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -13,6 +13,8 @@ import { toast } from "sonner";
 
 export default function UserProfilePage() {
   const [showDelete, setShowDelete] = useState(false);
+  const [isLoaded, setIsLoaded] = useState(false);
+  const [passwords, setPasswords] = useState({ current: "", new: "" });
   const queryClient = useQueryClient();
 
   const { data } = useQuery({ queryKey: ["patientProfile"], queryFn: () => patientService.getProfile().then((r) => r.data) });
@@ -21,29 +23,35 @@ export default function UserProfilePage() {
     mutationFn: (payload: any) => patientService.updateProfile(payload).then((r) => r.data),
     onSuccess: (data) => {
       queryClient.setQueryData(["patientProfile"], data);
+      queryClient.invalidateQueries({ queryKey: ["me"] });
+      const user = JSON.parse(localStorage.getItem("user") || "{}");
+      localStorage.setItem("user", JSON.stringify({ ...user, full_name: data.full_name }));
     }
   });
 
   const [form, setForm] = useState({
-    full_name: data?.full_name || "",
-    place_of_birth: data?.place_of_birth || "",
-    date_of_birth: data?.date_of_birth || "",
-    blood_type: data?.blood_type || "",
-    allergies: data?.allergies || "",
-    email: data?.email || "",
+    full_name: "",
+    place_of_birth: "",
+    date_of_birth: "",
+    blood_type: "",
+    allergies: "",
+    email: "",
   });
 
-  // keep form in sync when data loads
-  if (data && form.full_name === "") {
-    setForm({
-      full_name: data.full_name || "",
-      place_of_birth: data.place_of_birth || "",
-      date_of_birth: data.date_of_birth || "",
-      blood_type: data.blood_type || "",
-      allergies: data.allergies || "",
-      email: data.email || "",
-    });
-  }
+  // keep form in sync when data loads (only once)
+  useEffect(() => {
+    if (data && !isLoaded) {
+      setForm({
+        full_name: data.full_name || "",
+        place_of_birth: data.place_of_birth || "",
+        date_of_birth: data.date_of_birth || "",
+        blood_type: data.blood_type || "",
+        allergies: data.allergies || "",
+        email: data.email || "",
+      });
+      setIsLoaded(true);
+    }
+  }, [data, isLoaded]);
 
   return (
     <div className="space-y-6 animate-fade-in">
@@ -108,15 +116,40 @@ export default function UserProfilePage() {
           <Card className="shadow-card">
             <CardHeader><CardTitle className="flex items-center gap-2"><Shield className="h-5 w-5 text-primary" />Security</CardTitle></CardHeader>
             <CardContent className="space-y-4">
-              <div><Label>Current Password</Label><Input type="password" className="mt-1" /></div>
-              <div><Label>New Password</Label><Input type="password" className="mt-1" /></div>
-              <Button variant="outline" className="w-full">Change Password</Button>
+              <div>
+                <Label>Current Password</Label>
+                <Input type="password" value={passwords.current} onChange={(e) => setPasswords(p => ({ ...p, current: e.target.value }))} className="mt-1" />
+              </div>
+              <div>
+                <Label>New Password</Label>
+                <Input type="password" value={passwords.new} onChange={(e) => setPasswords(p => ({ ...p, new: e.target.value }))} className="mt-1" />
+              </div>
+              <Button variant="outline" className="w-full" onClick={() => {
+                if (!passwords.current || !passwords.new) {
+                  toast.error("Please fill both password fields");
+                  return;
+                }
+                authService.changePassword({ current_password: passwords.current, new_password: passwords.new })
+                  .then(() => {
+                    toast.success("Password changed successfully");
+                    setPasswords({ current: "", new: "" });
+                  })
+                  .catch((err) => toast.error(err.response?.data?.detail || "Failed to change password"));
+              }}>Change Password</Button>
             </CardContent>
           </Card>
 
           {/* Actions */}
           <div className="space-y-3">
             <Button className="w-full medical-gradient text-primary-foreground" onClick={() => {
+              if (!form.full_name || form.full_name.trim() === "") {
+                toast.error("Full name cannot be empty");
+                return;
+              }
+              if (form.place_of_birth && !/^[a-zA-Z0-9\s]+$/.test(form.place_of_birth)) {
+                toast.error("Place of birth cannot contain symbols");
+                return;
+              }
               mutation.mutate(form, {
                 onSuccess: () => toast.success("Profile saved!"),
                 onError: () => toast.error("Failed to save profile")
