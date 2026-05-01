@@ -26,8 +26,10 @@ from app.schemas.emergency_history import (
     EmergencyHistoryResponse,
 )
 from app.schemas.emergency import (
-    AmbulanceServiceResponse,
+    ActiveEmergenciesResponse,
+    ActiveEmergencyItem,
     NearbyAmbulancesResponse,
+    AmbulanceServiceResponse,
     EmergencyRequest,
     EmergencyRequestResponse,
     EmergencyStatusUpdate,
@@ -41,6 +43,7 @@ MAX_RADIUS_KM = 200.0
 # Average ambulance speed (km/h) for ETA estimation
 AVG_AMBULANCE_SPEED_KMH = 40
 HISTORY_FILTERS = {"all", "today", "yesterday", "last_7_days", "this_month"}
+ACTIVE_REQUEST_STATUSES = {"searching", "dispatched", "on_my_way", "on_progress"}
 
 
 def get_history_start_date(filter_type: str) -> Optional[datetime]:
@@ -248,6 +251,70 @@ async def get_emergency_history(
     )
 
 
+@router.get("/active", response_model=ActiveEmergenciesResponse)
+async def get_active_emergencies(
+    db: AsyncSession = Depends(get_db),
+    current_user: User = Depends(get_current_user),
+):
+    if current_user.role != "ambulance":
+        raise HTTPException(
+            status_code=403,
+            detail="Hanya akun ambulance yang dapat mengakses emergency aktif",
+        )
+
+    ambulance_result = await db.execute(
+        select(AmbulanceService).where(AmbulanceService.user_id == current_user.id)
+    )
+    ambulance_services = ambulance_result.scalars().all()
+
+    if not ambulance_services:
+        return ActiveEmergenciesResponse(data=[], total=0)
+
+    ambulance_by_id = {service.id: service for service in ambulance_services}
+    records_result = await db.execute(
+        select(EmergencyRequestRecord, User)
+        .outerjoin(User, EmergencyRequestRecord.user_id == User.id)
+        .where(
+            EmergencyRequestRecord.ambulance_service_id.in_(
+                list(ambulance_by_id.keys())
+            ),
+            EmergencyRequestRecord.status.in_(ACTIVE_REQUEST_STATUSES),
+        )
+        .order_by(EmergencyRequestRecord.created_at.desc())
+    )
+    records = records_result.all()
+
+    items = []
+    for record, requester in records:
+        ambulance_service = ambulance_by_id.get(record.ambulance_service_id)
+        distance_km = 0
+        if ambulance_service is not None:
+            distance_km = haversine(
+                ambulance_service.lat,
+                ambulance_service.lng,
+                record.location_lat,
+                record.location_lng,
+            )
+
+        items.append(
+            ActiveEmergencyItem(
+                id=str(record.id),
+                user_id=str(record.user_id) if record.user_id else None,
+                user_name=requester.full_name if requester else None,
+                created_at=record.created_at,
+                location_address=record.location_address,
+                location_lat=record.location_lat,
+                location_lng=record.location_lng,
+                distance_km=round(distance_km, 2),
+                status=record.status,
+                type=record.type,
+                notes=record.notes,
+            )
+        )
+
+    return ActiveEmergenciesResponse(data=items, total=len(items))
+
+
 @router.post("/", response_model=EmergencyRequestResponse)
 async def request_emergency(
     data: EmergencyRequest,
@@ -330,27 +397,46 @@ async def get_emergency_status(request_id: str):
 
 
 @router.patch("/{request_id}/status")
-async def update_emergency_status(request_id: str, data: EmergencyStatusUpdate):
-    """
-    Update an emergency request status for the patient-facing flow.
-
-    Emergency requests are currently generated without persistence, so this
-    endpoint validates the request identifier and returns the accepted status.
-    """
+async def update_emergency_status(
+    request_id: str,
+    data: EmergencyStatusUpdate,
+    db: AsyncSession = Depends(get_db),
+):
+    """Persist emergency request status updates for patient and ambulance flows."""
     try:
-        uuid.UUID(request_id)
+        request_uuid = uuid.UUID(request_id)
     except ValueError:
         raise HTTPException(status_code=400, detail="Invalid emergency request ID format")
 
+    result = await db.execute(
+        select(EmergencyRequestRecord).where(EmergencyRequestRecord.id == request_uuid)
+    )
+    emergency_record = result.scalar_one_or_none()
+
+    if emergency_record is None:
+        raise HTTPException(status_code=404, detail="Permintaan emergency tidak ditemukan")
+
+    emergency_record.status = data.status
+    if data.status == "completed":
+        emergency_record.completed_at = datetime.utcnow()
+    elif data.status in {"cancelled", "on_my_way", "on_progress"}:
+        emergency_record.completed_at = None
+
+    await db.commit()
+    await db.refresh(emergency_record)
+
+    messages = {
+        "cancelled": "Permintaan darurat dibatalkan.",
+        "on_my_way": "Ambulans sedang menuju lokasi pasien.",
+        "on_progress": "Penanganan pasien sedang berlangsung.",
+        "completed": "Permintaan darurat diselesaikan.",
+    }
+
     return {
         "success": True,
-        "id": request_id,
-        "status": data.status,
-        "message": (
-            "Permintaan darurat dibatalkan."
-            if data.status == "cancelled"
-            else "Permintaan darurat diselesaikan."
-        ),
+        "id": str(emergency_record.id),
+        "status": emergency_record.status,
+        "message": messages[data.status],
         "updated_at": datetime.utcnow().isoformat(),
     }
 

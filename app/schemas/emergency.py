@@ -1,6 +1,7 @@
-from pydantic import BaseModel
-from typing import List, Optional, Literal
 from datetime import datetime
+from typing import List, Literal, Optional
+
+from pydantic import BaseModel
 
 class AmbulanceServiceResponse(BaseModel):
     id: str
@@ -28,6 +29,10 @@ class Location(BaseModel):
     lat: float
     lng: float
 
+
+LocationInput = Location
+
+
 class EmergencyRequest(BaseModel):
     location: Location
     type: Optional[str] = "general"
@@ -41,4 +46,23 @@ class EmergencyRequestResponse(BaseModel):
     ambulance_assigned: Optional[AmbulanceServiceResponse] = None
 
 class EmergencyStatusUpdate(BaseModel):
-    status: Literal["cancelled", "completed"]
+    status: Literal["cancelled", "on_my_way", "on_progress", "completed"]
+
+
+class ActiveEmergencyItem(BaseModel):
+    id: str
+    user_id: Optional[str] = None
+    user_name: Optional[str] = None
+    created_at: datetime
+    location_address: Optional[str] = None
+    location_lat: float
+    location_lng: float
+    distance_km: float
+    status: str
+    type: str
+    notes: Optional[str] = None
+
+
+class ActiveEmergenciesResponse(BaseModel):
+    data: List[ActiveEmergencyItem]
+    total: int

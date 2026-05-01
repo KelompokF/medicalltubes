@@ -137,8 +137,16 @@ export const emergencyService = {
     page?: number;
     limit?: number;
   }) => api.get("/emergencies/history", { params }),
+  getActiveEmergencies: () => api.get("/emergencies/active"),
+  updateActiveEmergencyStatus: (
+    id: string,
+    status: "on_my_way" | "on_progress" | "completed"
+  ) => api.patch(`/emergencies/${id}/status`, { status }),
   getEmergencyStatus: (id: string) => api.get(`/emergencies/${id}/status`),
-  updateEmergencyStatus: (id: string, status: "cancelled" | "completed") =>
+  updateEmergencyStatus: (
+    id: string,
+    status: "cancelled" | "on_my_way" | "on_progress" | "completed"
+  ) =>
     api.patch(`/emergencies/${id}/status`, { status }),
   callAmbulance: (ambulanceId: string) =>
     api.post(`/emergencies/ambulances/${ambulanceId}/call`),
