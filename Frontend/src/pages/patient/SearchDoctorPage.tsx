@@ -251,6 +251,8 @@ export default function SearchDoctorPage() {
         <div className="relative flex-1">
           <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
           <Input
+            id="search-doctor-input"
+            data-testid="search-doctor-input"
             placeholder="Cari nama dokter..."
             value={search}
             onChange={(e) => {
@@ -260,24 +262,28 @@ export default function SearchDoctorPage() {
             className="pl-10"
           />
         </div>
-        <Select
-          value={specialization}
-          onValueChange={(val) => {
-            setSpecialization(val);
-            setCurrentPage(1);
-          }}
-        >
-          <SelectTrigger className="w-full sm:w-56">
-            <Filter className="h-4 w-4 mr-2" />
-            <SelectValue />
-          </SelectTrigger>
-          <SelectContent>
-            <SelectItem value="All">Semua Spesialisasi</SelectItem>
+        
+        <div className="relative w-full sm:w-56">
+          <Filter className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground pointer-events-none" />
+          <select
+            id="specialization-select"
+            data-testid="specialization-select"
+            value={specialization}
+            onChange={(e) => {
+              setSpecialization(e.target.value);
+              setCurrentPage(1);
+            }}
+            className="w-full h-10 appearance-none rounded-md border border-input bg-background pl-9 pr-8 py-2 text-sm ring-offset-background focus:outline-none focus:ring-1 focus:ring-ring focus:ring-offset-0 disabled:cursor-not-allowed disabled:opacity-50"
+          >
+            <option value="All">Semua Spesialisasi</option>
             {specializations.map((s) => (
-              <SelectItem key={s} value={s}>{s}</SelectItem>
+              <option key={s} value={s}>{s}</option>
             ))}
-          </SelectContent>
-        </Select>
+          </select>
+          <div className="absolute right-3 top-1/2 -translate-y-1/2 pointer-events-none text-muted-foreground">
+            <svg width="15" height="15" viewBox="0 0 15 15" fill="none" xmlns="http://www.w3.org/2000/svg" className="h-4 w-4 opacity-50"><path d="M4.93179 5.43179C4.75605 5.60753 4.75605 5.89245 4.93179 6.06819L7.43179 8.56819C7.60753 8.74393 7.89245 8.74393 8.06819 8.56819L10.5682 6.06819C10.7439 5.89245 10.7439 5.60753 10.5682 5.43179C10.3924 5.25605 10.1075 5.25605 9.93179 5.43179L7.5 7.86358L5.06819 5.43179C4.89245 5.25605 4.60753 5.25605 4.93179 5.43179Z" fill="currentColor" fillRule="evenodd" clipRule="evenodd"></path></svg>
+          </div>
+        </div>
       </div>
 
       {/* Results Header */}
