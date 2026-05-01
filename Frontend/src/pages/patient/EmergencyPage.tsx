@@ -54,11 +54,31 @@ export default function EmergencyPage() {
     }
 
     navigator.geolocation.getCurrentPosition(
-      (position) => {
-        const loc = {
+      async (position) => {
+        const loc: UserLocation = {
           lat: position.coords.latitude,
           lng: position.coords.longitude,
         };
+
+        try {
+          const res = await fetch(`https://nominatim.openstreetmap.org/reverse?format=json&lat=${loc.lat}&lon=${loc.lng}&zoom=18&addressdetails=1`);
+          const data = await res.json();
+          if (data && data.address) {
+            const addr = data.address;
+            const road = addr.road || addr.street || "";
+            const village = addr.village || addr.suburb || addr.neighbourhood || "";
+            const subdistrict = addr.city_district || addr.district || "";
+            const city = addr.city || addr.town || addr.county || addr.state || "";
+            
+            const parts = [road, village, subdistrict, city].filter(Boolean);
+            if (parts.length > 0) {
+              loc.address = parts.join(", ");
+            }
+          }
+        } catch (e) {
+          console.error("Geocoding failed", e);
+        }
+
         setLocation(loc);
         setIsLoadingLocation(false);
         fetchNearbyAmbulances(loc.lat, loc.lng);
@@ -88,10 +108,10 @@ export default function EmergencyPage() {
   }, []);
 
   // Fetch nearby ambulances from backend
-  const fetchNearbyAmbulances = async (lat: number, lng: number) => {
+  const fetchNearbyAmbulances = async (lat: number, lng: number, radius?: number) => {
     setIsLoadingAmbulances(true);
     try {
-      const response = await emergencyService.getNearbyAmbulances(lat, lng);
+      const response = await emergencyService.getNearbyAmbulances(lat, lng, radius || radiusKm);
       const data = response.data;
       setAmbulances(data.ambulances || []);
       if (data.address) {
@@ -254,6 +274,9 @@ export default function EmergencyPage() {
               onChange={(e) => {
                 const newRadius = Number(e.target.value);
                 setRadiusKm(newRadius);
+                if (location) {
+                  fetchNearbyAmbulances(location.lat, location.lng, newRadius);
+                }
               }}
               className="text-sm border rounded-md px-2 py-1 bg-background text-foreground"
             >

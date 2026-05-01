@@ -131,8 +131,8 @@ export const homeVisitService = {
 export const emergencyService = {
   requestEmergency: (data: { location: { lat: number; lng: number }; type?: string }) =>
     api.post("/emergencies", data),
-  getNearbyAmbulances: (lat: number, lng: number) =>
-    api.get("/emergencies/ambulances", { params: { lat, lng } }),
+  getNearbyAmbulances: (lat: number, lng: number, radius_km?: number) =>
+    api.get("/emergencies/ambulances", { params: { lat, lng, radius_km } }),
   getEmergencyStatus: (id: string) => api.get(`/emergencies/${id}/status`),
   callAmbulance: (ambulanceId: string) =>
     api.post(`/emergencies/ambulances/${ambulanceId}/call`),
