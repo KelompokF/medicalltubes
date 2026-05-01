@@ -26,6 +26,31 @@ async def chat(websocket: WebSocket, user_id: str):
             room_id = data.get("room_id")
             receiver_id = data.get("receiver_id")
             content = data.get("content")
+            msg_type = data.get("type", "message")
+
+            if msg_type == "read_receipt":
+                try:
+                    async with AsyncSessionLocal() as db:
+                        if room_id:
+                            result = await db.execute(select(ChatRoom).where(ChatRoom.id == room_id))
+                            room = result.scalar_one_or_none()
+                            if room:
+                                messages = decrypt_messages(room.encrypted_messages)
+                                updated = False
+                                for m in messages:
+                                    if m.get("receiver_id") == user_id and not m.get("is_read"):
+                                        m["is_read"] = True
+                                        updated = True
+                                if updated:
+                                    room.encrypted_messages = encrypt_messages(messages)
+                                    await db.commit()
+                                    # Notify sender that their messages were read
+                                    original_sender_id = data.get("sender_id")
+                                    if original_sender_id:
+                                        await manager.send_message(original_sender_id, {"type": "read_receipt_update", "room_id": room_id})
+                except Exception as e:
+                    print(f"[WebSocket DB Error] {e}")
+                continue
 
             if not receiver_id or not content:
                 await websocket.send_json({"error": "receiver_id dan content diperlukan"})
@@ -76,6 +101,7 @@ async def chat(websocket: WebSocket, user_id: str):
                         "content": content,
                         "created_at": now,
                         "room_id": found_room_id,
+                        "is_read": False,
                     }
 
                     # Kirim ke receiver dan sender secara real-time

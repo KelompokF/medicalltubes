@@ -145,6 +145,8 @@ async def get_rooms(
         msgs = decrypt_messages(r.encrypted_messages)
         last_msg = msgs[-1] if msgs else None
 
+        unread_count = sum(1 for m in msgs if m.get("receiver_id") == current_uid and not m.get("is_read"))
+
         room_list.append({
             "room_id": str(r.id),
             "partner_id": str(partner_id),
@@ -154,6 +156,7 @@ async def get_rooms(
             "last_message": last_msg["content"] if last_msg else None,
             "last_date": last_msg["created_at"] if last_msg else (r.created_at.isoformat() if r.created_at else None),
             "message_count": len(msgs),
+            "unread_count": unread_count,
         })
 
     return room_list

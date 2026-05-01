@@ -9,6 +9,7 @@ import {
   DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuSeparator, DropdownMenuTrigger
 } from "@/components/ui/dropdown-menu";
 import { toast } from "sonner";
+import api from "@/services/api";
 
 const doctorNav = [
   { label: "Dashboard", path: "/doctor-dashboard", icon: LayoutDashboard },
@@ -46,6 +47,27 @@ export default function DoctorLayout() {
     if (!doctorId) return;
 
     let isMounted = true;
+    
+    // Fetch initial unread messages
+    api.get("/chat/rooms").then((res) => {
+      if (isMounted && Array.isArray(res.data)) {
+        const unreadNotifications = res.data
+          .filter((room: any) => room.unread_count > 0)
+          .map((room: any) => ({
+            id: Date.now() + Math.random(),
+            title: `Pesan Baru dari ${room.partner_name}`,
+            description: `Ada ${room.unread_count} pesan belum dibaca.`,
+            sender_id: room.partner_id,
+            room_id: room.room_id,
+            time: new Date(room.last_date || Date.now()).toLocaleTimeString("id-ID", { hour: "2-digit", minute: "2-digit" })
+          }));
+        
+        if (unreadNotifications.length > 0) {
+          setNotifications(prev => [...unreadNotifications, ...prev]);
+        }
+      }
+    }).catch(console.error);
+
     const connectWS = () => {
       if (!isMounted) return;
       
