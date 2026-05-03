@@ -31,7 +31,10 @@ api.interceptors.response.use(
     if (error.response?.status === 401) {
       localStorage.removeItem("access_token");
       localStorage.removeItem("user");
-      window.location.href = "/login";
+      // Only redirect if not already on the login page to avoid endless loops and lost error toasts
+      if (window.location.pathname !== "/login" && window.location.pathname !== "/") {
+        window.location.href = "/login";
+      }
     }
     return Promise.reject(error);
   }
@@ -52,6 +55,8 @@ export const authService = {
     api.post("/auth/forgot-password", { email }),
   resetPassword: (data: { token: string; password: string }) =>
     api.post("/auth/reset-password", data),
+  changePassword: (data: { current_password: string; new_password: string }) =>
+    api.put("/auth/change-password", data),
 };
 
 // ============================================
@@ -62,6 +67,10 @@ export const patientService = {
   getProfile: () => api.get("/patient/profile"),
   updateProfile: (data: any) => api.put("/patient/profile", data),
   deleteAccount: () => api.delete("/patient/account"),
+  // Location Sharing
+  getLocationSharing: () => api.get("/users/me/location-sharing"),
+  updateLocationSharing: (enabled: boolean) =>
+    api.patch("/users/me/location-sharing", { enabled }),
 };
 
 // ============================================
@@ -149,11 +158,26 @@ export const homeVisitScheduleService = {
 // EMERGENCY ENDPOINTS
 // ============================================
 export const emergencyService = {
-  requestEmergency: (data: { location: { lat: number; lng: number }; type?: string }) =>
+  requestEmergency: (data: { location: { lat: number; lng: number }; type?: string; notes?: string }) =>
     api.post("/emergencies", data),
-  getNearbyAmbulances: (lat: number, lng: number) =>
-    api.get("/emergencies/ambulances", { params: { lat, lng } }),
+  getNearbyAmbulances: (lat: number, lng: number, radiusKm?: number) =>
+    api.get("/emergencies/ambulances", { params: { lat, lng, radius_km: radiusKm } }),
+  getEmergencyHistory: (params?: {
+    filter?: "all" | "today" | "yesterday" | "last_7_days" | "this_month";
+    page?: number;
+    limit?: number;
+  }) => api.get("/emergencies/history", { params }),
+  getActiveEmergencies: () => api.get("/emergencies/active"),
+  updateActiveEmergencyStatus: (
+    id: string,
+    status: "on_my_way" | "on_progress" | "completed"
+  ) => api.patch(`/emergencies/${id}/status`, { status }),
   getEmergencyStatus: (id: string) => api.get(`/emergencies/${id}/status`),
+  updateEmergencyStatus: (
+    id: string,
+    status: "cancelled" | "on_my_way" | "on_progress" | "completed"
+  ) =>
+    api.patch(`/emergencies/${id}/status`, { status }),
   callAmbulance: (ambulanceId: string) =>
     api.post(`/emergencies/ambulances/${ambulanceId}/call`),
 };
@@ -192,4 +216,41 @@ export const prescriptionService = {
   create: (data: any) => api.post("/prescriptions", data),
   getRoomPrescriptions: (roomId: string) => api.get(`/prescriptions/room/${roomId}`),
   getPatientPrescriptions: (patientId: string) => api.get(`/prescriptions/patient/${patientId}`),
+};
+
+// ============================================
+// HEALTH RECORD ENDPOINTS
+// ============================================
+export const healthRecordService = {
+  getRecords: () => api.get("/health-records"),
+  getRecordById: (id: string) => api.get(`/health-records/${id}`),
+  createRecord: (data: any) => api.post("/health-records", data),
+  deleteRecord: (id: string) => api.delete(`/health-records/${id}`),
+};
+
+// ============================================
+// DOCTOR SCHEDULE ENDPOINTS
+// ============================================
+export interface DaySchedule {
+  hari: string;
+  slots: string[]; // "HH:MM" strings
+}
+
+export interface DoctorScheduleResponse {
+  doctor_id: string;
+  schedule: DaySchedule[];
+}
+
+export const doctorScheduleService = {
+  /** Pasien: ambil jadwal dokter berdasarkan profile ID atau user ID */
+  getSchedule: (doctorId: string) =>
+    api.get<DoctorScheduleResponse>(`/doctors/${doctorId}/schedule`),
+
+  /** Dokter: lihat jadwal sendiri */
+  getMySchedule: () =>
+    api.get<DoctorScheduleResponse>("/doctor/schedule"),
+
+  /** Dokter: simpan/update jadwal sendiri (full replace) */
+  updateMySchedule: (schedule: DaySchedule[]) =>
+    api.put<DoctorScheduleResponse>("/doctor/schedule", { schedule }),
 };

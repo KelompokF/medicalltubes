@@ -141,29 +141,34 @@ async def get_dashboard_summary(
             type=event_type
         )
 
-    # 5. Ambil history untuk tab baru
+    # 5. Ambil history dari ChatRoom (Riwayat Chat Asli)
     consultation_history = []
-    booking_history = []
+    
+    # Query ChatRoom dan Join dengan User (Dokter)
+    from app.models.chat_room import ChatRoom
+    from app.models.user import User
 
-    # Ambil 5 history consultation terbaru
-    history_cons_result = await db.execute(
-        select(Consultation)
-        .where(Consultation.patient_id == current_user.id)
-        .order_by(Consultation.created_at.desc())
+    history_chat_result = await db.execute(
+        select(ChatRoom, User)
+        .join(User, ChatRoom.doctor_id == User.id)
+        .where(ChatRoom.patient_id == current_user.id)
+        .order_by(ChatRoom.updated_at.desc())
         .limit(5)
     )
-    for c in history_cons_result.scalars():
+    
+    for room, doctor in history_chat_result:
         consultation_history.append(HistoryItem(
-            id=str(c.id),
-            doctor=c.doctor_name,
-            specialization=c.specialization or "Umum",
-            date=c.created_at.strftime("%d %b %Y"),
-            time=c.created_at.strftime("%H:%M"),
-            status=c.status,
+            id=str(room.id),
+            doctor=doctor.full_name,
+            specialization="Umum", # Bisa dikembangkan untuk ambil dari DoctorProfile
+            date=room.updated_at.strftime("%d %b %Y"),
+            time=room.updated_at.strftime("%H:%M"),
+            status="Selesai" if room.status == "ended" else "Aktif",
             type="consultation"
         ))
 
-    # Ambil 5 history home visit terbaru
+    # 6. Ambil history home visit terbaru
+    booking_history = []
     history_hv_result = await db.execute(
         select(HomeVisit)
         .where(HomeVisit.patient_id == current_user.id)
@@ -179,27 +184,6 @@ async def get_dashboard_summary(
             time=h.created_at.strftime("%H:%M"),
             status=h.status,
             type="home_visit"
-        ))
-
-    # Dummy data fallback (opsional, agar UI terlihat sesuai screenshot)
-    if not consultation_history:
-        consultation_history.append(HistoryItem(
-            id="dummy-cons-1", doctor="Dr. Sarah Wijaya", specialization="Umum",
-            date="24 Apr 2026", time="14:30", status="Selesai", type="consultation"
-        ))
-        consultation_history.append(HistoryItem(
-            id="dummy-cons-2", doctor="Dr. Budi Santoso", specialization="Penyakit Dalam",
-            date="20 Apr 2026", time="10:00", status="Dibatalkan", type="consultation"
-        ))
-
-    if not booking_history:
-        booking_history.append(HistoryItem(
-            id="dummy-hv-1", doctor="Dr. Andi Pratama", specialization="Umum",
-            date="26 Apr 2026", time="09:00", status="Menunggu", type="home_visit"
-        ))
-        booking_history.append(HistoryItem(
-            id="dummy-hv-2", doctor="Dr. Rina Sulistyowati", specialization="Penyakit Dalam",
-            date="20 Apr 2026", time="14:00", status="Selesai", type="home_visit"
         ))
 
     return DashboardResponse(

@@ -10,6 +10,14 @@ from app.schemas.user import UserResponse, LocationSharingUpdate
 router = APIRouter(prefix="/users", tags=["Users"])
 
 
+@router.get("/me/location-sharing", response_model=UserResponse)
+async def get_location_sharing(
+    current_user: User = Depends(get_current_user)
+):
+    """Mengambil status pengiriman lokasi otomatis saat ini."""
+    return current_user
+
+
 @router.patch("/me/location-sharing", response_model=UserResponse)
 async def toggle_location_sharing(
     update_data: LocationSharingUpdate,
