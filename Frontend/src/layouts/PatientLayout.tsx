@@ -32,7 +32,7 @@ import { toast } from "sonner";
 import { AccessibilityProvider } from "@/contexts/AccessibilityContext";
 import AccessibilityPanel from "@/components/AccessibilityPanel";
 
-// NAV MENU
+
 const patientNav = [
   { label: "Dashboard", path: "/dashboard", icon: LayoutDashboard },
   { label: "Search Doctor", path: "/search-doctor", icon: Search },
@@ -40,6 +40,7 @@ const patientNav = [
   { label: "Chat History", path: "/chat-history", icon: History },
   { label: "Home Visit", path: "/home-visit", icon: Home },
   { label: "Home Visit History", path: "/home-visit-history", icon: History },
+  { label: "Home Visit Tracking", path: "/tracking", icon: Home },
   { label: "Medical Records", path: "/health-records", icon: ClipboardList },
   { label: "Emergency", path: "/emergency", icon: AlertTriangle },
   { label: "Profile", path: "/profile", icon: User },

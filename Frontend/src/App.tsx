@@ -98,7 +98,7 @@ const App = () => (
             <Route path="/doctor-dashboard/settings" element={<ComingSoon title="Doctor Settings" />} />
           </Route>
 
-          {/* Ambulance Routes */}
+          {/* Ambu Routes */}
           <Route element={<AmbulanceLayout />}>
             <Route path="/ambulance-dashboard" element={<AmbulanceDashboard />} />
             <Route path="/ambulance-dashboard/active" element={<AmbulanceActivePage />} />
