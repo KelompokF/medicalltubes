@@ -1,10 +1,22 @@
-import { useState, useEffect, useCallback } from "react";
-import { Phone, MapPin, Clock, AlertTriangle, Shield, Heart, Thermometer, Loader2, Navigation, RefreshCw, Search } from "lucide-react";
+/* eslint-disable react-refresh/only-export-components */
+import { useState, useEffect, useCallback, useRef } from "react";
+import { Phone, MapPin, Clock, AlertTriangle, Shield, Heart, Thermometer, Loader2, Navigation, RefreshCw, Search, CheckCircle2, XCircle } from "lucide-react";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
+import {
+  Dialog,
+  DialogContent,
+  DialogDescription,
+  DialogFooter,
+  DialogHeader,
+  DialogTitle,
+} from "@/components/ui/dialog";
 import { toast } from "sonner";
-import { emergencyService } from "@/services/api";
+import { emergencyService, patientService } from "@/services/api";
+import { useQuery } from "@tanstack/react-query";
+
+export type EmergencyAction = "cancel" | "complete";
 
 interface AmbulanceService {
   id: string;
@@ -27,23 +39,133 @@ interface UserLocation {
   address?: string;
 }
 
+export const getLocationFallbackText = () =>
+  "Alamat belum tersedia. Lokasi GPS berhasil ditemukan.";
+
+export const getDisplayAddress = (
+  location: UserLocation | null,
+  fallbackAddress?: string,
+) => location?.address || fallbackAddress || getLocationFallbackText();
+
+export const getLocationDisplayText = (
+  location: UserLocation | null,
+  isResolvingAddress: boolean,
+) => {
+  if (location?.address) {
+    return location.address;
+  }
+
+  return isResolvingAddress ? "Mencari alamat..." : getDisplayAddress(location);
+};
+
+export const syncEmergencyStatus = async (
+  id: string,
+  action: EmergencyAction,
+  updateStatus: (id: string, status: "cancelled" | "completed") => Promise<unknown>,
+) => {
+  try {
+    await updateStatus(id, action === "cancel" ? "cancelled" : "completed");
+    return true;
+  } catch (error: unknown) {
+    console.error("Emergency status sync failed:", error);
+    return false;
+  }
+};
+
+export const reverseGeocodeLocation = async (lat: number, lng: number) => {
+  const response = await fetch(
+    `https://nominatim.openstreetmap.org/reverse?format=jsonv2&lat=${lat}&lon=${lng}`,
+    { headers: { Accept: "application/json" } },
+  );
+
+  if (!response.ok) {
+    return null;
+  }
+
+  const data: { display_name?: string } = await response.json();
+  return data.display_name || null;
+};
+
 export default function EmergencyPage() {
   const [ambulances, setAmbulances] = useState<AmbulanceService[]>([]);
   const [location, setLocation] = useState<UserLocation | null>(null);
   const [locationError, setLocationError] = useState<string | null>(null);
-  const [isLoadingLocation, setIsLoadingLocation] = useState(true);
+  const [isLoadingLocation, setIsLoadingLocation] = useState(false);
   const [isLoadingAmbulances, setIsLoadingAmbulances] = useState(false);
+  const [isResolvingAddress, setIsResolvingAddress] = useState(false);
   const [isSending, setIsSending] = useState(false);
+  const [showSOSConfirm, setShowSOSConfirm] = useState(false);
+  const [pendingAction, setPendingAction] = useState<EmergencyAction | null>(null);
   const [emergencyStatus, setEmergencyStatus] = useState<{
     id: string;
     status: string;
     message: string;
+    address: string;
     ambulance?: AmbulanceService;
   } | null>(null);
   const [radiusKm, setRadiusKm] = useState(50);
 
+  // Fetch location sharing setting from user profile
+  const { data: locationSetting } = useQuery({
+    queryKey: ["locationSharing"],
+    queryFn: () => patientService.getLocationSharing().then((r) => r.data),
+  });
+  const isLocationSharingEnabled = locationSetting?.location_sharing_enabled ?? null;
+  const locationRequestId = useRef(0);
+  const ambulanceRequestId = useRef(0);
+  const radiusKmRef = useRef(radiusKm);
+
+  const nearestAmbulance = ambulances[0];
+  const isNearestAmbulanceAvailable = Boolean(
+    nearestAmbulance &&
+      !["unavailable", "offline", "busy"].includes((nearestAmbulance.status || "").toLowerCase()),
+  );
+
+  useEffect(() => {
+    radiusKmRef.current = radiusKm;
+  }, [radiusKm]);
+
+  // Fetch nearby ambulances from backend
+  const fetchNearbyAmbulances = useCallback(async (lat: number, lng: number, radiusOverride?: number) => {
+    const requestId = ambulanceRequestId.current + 1;
+    ambulanceRequestId.current = requestId;
+    setIsLoadingAmbulances(true);
+    try {
+      const response = await emergencyService.getNearbyAmbulances(
+        lat,
+        lng,
+        radiusOverride ?? radiusKmRef.current,
+      );
+      const data = response.data;
+      if (ambulanceRequestId.current !== requestId) {
+        return;
+      }
+
+      setAmbulances(data.ambulances || []);
+      if (data.address) {
+        setLocation((prev) =>
+          prev && !prev.address && prev.lat === lat && prev.lng === lng
+            ? { ...prev, address: data.address }
+            : prev
+        );
+      }
+      if (data.ambulances?.length === 0) {
+        toast.info("Tidak ada layanan ambulans ditemukan di area ini. Coba perbesar radius pencarian.");
+      }
+    } catch (error: unknown) {
+      console.error("Error fetching ambulances:", error);
+      toast.error("Gagal memuat data ambulans. Silakan coba lagi.");
+    } finally {
+      if (ambulanceRequestId.current === requestId) {
+        setIsLoadingAmbulances(false);
+      }
+    }
+  }, []);
+
   // Get user's GPS location
   const getLocation = useCallback(() => {
+    const requestId = locationRequestId.current + 1;
+    locationRequestId.current = requestId;
     setIsLoadingLocation(true);
     setLocationError(null);
 
@@ -54,16 +176,63 @@ export default function EmergencyPage() {
     }
 
     navigator.geolocation.getCurrentPosition(
-      (position) => {
-        const loc = {
+      async (position) => {
+        if (locationRequestId.current !== requestId) {
+          return;
+        }
+
+        const loc: UserLocation = {
           lat: position.coords.latitude,
           lng: position.coords.longitude,
         };
+
+        try {
+          const res = await fetch(`https://nominatim.openstreetmap.org/reverse?format=json&lat=${loc.lat}&lon=${loc.lng}&zoom=18&addressdetails=1`);
+          const data = await res.json();
+          if (data && data.address) {
+            const addr = data.address;
+            const road = addr.road || addr.street || "";
+            const village = addr.village || addr.suburb || addr.neighbourhood || "";
+            const subdistrict = addr.city_district || addr.district || "";
+            const city = addr.city || addr.town || addr.county || addr.state || "";
+            
+            const parts = [road, village, subdistrict, city].filter(Boolean);
+            if (parts.length > 0) {
+              loc.address = parts.join(", ");
+            }
+          }
+        } catch (e) {
+          console.error("Geocoding failed", e);
+        }
+
         setLocation(loc);
         setIsLoadingLocation(false);
         fetchNearbyAmbulances(loc.lat, loc.lng);
+        setIsResolvingAddress(true);
+        reverseGeocodeLocation(loc.lat, loc.lng)
+          .then((address) => {
+            if (address && locationRequestId.current === requestId) {
+              setLocation((prev) =>
+                prev && prev.lat === loc.lat && prev.lng === loc.lng
+                  ? { ...prev, address }
+                  : prev,
+              );
+            }
+          })
+          .catch((error: unknown) => {
+            console.error("Reverse geocode error:", error);
+          })
+          .finally(() => {
+            if (locationRequestId.current === requestId) {
+              setIsResolvingAddress(false);
+            }
+          });
       },
       (error) => {
+        if (locationRequestId.current !== requestId) {
+          return;
+        }
+
         let msg = "Gagal mendapatkan lokasi.";
         switch (error.code) {
           case error.PERMISSION_DENIED:
@@ -85,53 +254,52 @@ export default function EmergencyPage() {
         maximumAge: 0,
       }
     );
-  }, []);
-
-  // Fetch nearby ambulances from backend
-  const fetchNearbyAmbulances = async (lat: number, lng: number) => {
-    setIsLoadingAmbulances(true);
-    try {
-      const response = await emergencyService.getNearbyAmbulances(lat, lng);
-      const data = response.data;
-      setAmbulances(data.ambulances || []);
-      if (data.address) {
-        setLocation((prev) =>
-          prev ? { ...prev, address: data.address } : null
-        );
-      }
-      if (data.ambulances?.length === 0) {
-        toast.info("Tidak ada layanan ambulans ditemukan di area ini. Coba perbesar radius pencarian.");
-      }
-    } catch (error: any) {
-      console.error("Error fetching ambulances:", error);
-      toast.error("Gagal memuat data ambulans. Silakan coba lagi.");
-    } finally {
-      setIsLoadingAmbulances(false);
-    }
-  };
+  }, [fetchNearbyAmbulances]);
 
   // Send emergency SOS request
-  const handleSOS = async () => {
+  const handleSOS = () => {
     if (!location) {
       toast.error("Lokasi belum tersedia. Silakan izinkan akses lokasi.");
       return;
     }
 
+    if (!isNearestAmbulanceAvailable) {
+      toast.error("Ambulans terdekat belum tersedia. Silakan cari ulang atau hubungi nomor darurat.");
+      return;
+    }
+
+    setShowSOSConfirm(true);
+  };
+
+  const confirmSOS = async () => {
+    if (!location || !isNearestAmbulanceAvailable) {
+      toast.error("Ambulans terdekat belum tersedia. Silakan cari ulang atau hubungi nomor darurat.");
+      setShowSOSConfirm(false);
+      return;
+    }
+
     setIsSending(true);
     try {
+      const address = getDisplayAddress(location);
       const response = await emergencyService.requestEmergency({
         location: { lat: location.lat, lng: location.lng },
         type: "general",
       });
       const data = response.data;
-      setEmergencyStatus({
-        id: data.id,
-        status: data.status,
-        message: data.message,
-        ambulance: data.ambulance_assigned,
-      });
+      if (data.status === "cancelled" || data.status === "completed") {
+        setEmergencyStatus(null);
+      } else {
+        setEmergencyStatus({
+          id: data.id,
+          status: data.status,
+          message: data.message,
+          address,
+          ambulance: data.ambulance_assigned || nearestAmbulance,
+        });
+      }
+      setShowSOSConfirm(false);
       toast.success("Permintaan darurat terkirim! Bantuan sedang dalam perjalanan.");
-    } catch (error: any) {
+    } catch (error: unknown) {
       console.error("SOS Error:", error);
       toast.error("Gagal mengirim permintaan darurat. Silakan coba lagi.");
     } finally {
@@ -142,18 +310,39 @@ export default function EmergencyPage() {
   // Call a specific ambulance
   const handleCallAmbulance = async (ambulance: AmbulanceService) => {
     try {
-      // If there's a real phone number, try to call it
       if (ambulance.phone) {
         window.open(`tel:${ambulance.phone}`, "_self");
         return;
       }
-      // Otherwise use the backend call endpoint
       await emergencyService.callAmbulance(ambulance.id);
       toast.success(`Menghubungi ${ambulance.name}...`);
-    } catch (error: any) {
+    } catch (error: unknown) {
       console.error("Call error:", error);
       toast.error("Gagal menghubungi ambulans.");
     }
+  };
+
+  const confirmStatusAction = async () => {
+    if (!pendingAction || !emergencyStatus) return;
+
+    const action = pendingAction;
+    const synced = await syncEmergencyStatus(
+      emergencyStatus.id,
+      action,
+      emergencyService.updateEmergencyStatus,
+    );
+
+    if (!synced) {
+      toast.warning("Status lokal diperbarui, tetapi sinkronisasi ke server belum berhasil.");
+    }
+
+    setEmergencyStatus(null);
+    toast.success(
+      action === "cancel"
+        ? "Permintaan darurat dibatalkan."
+        : "Permintaan darurat diselesaikan.",
+    );
+    setPendingAction(null);
   };
 
   // Refresh search with different radius
@@ -165,9 +354,16 @@ export default function EmergencyPage() {
     }
   };
 
+  // Auto-fetch location hanya jika setting lokasi sudah dimuat dan diaktifkan
   useEffect(() => {
-    getLocation();
-  }, [getLocation]);
+    if (isLocationSharingEnabled === null) return; // masih loading
+    if (isLocationSharingEnabled) {
+      getLocation();
+    } else {
+      setIsLoadingLocation(false);
+      setLocationError("Pengaturan Berbagi Lokasi Otomatis sedang nonaktif. Aktifkan di menu Profil atau tekan 'Dapatkan Lokasi' secara manual.");
+    }
+  }, [getLocation, isLocationSharingEnabled]);
 
   return (
     <div className="space-y-6 animate-fade-in">
@@ -180,7 +376,7 @@ export default function EmergencyPage() {
       <div className="flex justify-center">
         <button
           onClick={handleSOS}
-          disabled={isSending || !location}
+          disabled={isSending || !location || !isNearestAmbulanceAvailable}
           className="group relative h-40 w-40 rounded-full bg-emergency hover:bg-emergency/90 transition-all duration-300 flex flex-col items-center justify-center shadow-elevated hover:scale-105 disabled:opacity-50 disabled:cursor-not-allowed"
         >
           {!isSending && (
@@ -200,7 +396,26 @@ export default function EmergencyPage() {
       {/* Current Location */}
       <Card className="shadow-card">
         <CardContent className="p-5">
-          {isLoadingLocation ? (
+          {isLocationSharingEnabled === false && !location ? (
+            <div className="flex items-center gap-3">
+              <div className="rounded-full bg-warning/10 p-3">
+                <AlertTriangle className="h-5 w-5 text-warning" />
+              </div>
+              <div className="flex-1">
+                <p className="text-sm font-medium text-foreground">Lokasi Otomatis Dinonaktifkan</p>
+                <p className="text-xs text-muted-foreground">
+                  Aktifkan berbagi lokasi di Profil atau klik tombol di bawah untuk mendapatkan lokasi secara manual.
+                </p>
+              </div>
+              <Button size="sm" variant="outline" onClick={getLocation} disabled={isLoadingLocation}>
+                {isLoadingLocation ? (
+                  <Loader2 className="h-4 w-4 animate-spin" />
+                ) : (
+                  <><Navigation className="h-4 w-4 mr-1" />Dapatkan Lokasi</>
+                )}
+              </Button>
+            </div>
+          ) : isLoadingLocation ? (
             <div className="flex items-center gap-3">
               <div className="rounded-full bg-primary/10 p-3">
                 <Loader2 className="h-5 w-5 text-primary animate-spin" />
@@ -210,7 +425,7 @@ export default function EmergencyPage() {
                 <p className="font-medium text-foreground">Mengakses GPS Anda...</p>
               </div>
             </div>
-          ) : locationError ? (
+          ) : locationError && !location ? (
             <div className="flex items-center gap-3">
               <div className="rounded-full bg-destructive/10 p-3">
                 <AlertTriangle className="h-5 w-5 text-destructive" />
@@ -230,9 +445,14 @@ export default function EmergencyPage() {
                 <Navigation className="h-5 w-5 text-success" />
               </div>
               <div className="flex-1 min-w-0">
-                <p className="text-sm text-muted-foreground">Lokasi Saat Ini</p>
+                <p className="text-sm text-muted-foreground flex items-center gap-2">
+                  Lokasi Saat Ini
+                  {isLocationSharingEnabled && (
+                    <Badge variant="outline" className="text-[10px] bg-primary/5 text-primary border-primary/20 h-5 px-1.5">Auto-Shared</Badge>
+                  )}
+                </p>
                 <p className="font-medium text-foreground text-sm truncate">
-                  {location?.address || `${location?.lat.toFixed(6)}, ${location?.lng.toFixed(6)}`}
+                  {getLocationDisplayText(location, isResolvingAddress)}
                 </p>
               </div>
               <Button size="sm" variant="outline" onClick={getLocation}>
@@ -254,6 +474,9 @@ export default function EmergencyPage() {
               onChange={(e) => {
                 const newRadius = Number(e.target.value);
                 setRadiusKm(newRadius);
+                if (location) {
+                  fetchNearbyAmbulances(location.lat, location.lng, newRadius);
+                }
               }}
               className="text-sm border rounded-md px-2 py-1 bg-background text-foreground"
             >
@@ -314,7 +537,7 @@ export default function EmergencyPage() {
                 className="mt-3"
                 onClick={() => {
                   setRadiusKm(50);
-                  if (location) fetchNearbyAmbulances(location.lat, location.lng);
+                  if (location) fetchNearbyAmbulances(location.lat, location.lng, 50);
                 }}
               >
                 Perbesar Radius ke 50 km
@@ -333,16 +556,14 @@ export default function EmergencyPage() {
                     <Badge
                       variant="default"
                       className={
-                        amb.source.includes("ambulance_station")
+                        amb.source.includes("station")
                           ? "bg-emergency/10 text-emergency border-emergency/20 shrink-0"
                           : "bg-success/10 text-success border-success/20 shrink-0"
                       }
                     >
-                      {amb.source.includes("ambulance_station")
+                      {amb.source.includes("station")
                         ? "Ambulans"
-                        : amb.source.includes("hospital")
-                        ? "Rumah Sakit"
-                        : "Darurat"}
+                        : "Rumah Sakit"}
                     </Badge>
                   </div>
 
@@ -359,12 +580,6 @@ export default function EmergencyPage() {
                       <Clock className="h-3.5 w-3.5" />
                       ETA: {amb.eta_text}
                     </p>
-                    {amb.phone && (
-                      <p className="flex items-center gap-2">
-                        <Phone className="h-3.5 w-3.5" />
-                        {amb.phone}
-                      </p>
-                    )}
                   </div>
 
                   <div className="flex gap-2">
@@ -407,27 +622,51 @@ export default function EmergencyPage() {
         </CardHeader>
         <CardContent>
           {emergencyStatus ? (
-            <div className="space-y-3">
-              <div className="flex items-center gap-2">
+            <div className="space-y-4">
+              <div className="flex flex-wrap items-center gap-2">
                 <Badge
                   variant="default"
                   className={
-                    emergencyStatus.status === "dispatched"
+                    emergencyStatus.status === "dispatched" || emergencyStatus.status === "on_route"
                       ? "bg-success/10 text-success border-success/20"
                       : "bg-warning/10 text-warning border-warning/20"
                   }
                 >
-                  {emergencyStatus.status === "dispatched" ? "Dikirim" : "Mencari"}
+                  {emergencyStatus.status === "dispatched" || emergencyStatus.status === "on_route" ? "Dikirim" : "Mencari"}
                 </Badge>
                 <span className="text-sm text-muted-foreground">ID: {emergencyStatus.id.slice(0, 8)}...</span>
               </div>
               <p className="text-sm text-foreground">{emergencyStatus.message}</p>
+              <div className="grid grid-cols-1 sm:grid-cols-2 gap-3 text-sm">
+                <div className="rounded-lg bg-muted/50 p-3">
+                  <p className="text-muted-foreground">Alamat Penjemputan</p>
+                  <p className="font-medium text-foreground mt-1">{emergencyStatus.address}</p>
+                </div>
+                <div className="rounded-lg bg-muted/50 p-3">
+                  <p className="text-muted-foreground">Status Booking</p>
+                  <p className="font-medium text-foreground mt-1 capitalize">{emergencyStatus.status.replace(/_/g, " ")}</p>
+                </div>
+              </div>
               {emergencyStatus.ambulance && (
-                <div className="bg-muted/50 rounded-lg p-3 text-sm">
-                  <p className="font-medium">{emergencyStatus.ambulance.name}</p>
-                  <p className="text-muted-foreground">{emergencyStatus.ambulance.distance_text} • ETA: {emergencyStatus.ambulance.eta_text}</p>
+                <div className="bg-muted/50 rounded-lg p-3 text-sm space-y-1">
+                  <p className="font-medium text-foreground">{emergencyStatus.ambulance.name}</p>
+                  <p className="text-muted-foreground">{emergencyStatus.ambulance.address}</p>
+                  <div className="flex flex-wrap gap-x-4 gap-y-1 text-muted-foreground">
+                    <span>Jarak: {emergencyStatus.ambulance.distance_text}</span>
+                    <span>ETA: {emergencyStatus.ambulance.eta_text}</span>
+                  </div>
                 </div>
               )}
+              <div className="grid grid-cols-1 sm:grid-cols-2 gap-2">
+                <Button variant="outline" onClick={() => setPendingAction("cancel")}>
+                  <XCircle className="h-4 w-4 mr-2" />
+                  Batalkan
+                </Button>
+                <Button onClick={() => setPendingAction("complete")}>
+                  <CheckCircle2 className="h-4 w-4 mr-2" />
+                  Selesaikan
+                </Button>
+              </div>
             </div>
           ) : (
             <p className="text-muted-foreground text-sm">
@@ -492,6 +731,61 @@ export default function EmergencyPage() {
           </div>
         </CardContent>
       </Card>
+
+      <Dialog open={showSOSConfirm} onOpenChange={setShowSOSConfirm}>
+        <DialogContent className="sm:max-w-md">
+          <DialogHeader>
+            <DialogTitle>Konfirmasi SOS Darurat</DialogTitle>
+            <DialogDescription>
+              Permintaan darurat akan dikirim ke ambulans terdekat dengan alamat penjemputan Anda.
+            </DialogDescription>
+          </DialogHeader>
+          <div className="rounded-lg bg-muted/50 p-4 text-sm space-y-2">
+            <p className="font-medium text-foreground">{getDisplayAddress(location)}</p>
+            {nearestAmbulance && (
+              <p className="text-muted-foreground">
+                {nearestAmbulance.name} • {nearestAmbulance.distance_text} • ETA {nearestAmbulance.eta_text}
+              </p>
+            )}
+          </div>
+          <DialogFooter className="gap-2 sm:gap-0">
+            <Button variant="outline" onClick={() => setShowSOSConfirm(false)}>
+              Batal
+            </Button>
+            <Button onClick={confirmSOS} disabled={isSending || !isNearestAmbulanceAvailable} className="bg-emergency hover:bg-emergency/90">
+              {isSending ? <Loader2 className="h-4 w-4 mr-2 animate-spin" /> : <Phone className="h-4 w-4 mr-2" />}
+              Kirim SOS
+            </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
+
+      <Dialog open={Boolean(pendingAction)} onOpenChange={(open) => !open && setPendingAction(null)}>
+        <DialogContent className="sm:max-w-md">
+          <DialogHeader>
+            <DialogTitle>
+              {pendingAction === "cancel" ? "Batalkan Permintaan?" : "Selesaikan Permintaan?"}
+            </DialogTitle>
+            <DialogDescription>
+              {pendingAction === "cancel"
+                ? "Permintaan ini akan dihapus dari Status Permintaan Darurat."
+                : "Tandai bantuan darurat ini selesai dan hapus dari status aktif."}
+            </DialogDescription>
+          </DialogHeader>
+          <DialogFooter className="gap-2 sm:gap-0">
+            <Button variant="outline" onClick={() => setPendingAction(null)}>
+              Kembali
+            </Button>
+            <Button
+              variant={pendingAction === "cancel" ? "destructive" : "default"}
+              onClick={confirmStatusAction}
+            >
+              {pendingAction === "cancel" ? <XCircle className="h-4 w-4 mr-2" /> : <CheckCircle2 className="h-4 w-4 mr-2" />}
+              Konfirmasi
+            </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
     </div>
   );
 }

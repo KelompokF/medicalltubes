@@ -1,12 +1,7 @@
-from pydantic import BaseModel, Field
-from typing import Optional, List
 from datetime import datetime
+from typing import List, Literal, Optional
 
-
-class LocationInput(BaseModel):
-    lat: float = Field(..., description="Latitude", ge=-90, le=90)
-    lng: float = Field(..., description="Longitude", ge=-180, le=180)
-
+from pydantic import BaseModel
 
 class AmbulanceServiceResponse(BaseModel):
     id: str
@@ -14,14 +9,13 @@ class AmbulanceServiceResponse(BaseModel):
     address: str
     lat: float
     lng: float
-    distance_km: float = Field(..., description="Distance in kilometers")
-    distance_text: str = Field(..., description="Human-readable distance")
-    eta_minutes: int = Field(..., description="Estimated time of arrival in minutes")
-    eta_text: str = Field(..., description="Human-readable ETA")
+    distance_km: float
+    distance_text: str
+    eta_minutes: int
+    eta_text: str
     phone: Optional[str] = None
-    status: str = "available"
-    source: str = "openstreetmap"
-
+    status: str
+    source: str
 
 class NearbyAmbulancesResponse(BaseModel):
     user_lat: float
@@ -31,12 +25,18 @@ class NearbyAmbulancesResponse(BaseModel):
     total: int
     search_radius_km: float
 
+class Location(BaseModel):
+    lat: float
+    lng: float
+
+
+LocationInput = Location
+
 
 class EmergencyRequest(BaseModel):
-    location: LocationInput
+    location: Location
     type: Optional[str] = "general"
     notes: Optional[str] = None
-
 
 class EmergencyRequestResponse(BaseModel):
     id: str
@@ -44,3 +44,25 @@ class EmergencyRequestResponse(BaseModel):
     message: str
     created_at: datetime
     ambulance_assigned: Optional[AmbulanceServiceResponse] = None
+
+class EmergencyStatusUpdate(BaseModel):
+    status: Literal["cancelled", "on_my_way", "on_progress", "completed"]
+
+
+class ActiveEmergencyItem(BaseModel):
+    id: str
+    user_id: Optional[str] = None
+    user_name: Optional[str] = None
+    created_at: datetime
+    location_address: Optional[str] = None
+    location_lat: float
+    location_lng: float
+    distance_km: float
+    status: str
+    type: str
+    notes: Optional[str] = None
+
+
+class ActiveEmergenciesResponse(BaseModel):
+    data: List[ActiveEmergencyItem]
+    total: int

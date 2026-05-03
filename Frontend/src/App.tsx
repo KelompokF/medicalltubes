@@ -14,6 +14,7 @@ import PatientLoginPage from "@/pages/auth/PatientLoginPage";
 import PatientDashboard from "@/pages/patient/PatientDashboard";
 import SearchDoctorPage from "@/pages/patient/SearchDoctorPage";
 import DoctorDetailPage from "@/pages/patient/DoctorDetailPage";
+import HealthRecordPage from "@/pages/patient/HealthRecordPage";
 import ConsultationChatPage from "@/pages/patient/ConsultationChatPage";
 import ChatHistoryPage from "@/pages/patient/ChatHistoryPage";
 import HomeVisitBookingPage from "@/pages/patient/HomeVisitBookingPage";
@@ -24,7 +25,10 @@ import UserProfilePage from "@/pages/patient/UserProfilePage";
 import AdminDashboard from "@/pages/admin/AdminDashboard";
 import DoctorDashboard from "@/pages/doctor/DoctorDashboard";
 import DoctorConsultationPage from "@/pages/doctor/DoctorConsultationPage";
+import DoctorSchedulePage from "@/pages/doctor/DoctorSchedulePage";
 import AmbulanceDashboard from "@/pages/ambulance/AmbulanceDashboard";
+import AmbulanceActivePage from "@/pages/ambulance/AmbulanceActivePage";
+import AmbulanceHistoryPage from "@/pages/ambulance/AmbulanceHistoryPage";
 import NotFound from "@/pages/NotFound";
 
 const queryClient = new QueryClient({
@@ -52,7 +56,7 @@ const App = () => (
     <TooltipProvider>
       <Toaster />
       <Sonner />
-      <BrowserRouter>
+      <BrowserRouter future={{ v7_startTransition: true, v7_relativeSplatPath: true }}>
         <Routes>
           <Route path="/" element={<LandingPage />} />
           <Route path="/login" element={<PatientLoginPage />} />
@@ -64,6 +68,7 @@ const App = () => (
             <Route path="/dashboard" element={<PatientDashboard />} />
             <Route path="/search-doctor" element={<SearchDoctorPage />} />
             <Route path="/doctor/:id" element={<DoctorDetailPage />} />
+            <Route path="/health-records" element={<HealthRecordPage />} />
             <Route path="/chat" element={<ConsultationChatPage />} />
             <Route path="/chat-history" element={<ChatHistoryPage />} />
             <Route path="/home-visit" element={<HomeVisitBookingPage />} />
@@ -87,7 +92,7 @@ const App = () => (
             <Route path="/doctor-dashboard/patients" element={<ComingSoon title="My Patients" />} />
             <Route path="/doctor-dashboard/consultations" element={<DoctorConsultationPage />} />
             <Route path="/doctor-dashboard/home-visits" element={<ComingSoon title="Home Visits" />} />
-            <Route path="/doctor-dashboard/schedule" element={<ComingSoon title="Schedule Management" />} />
+            <Route path="/doctor-dashboard/schedule" element={<DoctorSchedulePage />} />
             <Route path="/doctor-dashboard/prescriptions" element={<ComingSoon title="Prescriptions" />} />
             <Route path="/doctor-dashboard/records" element={<ComingSoon title="Medical Records" />} />
             <Route path="/doctor-dashboard/settings" element={<ComingSoon title="Doctor Settings" />} />
@@ -96,10 +101,10 @@ const App = () => (
           {/* Ambulance Routes */}
           <Route element={<AmbulanceLayout />}>
             <Route path="/ambulance-dashboard" element={<AmbulanceDashboard />} />
-            <Route path="/ambulance-dashboard/active" element={<ComingSoon title="Active Emergencies" />} />
+            <Route path="/ambulance-dashboard/active" element={<AmbulanceActivePage />} />
             <Route path="/ambulance-dashboard/tracking" element={<ComingSoon title="Live Tracking" />} />
             <Route path="/ambulance-dashboard/fleet" element={<ComingSoon title="Fleet Status" />} />
-            <Route path="/ambulance-dashboard/history" element={<ComingSoon title="Emergency History" />} />
+            <Route path="/ambulance-dashboard/history" element={<AmbulanceHistoryPage />} />
             <Route path="/ambulance-dashboard/settings" element={<ComingSoon title="Ambulance Settings" />} />
           </Route>
 

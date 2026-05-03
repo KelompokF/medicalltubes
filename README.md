@@ -36,22 +36,20 @@ source venv/bin/activate
 ```bash
 pip install -r requirements.txt
 ```
+
 ### 5. Jalankan server
 ```bash
-
-
+uvicorn app.main:app --reload --port 8001
 ```
 
-### 7. Buka dokumentasi API
+### 6. Buka dokumentasi API
 ```
-http://127.0.0.1:8000/docs
+http://127.0.0.1:8001/docs
 ```
 
-### 8. jalanin frontend
- ```
+### 7. Jalankan Frontend
+```bash
 cd frontend
-
 npm install
-
 npm run dev
 ```

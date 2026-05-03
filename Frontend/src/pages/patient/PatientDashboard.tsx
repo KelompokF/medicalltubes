@@ -9,10 +9,10 @@ import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import StatCard from "@/components/StatCard";
 
 export default function PatientDashboard() {
-  const { data: meData } = useQuery({ 
-    queryKey: ["me"], 
-    queryFn: () => authService.getMe().then((res) => res.data), 
-    staleTime: 1000 * 60 * 5 
+  const { data: meData } = useQuery({
+    queryKey: ["me"],
+    queryFn: () => authService.getMe().then((res) => res.data),
+    staleTime: 1000 * 60 * 5
   });
   const firstName = meData?.full_name?.split(" ")[0] || "Pasien";
 
@@ -63,7 +63,7 @@ export default function PatientDashboard() {
           </Link>
         </Button>
       </div>
-      
+
       {items.length > 0 ? (
         <div className="space-y-1">
           {items.map((item: any) => (
@@ -117,7 +117,7 @@ export default function PatientDashboard() {
       </div>
     );
   }
-  
+
   return (
     <div className="space-y-6 animate-fade-in pb-8">
       {/* Welcome Banner */}
@@ -227,11 +227,11 @@ export default function PatientDashboard() {
                     Riwayat Booking
                   </TabsTrigger>
                 </TabsList>
-                
+
                 <TabsContent value="consultation" className="mt-0 animate-fade-in border-none outline-none">
                   <HistoryList items={consultationHistory} icon={MessageSquare} title="Riwayat Konsultasi Chat" isChat={true} />
                 </TabsContent>
-                
+
                 <TabsContent value="booking" className="mt-0 animate-fade-in border-none outline-none">
                   <HistoryList items={bookingHistory} icon={Home} title="Riwayat Booking Home Visit" isChat={false} />
                 </TabsContent>
