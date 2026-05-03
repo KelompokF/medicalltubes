@@ -58,7 +58,7 @@ export default function PatientLayout({
   if (meData) {
     userName = meData.full_name || userName;
     const parts = (meData.full_name || "").split(" ").filter(Boolean);
-    userInitials = parts.length ? parts.map(p => p[0]).slice(0,2).join("") : userInitials;
+    userInitials = parts.length ? parts.map(p => p[0]).slice(0, 2).join("") : userInitials;
   }
   const [notifications, setNotifications] = useState<any[]>([]);
   const location = useLocation();
@@ -76,14 +76,14 @@ export default function PatientLayout({
     const connectWS = () => {
       const port = window.location.hostname === "localhost" ? "8001" : window.location.port;
       const wsUrl = `${window.location.protocol === "https:" ? "wss" : "ws"}://${window.location.hostname}:${port}/ws/chat/${userId}`;
-      
+
       const ws = new WebSocket(wsUrl);
       wsRef.current = ws;
 
       ws.onmessage = (event) => {
         try {
           const data = JSON.parse(event.data);
-          
+
           if (data.receiver_id === userId && data.sender_id !== userId) {
             setNotifications(prev => [
               {
@@ -159,18 +159,11 @@ export default function PatientLayout({
           </p>
 
           {patientNav.map((item) => (
-            <Link
-              key={item.path}
-              to={item.path}
-              onClick={() => setSidebarOpen(false)}
-              className={`flex items-center gap-3 px-3 py-2.5 rounded-lg text-sm font-medium transition ${
-                isActive(item.path)
-                  ? "bg-sidebar-primary text-sidebar-primary-foreground"
-                  : "text-sidebar-foreground/70 hover:bg-sidebar-accent hover:text-sidebar-accent-foreground"
-              }`}
-            >
-              <item.icon className="h-4 w-4" />
-              {item.label}
+            <Link key={item.path} to={item.path} onClick={() => setSidebarOpen(false)}
+              className={`flex items-center gap-3 px-3 py-2.5 rounded-lg text-sm font-medium transition-all duration-200 ${
+                isActive(item.path) ? "bg-sidebar-primary text-sidebar-primary-foreground" : "text-sidebar-foreground/70 hover:bg-sidebar-accent hover:text-sidebar-accent-foreground"
+              }`}>
+              <item.icon className="h-4 w-4" />{item.label}
             </Link>
           ))}
         </nav>
