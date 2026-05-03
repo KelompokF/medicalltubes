@@ -35,3 +35,12 @@ class LocationSharingUpdate(BaseModel):
 class Token(BaseModel):
     access_token: str
     token_type: str = "bearer"
+
+class LocationSettingUpdate(BaseModel):
+    is_location_enabled: bool
+
+    class Config:
+        from_attributes = True
+
+class DeleteAccountResponse(BaseModel):
+    message: str

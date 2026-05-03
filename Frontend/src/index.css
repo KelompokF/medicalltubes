@@ -1,5 +1,4 @@
 @import url('https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700;800&display=swap');
-
 @tailwind base;
 @tailwind components;
 @tailwind utilities;
@@ -131,4 +130,68 @@
 @keyframes float {
   0%, 100% { transform: translateY(0); }
   50% { transform: translateY(-10px); }
+}
+
+@keyframes fadeSlideUp {
+  from { opacity: 0; transform: translateY(8px); }
+  to   { opacity: 1; transform: translateY(0); }
+}
+
+@keyframes fadeIn {
+  from { opacity: 0; }
+  to   { opacity: 1; }
+}
+
+@layer utilities {
+  .animate-fade-in {
+    animation: fadeIn 0.3s ease-out;
+  }
+}
+
+/* ─────────────────────────────────────────────────────
+   ACCESSIBILITY — Color Blind Modes
+   SVG filter defs are injected into the DOM by AccessibilityContext.
+   We reference them by ID — the most reliable cross-browser approach.
+───────────────────────────────────────────────────── */
+
+/* Protanopia — red-blind */
+.cb-protanopia .patient-shell {
+  filter: url(#cb-protanopia);
+}
+
+/* Deuteranopia — green-blind */
+.cb-deuteranopia .patient-shell {
+  filter: url(#cb-deuteranopia);
+}
+
+/* Tritanopia — blue-blind */
+.cb-tritanopia .patient-shell {
+  filter: url(#cb-tritanopia);
+}
+
+/* Extra cue: vivid blue ring so focus is always visible regardless of colour */
+.cb-protanopia *,
+.cb-deuteranopia *,
+.cb-tritanopia * {
+  --ring: 240 100% 50%;
+}
+
+/* ─────────────────────────────────────────────────────
+   ACCESSIBILITY — Large Text Mode
+   Scales up root font size; everything that uses rem
+   units will scale proportionally.
+───────────────────────────────────────────────────── */
+.a11y-large-text {
+  font-size: 118.75%; /* 19px base (default 16px × 1.1875) */
+}
+
+.a11y-large-text body {
+  line-height: 1.7;
+  letter-spacing: 0.01em;
+}
+
+/* Ensure icon sizes also feel proportional */
+.a11y-large-text svg {
+  width: 1.25em;
+  height: 1.25em;
 }

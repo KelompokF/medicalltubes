@@ -45,7 +45,9 @@ async def update_profile(payload: PatientProfileCreateUpdate, current_user: User
             blood_type=payload.blood_type,
             allergies=payload.allergies,
         )
+        current_user.full_name = payload.full_name
         db.add(profile)
+        db.add(current_user)
         await db.commit()
         await db.refresh(profile)
         return profile
@@ -58,7 +60,10 @@ async def update_profile(payload: PatientProfileCreateUpdate, current_user: User
     profile.blood_type = payload.blood_type
     profile.allergies = payload.allergies
 
+    current_user.full_name = payload.full_name
+
     db.add(profile)
+    db.add(current_user)
     await db.commit()
     await db.refresh(profile)
     return profile
