@@ -78,6 +78,7 @@ export const patientService = {
 // ============================================
 export const doctorService = {
   searchDoctors: (params: {
+    page?: number;
     search?: string;
     specialization?: string;
     lat?: number;
@@ -127,6 +128,30 @@ export const homeVisitService = {
 
   /** Ambil detail satu permintaan berdasarkan ID (GET /home-visit/{id}) */
   getRequestById: (id: string) => api.get(`/home-visit/${id}`),
+};
+
+// ============================================
+// HOME VISIT SCHEDULE ENDPOINTS (dokter & jam dari backend)
+// ============================================
+export const homeVisitScheduleService = {
+  /** Ambil dokter tersedia berdasarkan hari (GET /home-visits/available-doctors?hari=Senin) */
+  getAvailableDoctors: (hari: string) =>
+    api.get("/home-visits/available-doctors", { params: { hari } }),
+
+  /** Ambil jam tersedia berdasarkan doctor_id + hari (GET /home-visits/available-times) */
+  getAvailableTimes: (doctor_id: string, hari: string) =>
+    api.get("/home-visits/available-times", { params: { doctor_id, hari } }),
+
+  /** Submit permintaan home visit (POST /home-visits/request) */
+  submitRequest: (data: {
+    patient_name: string;
+    doctor_id: string;
+    address: string;
+    phone_number: string;
+    complaint: string;
+    preferred_date: string;
+    preferred_time: string;
+  }) => api.post("/home-visits/request", data),
 };
 
 // ============================================
