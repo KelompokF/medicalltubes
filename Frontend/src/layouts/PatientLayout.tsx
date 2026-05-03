@@ -16,6 +16,8 @@ import {
   DropdownMenuTrigger
 } from "@/components/ui/dropdown-menu";
 import { toast } from "sonner";
+import { AccessibilityProvider } from "@/contexts/AccessibilityContext";
+import AccessibilityPanel from "@/components/AccessibilityPanel";
 
 const patientNav = [
   { label: "Dashboard", path: "/dashboard", icon: LayoutDashboard },
@@ -124,7 +126,8 @@ export default function PatientLayout({
   }, [userId, location.pathname, navigate]);
 
   return (
-    <div className="min-h-screen bg-background">
+    <AccessibilityProvider>
+      <div className="patient-shell min-h-screen bg-background">
 
       {/* overlay mobile */}
       {sidebarOpen && (
@@ -288,5 +291,7 @@ export default function PatientLayout({
 
       </div>
     </div>
+      <AccessibilityPanel />
+    </AccessibilityProvider>
   );
 }

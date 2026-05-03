@@ -58,7 +58,7 @@ export default function PatientDashboard() {
           <h3 className="font-semibold text-foreground">{title}</h3>
         </div>
         <Button variant="ghost" size="sm" className="h-8 gap-1 text-primary hover:bg-primary/10" asChild>
-          <Link to={isChat ? "/chat-history" : "/home-visit-history"}>
+          <Link to={isChat ? "/chat-history" : "/tracking"}>
             <span className="text-xs font-semibold">Lihat Semua</span> <ArrowRight className="h-3 w-3 ml-1" />
           </Link>
         </Button>

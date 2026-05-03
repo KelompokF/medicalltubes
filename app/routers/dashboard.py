@@ -13,6 +13,7 @@ from app.models.chat_room import ChatRoom
 from app.models.emergency_request import EmergencyRequest
 from app.models.prescription import Prescription
 from app.schemas.dashboard import DashboardResponse, DashboardStats, ActivityItem, UpcomingAppointment, HistoryItem
+from sqlalchemy import text
 
 router = APIRouter(tags=["Dashboard"])
 
@@ -35,11 +36,20 @@ async def get_dashboard_summary(
     
     total_consultations = max(total_chat_rooms, total_scheduled)
 
-    # 2. Hitung total home visits
-    result_home_visits = await db.execute(
+    # 2. Hitung total home visits (dari dua tabel)
+    # Tabel 1: HomeVisit model
+    result_hv_model = await db.execute(
         select(func.count(HomeVisit.id)).where(HomeVisit.patient_id == current_user.id)
     )
-    total_home_visits = result_home_visits.scalar() or 0
+    total_hv_model = result_hv_model.scalar() or 0
+
+    # Tabel 2: home_visit_requests_v3 (tampilkan semua data yang ada sesuai permintaan)
+    result_hv_v3 = await db.execute(
+        text("SELECT count(*) FROM home_visit_requests_v3")
+    )
+    total_hv_v3 = result_hv_v3.scalar() or 0
+    
+    total_home_visits = total_hv_model + total_hv_v3
 
     # 3. Hitung emergency requests
     result_emergency = await db.execute(
@@ -186,8 +196,10 @@ async def get_dashboard_summary(
             type="consultation"
         ))
 
-    # 6. Ambil history home visit terbaru
+    # 6. Ambil history home visit terbaru (gabungan dua tabel)
     booking_history = []
+    
+    # Dari HomeVisit model
     history_hv_result = await db.execute(
         select(HomeVisit)
         .where(HomeVisit.patient_id == current_user.id)
@@ -198,12 +210,45 @@ async def get_dashboard_summary(
         booking_history.append(HistoryItem(
             id=str(h.id),
             doctor=h.doctor_name,
-            specialization="Umum",
+            specialization=h.specialization or "Umum",
             date=h.created_at.strftime("%d %b %Y"),
             time=h.created_at.strftime("%H:%M"),
             status=h.status,
-            type="home_visit"
+            type="home_visit",
+            sort_key=h.created_at
         ))
+
+    # Dari home_visit_requests_v3 (tampilkan semua data yang ada)
+    res_v3 = await db.execute(
+        text("""
+            SELECT r.*, u.full_name AS doctor_full_name, dp.specialization
+            FROM home_visit_requests_v3 r
+            LEFT JOIN doctor_profiles dp ON dp.id = r.doctor_id
+            LEFT JOIN users u ON u.id = dp.user_id
+            ORDER BY r.created_at DESC
+            LIMIT 5
+        """)
+    )
+    for row in res_v3.mappings().all():
+        # Avoid duplicates if ID somehow matches (unlikely but safe)
+        if any(item.id == str(row["id"]) for item in booking_history):
+            continue
+            
+        booking_history.append(HistoryItem(
+            id=str(row["id"]),
+            doctor=row["doctor_full_name"] or f"Dokter {str(row['doctor_id'])[:6]}",
+            specialization=row["specialization"] or "Kunjungan Rumah",
+            date=row["created_at"].strftime("%d %b %Y") if row["created_at"] else "Baru saja",
+            time=row["created_at"].strftime("%H:%M") if row["created_at"] else "",
+            status="pending",
+            type="home_visit",
+            sort_key=row["created_at"] or datetime.datetime.utcnow()
+        ))
+
+    # Sort gabungan by date descending
+    booking_history.sort(key=lambda x: getattr(x, 'sort_key', datetime.datetime.min), reverse=True)
+    # Limit 5
+    booking_history = booking_history[:5]
 
     return DashboardResponse(
         stats=stats,
