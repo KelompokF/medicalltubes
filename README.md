@@ -15,7 +15,7 @@ Backend API untuk aplikasi Medicall menggunakan FastAPI & Supabase.
 ### 1. Clone repository
 ```bash
 git clone <url-repo>
-cd Medicall
+cd Medicalluvicorn app.main:app --reload
 ```
 
 ### 2. Buat virtual environment
@@ -38,7 +38,7 @@ pip install -r requirements.txt
 ```
 ### 5. Jalankan server
 ```bash
-uvicorn app.main:app --reload
+
 
 ```
 
