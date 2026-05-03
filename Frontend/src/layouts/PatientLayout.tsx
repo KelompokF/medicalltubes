@@ -31,7 +31,7 @@ interface PatientLayoutProps {
 
 export default function PatientLayout({ userName = "John Doe", userInitials = "JD" }: PatientLayoutProps) {
   const [sidebarOpen, setSidebarOpen] = useState(false);
-  // fetch current user to show name in header
+
   const { data: meData } = useQuery({ queryKey: ["me"], queryFn: () => authService.getMe().then((res) => res.data), staleTime: 1000 * 60 * 5 });
   if (meData) {
     userName = meData.full_name || userName;
@@ -43,7 +43,7 @@ export default function PatientLayout({ userName = "John Doe", userInitials = "J
   const navigate = useNavigate();
   const isActive = (path: string) => location.pathname === path;
 
-  // WebSocket buat notifikasi
+
   const userId = meData?.id || JSON.parse(localStorage.getItem("user") || "{}")?.id;
   const wsRef = useRef<WebSocket | null>(null);
 
