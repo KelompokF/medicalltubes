@@ -240,13 +240,6 @@ async def create_home_visit_request(
             detail=f"Gagal menyimpan permintaan: {str(e)}"
         )
 
-
-
-
-
-
-
-
 # ========================
 # CREATE BOOKING (FITUR BARU)
 # ========================
