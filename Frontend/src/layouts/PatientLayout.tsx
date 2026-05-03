@@ -43,7 +43,7 @@ export default function PatientLayout({ userName = "John Doe", userInitials = "J
   const navigate = useNavigate();
   const isActive = (path: string) => location.pathname === path;
 
-  // WebSocket for notifications
+  // WebSocket buat notifikasi
   const userId = meData?.id || JSON.parse(localStorage.getItem("user") || "{}")?.id;
   const wsRef = useRef<WebSocket | null>(null);
 
