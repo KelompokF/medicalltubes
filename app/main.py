@@ -15,6 +15,9 @@ import app.models.doctor_profile  # noqa: F401
 import app.models.doctor_schedule  # noqa: F401
 import app.models.chat_room  # noqa: F401
 import app.models.prescription  # noqa: F401
+import app.models.emergency_request  # noqa: F401
+import app.models.home_visit  # noqa: F401
+import app.models.consultation  # noqa: F401
 
 
 @asynccontextmanager
