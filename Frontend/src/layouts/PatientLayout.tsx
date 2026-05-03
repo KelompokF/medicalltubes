@@ -54,21 +54,27 @@ export default function PatientLayout({
   userName: defaultName = "John Doe",
   userInitials: defaultInitials = "JD"
 }: PatientLayoutProps) {
+
   const [sidebarOpen, setSidebarOpen] = useState(false);
   const [notifications, setNotifications] = useState<any[]>([]);
 
   const location = useLocation();
   const navigate = useNavigate();
+
   const isActive = (path: string) => location.pathname === path;
 
-  // fetch user
+  // =========================
+  // USER DATA (FROM MAIN)
+  // =========================
   const { data: meData } = useQuery({
     queryKey: ["me"],
     queryFn: () => authService.getMe().then((res) => res.data),
     staleTime: 1000 * 60 * 5
   });
 
-  // SAFE derived values (FIX IMPORTANT)
+  // =========================
+  // SAFE DERIVED STATE (FROM MAIN)
+  // =========================
   const userName = useMemo(() => {
     return meData?.full_name || defaultName;
   }, [meData, defaultName]);
@@ -81,10 +87,16 @@ export default function PatientLayout({
       : defaultInitials;
   }, [meData, defaultInitials]);
 
-  // websocket
-  const userId =
-    meData?.id || JSON.parse(localStorage.getItem("user") || "{}")?.id;
+  // =========================
+  // USER ID (MERGED SAFE LOGIC)
+  // =========================
+  const userId = useMemo(() => {
+    return meData?.id || JSON.parse(localStorage.getItem("user") || "{}")?.id;
+  }, [meData]);
 
+  // =========================
+  // WEBSOCKET (FROM LAURA_BRANCH)
+  // =========================
   const wsRef = useRef<WebSocket | null>(null);
 
   useEffect(() => {
