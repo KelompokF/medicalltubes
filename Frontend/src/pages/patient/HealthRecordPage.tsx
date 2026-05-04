@@ -1,6 +1,5 @@
 import { useState } from "react";
 import { 
-  Heart, 
   Activity, 
   Scale, 
   Ruler, 
@@ -42,8 +41,6 @@ export default function HealthRecordPage() {
       toast.success("Catatan kesehatan berhasil disimpan!");
       setIsAdding(false);
       setForm({
-        blood_pressure: "",
-        heart_rate: "",
         weight: "",
         height: "",
         diagnosed_conditions: "",
@@ -66,8 +63,6 @@ export default function HealthRecordPage() {
   });
 
   const [form, setForm] = useState({
-    blood_pressure: "",
-    heart_rate: "",
     weight: "",
     height: "",
     diagnosed_conditions: "",
@@ -80,7 +75,6 @@ export default function HealthRecordPage() {
     e.preventDefault();
     createMutation.mutate({
       ...form,
-      heart_rate: form.heart_rate ? parseInt(form.heart_rate) : null,
       weight: form.weight ? parseFloat(form.weight) : null,
       height: form.height ? parseFloat(form.height) : null,
     });
@@ -105,25 +99,7 @@ export default function HealthRecordPage() {
       </div>
 
       {!isAdding && lastRecord && (
-        <div className="grid grid-cols-1 md:grid-cols-4 gap-4">
-          <Card className="bg-primary/5 border-primary/10">
-            <CardContent className="p-4 flex items-center gap-4">
-              <div className="p-2 bg-primary/10 rounded-lg text-primary"><Activity className="h-5 w-5" /></div>
-              <div>
-                <p className="text-xs text-muted-foreground">Tekanan Darah</p>
-                <p className="font-bold text-lg">{lastRecord.blood_pressure || "-"}</p>
-              </div>
-            </CardContent>
-          </Card>
-          <Card className="bg-emergency/5 border-emergency/10">
-            <CardContent className="p-4 flex items-center gap-4">
-              <div className="p-2 bg-emergency/10 rounded-lg text-emergency"><Heart className="h-5 w-5" /></div>
-              <div>
-                <p className="text-xs text-muted-foreground">Detak Jantung</p>
-                <p className="font-bold text-lg">{lastRecord.heart_rate ? `${lastRecord.heart_rate} bpm` : "-"}</p>
-              </div>
-            </CardContent>
-          </Card>
+        <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
           <Card className="bg-success/5 border-success/10">
             <CardContent className="p-4 flex items-center gap-4">
               <div className="p-2 bg-success/10 rounded-lg text-success"><Scale className="h-5 w-5" /></div>
@@ -158,15 +134,7 @@ export default function HealthRecordPage() {
                 <h3 className="text-sm font-semibold text-primary flex items-center gap-2 uppercase tracking-wider">
                   <Activity className="h-4 w-4" /> Tanda-tanda Vital
                 </h3>
-                <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-4 gap-4">
-                  <div className="space-y-2">
-                    <Label htmlFor="bp">Tekanan Darah</Label>
-                    <Input id="bp" placeholder="Contoh: 120/80" value={form.blood_pressure} onChange={(e) => setForm({...form, blood_pressure: e.target.value})} />
-                  </div>
-                  <div className="space-y-2">
-                    <Label htmlFor="hr">Detak Jantung (bpm)</Label>
-                    <Input id="hr" type="number" placeholder="Contoh: 72" value={form.heart_rate} onChange={(e) => setForm({...form, heart_rate: e.target.value})} />
-                  </div>
+                <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
                   <div className="space-y-2">
                     <Label htmlFor="weight">Berat Badan (kg)</Label>
                     <Input id="weight" type="number" step="0.1" placeholder="Contoh: 65.5" value={form.weight} onChange={(e) => setForm({...form, weight: e.target.value})} />
@@ -269,19 +237,7 @@ export default function HealthRecordPage() {
                         </div>
                       </div>
                       <div className="p-5 flex-1 space-y-4">
-                        <div className="grid grid-cols-2 sm:grid-cols-4 gap-4">
-                          {record.blood_pressure && (
-                            <div>
-                              <p className="text-[10px] uppercase text-muted-foreground font-semibold">Tensi</p>
-                              <p className="text-sm font-medium">{record.blood_pressure}</p>
-                            </div>
-                          )}
-                          {record.heart_rate && (
-                            <div>
-                              <p className="text-[10px] uppercase text-muted-foreground font-semibold">HR</p>
-                              <p className="text-sm font-medium">{record.heart_rate} bpm</p>
-                            </div>
-                          )}
+                        <div className="grid grid-cols-2 gap-4">
                           {record.weight && (
                             <div>
                               <p className="text-[10px] uppercase text-muted-foreground font-semibold">Berat</p>
