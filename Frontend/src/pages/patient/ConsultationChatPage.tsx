@@ -418,10 +418,9 @@ export default function ConsultationChatPage() {
                   <span className="text-[10px] text-success font-medium hidden sm:inline">Encrypted</span>
                 </div>
                 
-                {prescriptions.length > 0 && (
                   <Dialog open={isPrescriptionModalOpen} onOpenChange={setIsPrescriptionModalOpen}>
                     <DialogTrigger asChild>
-                      <Button variant="outline" size="sm" className="gap-1.5 text-primary border-primary/20 hover:bg-primary/5 animate-pulse-slow">
+                      <Button variant="outline" size="sm" className={`gap-1.5 text-primary border-primary/20 hover:bg-primary/5 ${prescriptions.length > 0 ? "animate-pulse-slow" : ""}`}>
                         <FileText className="h-4 w-4" />
                         <span className="hidden sm:inline">Resep ({prescriptions.length})</span>
                       </Button>
@@ -434,49 +433,55 @@ export default function ConsultationChatPage() {
                         </DialogDescription>
                       </DialogHeader>
                       <div className="space-y-4 py-4">
-                        {prescriptions.map((pres, idx) => (
-                          <div key={pres.id} className="border rounded-xl overflow-hidden bg-card shadow-sm">
-                            <div className="bg-primary/5 px-4 py-2 border-b flex justify-between items-center">
-                              <span className="text-xs font-bold text-primary uppercase tracking-wider">Resep #{prescriptions.length - idx}</span>
-                              <span className="text-[10px] text-muted-foreground">{new Date(pres.created_at).toLocaleDateString("id-ID", { day: 'numeric', month: 'short', year: 'numeric', hour: '2-digit', minute: '2-digit' })}</span>
-                            </div>
-                            <div className="p-4 space-y-4">
-                              <div className="space-y-2">
-                                {pres.medications.map((med, midx) => (
-                                  <div key={midx} className="flex items-start gap-3 p-3 rounded-lg bg-muted/30 border border-border/50">
-                                    <div className="h-8 w-8 rounded-full bg-primary/10 flex items-center justify-center shrink-0">
-                                      <span className="text-xs font-bold text-primary">{midx + 1}</span>
-                                    </div>
-                                    <div className="flex-1 min-w-0">
-                                      <p className="font-bold text-sm text-foreground">{med.name}</p>
-                                      <div className="flex flex-wrap gap-x-4 gap-y-1 mt-1">
-                                        <p className="text-xs text-muted-foreground flex items-center gap-1">
-                                          <span className="font-semibold text-foreground/70">Dosis:</span> {med.dosage}
-                                        </p>
-                                        <p className="text-xs text-muted-foreground flex items-center gap-1">
-                                          <span className="font-semibold text-foreground/70">Durasi:</span> {med.duration}
+                        {prescriptions.length === 0 ? (
+                          <div className="flex flex-col items-center justify-center py-8 text-center">
+                            <FileText className="h-12 w-12 text-muted-foreground/30 mb-3" />
+                            <p className="text-muted-foreground text-sm font-medium">Belum ada obat yang diresepkan oleh dokter.</p>
+                          </div>
+                        ) : (
+                          prescriptions.map((pres, idx) => (
+                            <div key={pres.id} className="border rounded-xl overflow-hidden bg-card shadow-sm">
+                              <div className="bg-primary/5 px-4 py-2 border-b flex justify-between items-center">
+                                <span className="text-xs font-bold text-primary uppercase tracking-wider">Resep #{prescriptions.length - idx}</span>
+                                <span className="text-[10px] text-muted-foreground">{new Date(pres.created_at).toLocaleDateString("id-ID", { day: 'numeric', month: 'short', year: 'numeric', hour: '2-digit', minute: '2-digit' })}</span>
+                              </div>
+                              <div className="p-4 space-y-4">
+                                <div className="space-y-2">
+                                  {pres.medications.map((med, midx) => (
+                                    <div key={midx} className="flex items-start gap-3 p-3 rounded-lg bg-muted/30 border border-border/50">
+                                      <div className="h-8 w-8 rounded-full bg-primary/10 flex items-center justify-center shrink-0">
+                                        <span className="text-xs font-bold text-primary">{midx + 1}</span>
+                                      </div>
+                                      <div className="flex-1 min-w-0">
+                                        <p className="font-bold text-sm text-foreground">{med.name}</p>
+                                        <div className="flex flex-wrap gap-x-4 gap-y-1 mt-1">
+                                          <p className="text-xs text-muted-foreground flex items-center gap-1">
+                                            <span className="font-semibold text-foreground/70">Dosis:</span> {med.dosage}
+                                          </p>
+                                          <p className="text-xs text-muted-foreground flex items-center gap-1">
+                                            <span className="font-semibold text-foreground/70">Durasi:</span> {med.duration}
+                                          </p>
+                                        </div>
+                                        <p className="text-xs text-primary font-medium mt-1.5 flex items-center gap-1">
+                                          <ChevronRight className="h-3 w-3" /> {med.instructions}
                                         </p>
                                       </div>
-                                      <p className="text-xs text-primary font-medium mt-1.5 flex items-center gap-1">
-                                        <ChevronRight className="h-3 w-3" /> {med.instructions}
-                                      </p>
                                     </div>
-                                  </div>
-                                ))}
-                              </div>
-                              {pres.notes && (
-                                <div className="p-3 rounded-lg bg-accent/5 border border-accent/20">
-                                  <p className="text-[10px] uppercase font-bold text-accent tracking-widest mb-1">Catatan Dokter</p>
-                                  <p className="text-xs text-muted-foreground italic leading-relaxed">"{pres.notes}"</p>
+                                  ))}
                                 </div>
-                              )}
+                                {pres.notes && (
+                                  <div className="p-3 rounded-lg bg-accent/5 border border-accent/20">
+                                    <p className="text-[10px] uppercase font-bold text-accent tracking-widest mb-1">Catatan Dokter</p>
+                                    <p className="text-xs text-muted-foreground italic leading-relaxed">"{pres.notes}"</p>
+                                  </div>
+                                )}
+                              </div>
                             </div>
-                          </div>
-                        ))}
+                          ))
+                        )}
                       </div>
                     </DialogContent>
                   </Dialog>
-                )}
               </div>
             </>
           ) : (
