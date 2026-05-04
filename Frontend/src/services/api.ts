@@ -66,7 +66,7 @@ export const patientService = {
   getDashboard: () => api.get("/patient/dashboard"),
   getProfile: () => api.get("/patient/profile"),
   updateProfile: (data: any) => api.put("/patient/profile", data),
-  deleteAccount: () => api.delete("/patient/account"),
+  deleteAccount: () => api.delete("/auth/delete-account"),
   // Location Sharing
   getLocationSharing: () => api.get("/users/me/location-sharing"),
   updateLocationSharing: (enabled: boolean) =>
