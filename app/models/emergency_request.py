@@ -11,7 +11,7 @@ class EmergencyRequest(Base):
     __tablename__ = "emergency_requests"
 
     id = Column(GUID(), primary_key=True, default=uuid.uuid4)
-    user_id = Column(GUID(), ForeignKey("users.id"), nullable=True)
+    user_id = Column(GUID(), ForeignKey("users.id", ondelete="CASCADE"), nullable=True)
     ambulance_service_id = Column(GUID(), ForeignKey("ambulance_services.id"), nullable=True, index=True)
     location_lat = Column(Float, nullable=False)
     location_lng = Column(Float, nullable=False)

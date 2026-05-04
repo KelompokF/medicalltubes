@@ -93,18 +93,11 @@ async def delete_account(
     db: AsyncSession = Depends(get_db),
     current_user: User = Depends(get_current_user)
 ):
-    if current_user.is_deleted:
-        raise HTTPException(status_code=403, detail="Akun sudah dihapus")
-
-    current_user.is_deleted = True
-
-    # soft delete data terkait (kalau ada relasi)
-    # Since we don't have async lazy loading, we'd need to manually update them if needed.
-    # For now, just mark the user as deleted.
-
+    # Perform hard delete
+    await db.delete(current_user)
     await db.commit()
 
-    return {"message": "Akun berhasil dihapus"}
+    return {"message": "Akun berhasil dihapus total"}
 
 from pydantic import BaseModel
 from app.dependencies import get_current_user

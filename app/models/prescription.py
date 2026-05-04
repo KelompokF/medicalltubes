@@ -9,8 +9,8 @@ class Prescription(Base):
 
     id = Column(UUID(as_uuid=True), primary_key=True, default=uuid.uuid4)
     room_id = Column(UUID(as_uuid=True), ForeignKey("chat_rooms.id", ondelete="CASCADE"), nullable=True)
-    doctor_id = Column(UUID(as_uuid=True), ForeignKey("users.id"), nullable=False)
-    patient_id = Column(UUID(as_uuid=True), ForeignKey("users.id"), nullable=False)
+    doctor_id = Column(UUID(as_uuid=True), ForeignKey("users.id", ondelete="CASCADE"), nullable=False)
+    patient_id = Column(UUID(as_uuid=True), ForeignKey("users.id", ondelete="CASCADE"), nullable=False)
     
     # List of medications: [{"name": "Amoxicillin", "dosage": "3x1", "duration": "5 hari", "instructions": "Sesudah makan"}]
     medications = Column(JSON, nullable=False, default=list)
