@@ -1,6 +1,6 @@
 import { useEffect, useRef, useState } from "react";
 import { useSearchParams, Link } from "react-router-dom";
-import { Send, Loader2, MessageCircle, Lock, FileText, ChevronRight } from "lucide-react";
+import { Send, Loader2, MessageCircle, Lock, FileText, ChevronRight, Check, CheckCheck } from "lucide-react";
 import { Input } from "@/components/ui/input";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
@@ -34,6 +34,7 @@ interface ChatMessage {
   receiver_id: string;
   content: string;
   created_at: string;
+  is_read?: boolean;
 }
 
 interface Room {
@@ -117,16 +118,8 @@ export default function ConsultationChatPage() {
         if (Array.isArray(res.data)) {
           setRooms(res.data);
           
-          // Auto-select room from URL param room_id
-          if (roomIdFromUrl) {
-            const room = res.data.find((r: Room) => r.room_id === roomIdFromUrl);
-            if (room) {
-              setActiveRoom(room);
-              setSessionEnded(room.status === "ended");
-            }
-          } 
-          // Else auto-select first room if none selected and no doctor_id param
-          else if (!activeRoom && !doctorIdFromUrl && res.data.length > 0) {
+          // Auto-select first room if none selected, no doctor_id param, and no roomIdFromUrl
+          if (!activeRoom && !doctorIdFromUrl && !roomIdFromUrl && res.data.length > 0) {
             setActiveRoom(res.data[0]);
             setSessionEnded(res.data[0].status === "ended");
           }
@@ -138,6 +131,17 @@ export default function ConsultationChatPage() {
     loadRooms();
   }, [userId]);
 
+  // Auto-select room when URL param changes or rooms load
+  useEffect(() => {
+    if (roomIdFromUrl && rooms.length > 0) {
+      const room = rooms.find((r) => r.room_id === roomIdFromUrl);
+      if (room && room.room_id !== activeRoom?.room_id) {
+        setActiveRoom(room);
+        setSessionEnded(room.status === "ended");
+      }
+    }
+  }, [roomIdFromUrl, rooms, activeRoom]);
+
   // Load messages and prescriptions when active room changes
   useEffect(() => {
     const loadData = async () => {
@@ -148,6 +152,10 @@ export default function ConsultationChatPage() {
         const msgRes = await api.get(`/chat/room/${activeRoom.room_id}/messages`);
         if (Array.isArray(msgRes.data)) {
           setMessages(msgRes.data);
+          
+          if (wsRef.current && wsRef.current.readyState === WebSocket.OPEN) {
+            wsRef.current.send(JSON.stringify({ type: "read_receipt", room_id: activeRoom.room_id, sender_id: activeRoom.partner_id }));
+          }
         }
         
         // Load prescriptions
@@ -188,6 +196,13 @@ export default function ConsultationChatPage() {
           return;
         }
 
+        if (data.type === "read_receipt_update") {
+          if (activeRoom && data.room_id === activeRoom.room_id) {
+            setMessages(prev => prev.map(m => m.sender_id === userId ? { ...m, is_read: true } : m));
+          }
+          return;
+        }
+
         if (data.type === "new_prescription") {
           toast.success("Dokter telah mengirimkan resep obat baru!", {
             description: "Klik untuk melihat detail resep.",
@@ -212,6 +227,12 @@ export default function ConsultationChatPage() {
             data.receiver_id === activeRoom.partner_id)
         ) {
           setMessages((prev) => [...prev, data]);
+          
+          if (data.sender_id === activeRoom.partner_id && data.receiver_id === userId) {
+            if (ws.readyState === WebSocket.OPEN) {
+              ws.send(JSON.stringify({ type: "read_receipt", room_id: activeRoom.room_id, sender_id: activeRoom.partner_id }));
+            }
+          }
         }
       } catch (e) {
         console.error("Invalid WS message", e);
@@ -397,10 +418,9 @@ export default function ConsultationChatPage() {
                   <span className="text-[10px] text-success font-medium hidden sm:inline">Encrypted</span>
                 </div>
                 
-                {prescriptions.length > 0 && (
                   <Dialog open={isPrescriptionModalOpen} onOpenChange={setIsPrescriptionModalOpen}>
                     <DialogTrigger asChild>
-                      <Button variant="outline" size="sm" className="gap-1.5 text-primary border-primary/20 hover:bg-primary/5 animate-pulse-slow">
+                      <Button variant="outline" size="sm" className={`gap-1.5 text-primary border-primary/20 hover:bg-primary/5 ${prescriptions.length > 0 ? "animate-pulse-slow" : ""}`}>
                         <FileText className="h-4 w-4" />
                         <span className="hidden sm:inline">Resep ({prescriptions.length})</span>
                       </Button>
@@ -413,49 +433,55 @@ export default function ConsultationChatPage() {
                         </DialogDescription>
                       </DialogHeader>
                       <div className="space-y-4 py-4">
-                        {prescriptions.map((pres, idx) => (
-                          <div key={pres.id} className="border rounded-xl overflow-hidden bg-card shadow-sm">
-                            <div className="bg-primary/5 px-4 py-2 border-b flex justify-between items-center">
-                              <span className="text-xs font-bold text-primary uppercase tracking-wider">Resep #{prescriptions.length - idx}</span>
-                              <span className="text-[10px] text-muted-foreground">{new Date(pres.created_at).toLocaleDateString("id-ID", { day: 'numeric', month: 'short', year: 'numeric', hour: '2-digit', minute: '2-digit' })}</span>
-                            </div>
-                            <div className="p-4 space-y-4">
-                              <div className="space-y-2">
-                                {pres.medications.map((med, midx) => (
-                                  <div key={midx} className="flex items-start gap-3 p-3 rounded-lg bg-muted/30 border border-border/50">
-                                    <div className="h-8 w-8 rounded-full bg-primary/10 flex items-center justify-center shrink-0">
-                                      <span className="text-xs font-bold text-primary">{midx + 1}</span>
-                                    </div>
-                                    <div className="flex-1 min-w-0">
-                                      <p className="font-bold text-sm text-foreground">{med.name}</p>
-                                      <div className="flex flex-wrap gap-x-4 gap-y-1 mt-1">
-                                        <p className="text-xs text-muted-foreground flex items-center gap-1">
-                                          <span className="font-semibold text-foreground/70">Dosis:</span> {med.dosage}
-                                        </p>
-                                        <p className="text-xs text-muted-foreground flex items-center gap-1">
-                                          <span className="font-semibold text-foreground/70">Durasi:</span> {med.duration}
+                        {prescriptions.length === 0 ? (
+                          <div className="flex flex-col items-center justify-center py-8 text-center">
+                            <FileText className="h-12 w-12 text-muted-foreground/30 mb-3" />
+                            <p className="text-muted-foreground text-sm font-medium">Belum ada obat yang diresepkan oleh dokter.</p>
+                          </div>
+                        ) : (
+                          prescriptions.map((pres, idx) => (
+                            <div key={pres.id} className="border rounded-xl overflow-hidden bg-card shadow-sm">
+                              <div className="bg-primary/5 px-4 py-2 border-b flex justify-between items-center">
+                                <span className="text-xs font-bold text-primary uppercase tracking-wider">Resep #{prescriptions.length - idx}</span>
+                                <span className="text-[10px] text-muted-foreground">{new Date(pres.created_at).toLocaleDateString("id-ID", { day: 'numeric', month: 'short', year: 'numeric', hour: '2-digit', minute: '2-digit' })}</span>
+                              </div>
+                              <div className="p-4 space-y-4">
+                                <div className="space-y-2">
+                                  {pres.medications.map((med, midx) => (
+                                    <div key={midx} className="flex items-start gap-3 p-3 rounded-lg bg-muted/30 border border-border/50">
+                                      <div className="h-8 w-8 rounded-full bg-primary/10 flex items-center justify-center shrink-0">
+                                        <span className="text-xs font-bold text-primary">{midx + 1}</span>
+                                      </div>
+                                      <div className="flex-1 min-w-0">
+                                        <p className="font-bold text-sm text-foreground">{med.name}</p>
+                                        <div className="flex flex-wrap gap-x-4 gap-y-1 mt-1">
+                                          <p className="text-xs text-muted-foreground flex items-center gap-1">
+                                            <span className="font-semibold text-foreground/70">Dosis:</span> {med.dosage}
+                                          </p>
+                                          <p className="text-xs text-muted-foreground flex items-center gap-1">
+                                            <span className="font-semibold text-foreground/70">Durasi:</span> {med.duration}
+                                          </p>
+                                        </div>
+                                        <p className="text-xs text-primary font-medium mt-1.5 flex items-center gap-1">
+                                          <ChevronRight className="h-3 w-3" /> {med.instructions}
                                         </p>
                                       </div>
-                                      <p className="text-xs text-primary font-medium mt-1.5 flex items-center gap-1">
-                                        <ChevronRight className="h-3 w-3" /> {med.instructions}
-                                      </p>
                                     </div>
-                                  </div>
-                                ))}
-                              </div>
-                              {pres.notes && (
-                                <div className="p-3 rounded-lg bg-accent/5 border border-accent/20">
-                                  <p className="text-[10px] uppercase font-bold text-accent tracking-widest mb-1">Catatan Dokter</p>
-                                  <p className="text-xs text-muted-foreground italic leading-relaxed">"{pres.notes}"</p>
+                                  ))}
                                 </div>
-                              )}
+                                {pres.notes && (
+                                  <div className="p-3 rounded-lg bg-accent/5 border border-accent/20">
+                                    <p className="text-[10px] uppercase font-bold text-accent tracking-widest mb-1">Catatan Dokter</p>
+                                    <p className="text-xs text-muted-foreground italic leading-relaxed">"{pres.notes}"</p>
+                                  </div>
+                                )}
+                              </div>
                             </div>
-                          </div>
-                        ))}
+                          ))
+                        )}
                       </div>
                     </DialogContent>
                   </Dialog>
-                )}
               </div>
             </>
           ) : (
@@ -518,15 +544,22 @@ export default function ConsultationChatPage() {
                   }`}
                 >
                   <p>{msg.content}</p>
-                  <p
-                    className={`text-[10px] mt-1 ${
+                  <div
+                    className={`flex items-center justify-end gap-1 mt-1 ${
                       isMe
                         ? "text-primary-foreground/60"
                         : "text-muted-foreground"
                     }`}
                   >
-                    {formatTime(msg.created_at)}
-                  </p>
+                    <span className="text-[10px] font-medium">{formatTime(msg.created_at)}</span>
+                    {isMe && (
+                      msg.is_read ? (
+                        <CheckCheck className="h-3 w-3 text-blue-300" />
+                      ) : (
+                        <Check className="h-3 w-3" />
+                      )
+                    )}
+                  </div>
                 </div>
               </div>
             );

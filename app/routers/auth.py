@@ -5,18 +5,27 @@ from uuid import UUID as PyUUID
 
 from app.database import get_db
 from app.models.user import User
-from app.schemas.user import UserRegister, UserLogin, UserResponse, Token
-from app.core.security import hash_password, verify_password, create_access_token, decode_access_token
+from fastapi import APIRouter, Depends, HTTPException, status
+from sqlalchemy.ext.asyncio import AsyncSession
+from sqlalchemy.future import select
+import logging
+
+from app.database import get_db
+from app.dependencies import get_current_user
+from app.models.user import User
+from app.schemas.user import UserRegister, UserLogin, UserResponse, Token, LocationSettingUpdate, DeleteAccountResponse
+from app.schemas.location import LocationSettingResponse
+from app.core.security import hash_password, verify_password, create_access_token
 
 router = APIRouter(prefix="/auth", tags=["Auth"])
-
-
+logger = logging.getLogger(__name__)
 
 @router.post("/register", response_model=UserResponse, status_code=status.HTTP_201_CREATED)
 async def register(data: UserRegister, db: AsyncSession = Depends(get_db)):
     """Daftarkan user baru."""
     result = await db.execute(select(User).where(User.email == data.email))
     existing = result.scalar_one_or_none()
+
     if existing:
         raise HTTPException(status_code=400, detail="Email sudah terdaftar")
 
@@ -25,54 +34,83 @@ async def register(data: UserRegister, db: AsyncSession = Depends(get_db)):
         email=data.email,
         hashed_password=hash_password(data.password)
     )
+
     db.add(user)
     await db.commit()
     await db.refresh(user)
-    return user
 
+    return user
 
 @router.post("/login", response_model=Token)
 async def login(data: UserLogin, db: AsyncSession = Depends(get_db)):
     """Login dan dapatkan JWT access token."""
-    import logging
-    logger = logging.getLogger(__name__)
     result = await db.execute(select(User).where(User.email == data.email))
     user = result.scalar_one_or_none()
+    
     if not user:
         logger.warning(f"LOGIN DEBUG: No user found for email={data.email}")
         raise HTTPException(status_code=401, detail="Email atau password salah")
+        
     logger.warning(f"LOGIN DEBUG: User found: email={user.email}, role={user.role}, hash_prefix={user.hashed_password[:20] if user.hashed_password else 'NONE'}")
+    
     if not verify_password(data.password, user.hashed_password):
         logger.warning(f"LOGIN DEBUG: Password verification FAILED for email={data.email}")
-        raise HTTPException(status_code=401, detail="Email atau password salah")
+        raise HTTPException(status_code=401, detail="Wrong Password or Email")
+        
+    if getattr(user, 'is_deleted', False):
+        raise HTTPException(status_code=403, detail="Akun telah dihapus")
 
     token = create_access_token({"sub": str(user.id), "role": getattr(user, 'role', 'patient')})
     return {"access_token": token, "token_type": "bearer"}
 
-
 @router.get("/me", response_model=UserResponse)
-async def me(authorization: str = Header(None), db: AsyncSession = Depends(get_db)):
+async def me(current_user: User = Depends(get_current_user)):
     """Dapatkan informasi user yang sedang login."""
-    if not authorization:
-        raise HTTPException(status_code=status.HTTP_401_UNAUTHORIZED, detail="Missing authorization header")
+    return current_user
 
-    parts = authorization.split()
-    if len(parts) != 2 or parts[0].lower() != "bearer":
-        raise HTTPException(status_code=status.HTTP_401_UNAUTHORIZED, detail="Invalid authorization header")
+@router.put("/location-setting", response_model=LocationSettingResponse)
+async def update_location_setting(
+    payload: LocationSettingUpdate,
+    db: AsyncSession = Depends(get_db),
+    current_user: User = Depends(get_current_user)
+):
+    current_user.location_sharing_enabled = payload.is_location_enabled
 
-    token = parts[1]
-    payload = decode_access_token(token)
-    if not payload or "sub" not in payload:
-        raise HTTPException(status_code=status.HTTP_401_UNAUTHORIZED, detail="Invalid token")
+    await db.commit()
+    await db.refresh(current_user)
+    
+    # Map back to expected response structure
+    return {"is_location_enabled": current_user.location_sharing_enabled}
 
-    try:
-        user_id = PyUUID(payload.get("sub"))
-    except Exception:
-        raise HTTPException(status_code=status.HTTP_401_UNAUTHORIZED, detail="Invalid user id in token")
+@router.get("/location-setting", response_model=LocationSettingResponse)
+async def get_location_setting(
+    current_user: User = Depends(get_current_user)
+):
+    return {"is_location_enabled": current_user.location_sharing_enabled}
 
-    result = await db.execute(select(User).where(User.id == user_id))
-    user = result.scalar_one_or_none()
-    if not user:
-        raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="User not found")
+@router.delete("/delete-account", response_model=DeleteAccountResponse)
+async def delete_account(
+    db: AsyncSession = Depends(get_db),
+    current_user: User = Depends(get_current_user)
+):
+    # Perform hard delete
+    await db.delete(current_user)
+    await db.commit()
 
-    return user
+    return {"message": "Akun berhasil dihapus total"}
+
+from pydantic import BaseModel
+from app.dependencies import get_current_user
+
+class ChangePasswordRequest(BaseModel):
+    current_password: str
+    new_password: str
+
+@router.put("/change-password")
+async def change_password(data: ChangePasswordRequest, current_user: User = Depends(get_current_user), db: AsyncSession = Depends(get_db)):
+    if not verify_password(data.current_password, current_user.hashed_password):
+        raise HTTPException(status_code=400, detail="Current password incorrect")
+    current_user.hashed_password = hash_password(data.new_password)
+    db.add(current_user)
+    await db.commit()
+    return {"detail": "Password updated successfully"}

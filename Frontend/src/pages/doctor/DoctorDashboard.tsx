@@ -14,7 +14,7 @@ export default function DoctorDashboard() {
   };
   const patientRequests: any[] = [];
   const doctorSchedule: any[] = [];
-  
+
   return (
     <div className="space-y-6 animate-fade-in">
       <h1 className="text-2xl font-bold text-foreground">Doctor Dashboard</h1>

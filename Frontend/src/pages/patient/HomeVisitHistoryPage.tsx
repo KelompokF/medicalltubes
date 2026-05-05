@@ -120,8 +120,10 @@ export default function HomeVisitHistoryPage() {
   useEffect(() => {
     const fetchVisits = async () => {
       try {
-        const res = await api.get("/home-visit/");
-        setVisits(res.data);
+        const res = await api.get("/home-visits/");
+        // Only show completed home visits as requested
+        const completedVisits = res.data.filter((v: HomeVisitItem) => v.status === "completed");
+        setVisits(completedVisits);
       } catch (err) {
         toast.error("Gagal memuat data");
       } finally {

@@ -10,14 +10,22 @@ from app.models.home_visit import HomeVisitStatus
 # ========================
 # REQUEST (PUNYA KAMU)
 # ========================
+PHONE_REGEX = re.compile(r"^(\+62|62|0)[0-9]{8,13}$")
+
 class HomeVisitRequestCreate(BaseModel):
     patient_name: str
     doctor_id: Optional[UUID] = None
     address: str
     phone_number: str
     complaint: str
-    preferred_date: str  # accept date string "YYYY-MM-DD" or ISO datetime
+    preferred_date: datetime
     preferred_time: str
+
+    @field_validator("phone_number")
+    def validate_phone(cls, v):
+        if not PHONE_REGEX.match(v):
+            raise ValueError("Nomor tidak valid")
+        return v
 
 
 class HomeVisitRequestResponse(BaseModel):

@@ -9,10 +9,10 @@ import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import StatCard from "@/components/StatCard";
 
 export default function PatientDashboard() {
-  const { data: meData } = useQuery({ 
-    queryKey: ["me"], 
-    queryFn: () => authService.getMe().then((res) => res.data), 
-    staleTime: 1000 * 60 * 5 
+  const { data: meData } = useQuery({
+    queryKey: ["me"],
+    queryFn: () => authService.getMe().then((res) => res.data),
+    staleTime: 1000 * 60 * 5
   });
   const firstName = meData?.full_name?.split(" ")[0] || "Pasien";
 
@@ -58,12 +58,12 @@ export default function PatientDashboard() {
           <h3 className="font-semibold text-foreground">{title}</h3>
         </div>
         <Button variant="ghost" size="sm" className="h-8 gap-1 text-primary hover:bg-primary/10" asChild>
-          <Link to={isChat ? "/chat-history" : "/home-visit-history"}>
+          <Link to={isChat ? "/chat-history" : "/tracking"}>
             <span className="text-xs font-semibold">Lihat Semua</span> <ArrowRight className="h-3 w-3 ml-1" />
           </Link>
         </Button>
       </div>
-      
+
       {items.length > 0 ? (
         <div className="space-y-1">
           {items.map((item: any) => (
@@ -117,7 +117,7 @@ export default function PatientDashboard() {
       </div>
     );
   }
-  
+
   return (
     <div className="space-y-6 animate-fade-in pb-8">
       {/* Welcome Banner */}
@@ -227,11 +227,11 @@ export default function PatientDashboard() {
                     Riwayat Booking
                   </TabsTrigger>
                 </TabsList>
-                
+
                 <TabsContent value="consultation" className="mt-0 animate-fade-in border-none outline-none">
                   <HistoryList items={consultationHistory} icon={MessageSquare} title="Riwayat Konsultasi Chat" isChat={true} />
                 </TabsContent>
-                
+
                 <TabsContent value="booking" className="mt-0 animate-fade-in border-none outline-none">
                   <HistoryList items={bookingHistory} icon={Home} title="Riwayat Booking Home Visit" isChat={false} />
                 </TabsContent>

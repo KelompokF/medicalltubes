@@ -13,22 +13,37 @@ export default function PatientLoginPage() {
   const navigate = useNavigate();
   const [isLogin, setIsLogin] = useState(true);
   const [showPassword, setShowPassword] = useState(false);
-  const [form, setForm] = useState({ name: "", email: "", password: "", confirmPassword: "" });
+
+  const [form, setForm] = useState({
+    name: "",
+    email: "",
+    password: "",
+    confirmPassword: ""
+  });
+
   const [errors, setErrors] = useState<Record<string, string>>({});
 
+  // ================= VALIDATION =================
   const validate = () => {
     const e: Record<string, string> = {};
+
     if (!isLogin && !form.name) e.name = "Full name is required";
     if (!form.email) e.email = "Email is required";
     else if (!/\S+@\S+\.\S+/.test(form.email)) e.email = "Invalid email";
+
     if (!form.password) e.password = "Password is required";
     else if (form.password.length < 6) e.password = "Min 6 characters";
-    if (!isLogin && form.password !== form.confirmPassword) e.confirmPassword = "Passwords don't match";
+
+    if (!isLogin && form.password !== form.confirmPassword) {
+      e.confirmPassword = "Passwords don't match";
+    }
+
     setErrors(e);
     return Object.keys(e).length === 0;
   };
 
-  const handleSubmit = (e: React.FormEvent) => {
+  // ================= SUBMIT =================
+  const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     if (validate()) {
       if (isLogin) {
@@ -84,6 +99,7 @@ export default function PatientLoginPage() {
     }
   };
 
+  // ================= UI =================
   return (
     <div className="min-h-screen flex">
       <div className="hidden lg:flex lg:w-1/2 medical-gradient relative items-center justify-center p-12">

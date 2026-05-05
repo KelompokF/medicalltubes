@@ -10,7 +10,7 @@ import { Badge } from "@/components/ui/badge";
 import { useNavigate } from "react-router-dom";
 import api from "@/services/api";
 
-// ─── Types ─────────────────────────────────────────────────────────────────
+
 interface HomeVisitRequest {
   id: string;
   patient_name: string;
@@ -27,27 +27,27 @@ interface HomeVisitRequest {
   created_at: string;
 }
 
-// ─── Helpers ────────────────────────────────────────────────────────────────
+
 const statusLabel: Record<string, string> = {
-  pending:   "Menunggu Konfirmasi",
-  approved:  "Diterima Dokter",
-  rejected:  "Ditolak",
+  pending: "Menunggu Konfirmasi",
+  approved: "Diterima Dokter",
+  rejected: "Ditolak",
   completed: "Selesai",
   cancelled: "Dibatalkan",
 };
 
 const statusVariant: Record<string, string> = {
-  pending:   "bg-yellow-100 text-yellow-800 border-yellow-200",
-  approved:  "bg-green-100  text-green-800  border-green-200",
-  rejected:  "bg-red-100    text-red-800    border-red-200",
+  pending: "bg-yellow-100 text-yellow-800 border-yellow-200",
+  approved: "bg-green-100  text-green-800  border-green-200",
+  rejected: "bg-red-100    text-red-800    border-red-200",
   completed: "bg-blue-100   text-blue-800   border-blue-200",
   cancelled: "bg-gray-100   text-gray-600   border-gray-200",
 };
 
 const StatusIcon: Record<string, any> = {
-  pending:   AlertCircle,
-  approved:  CheckCircle2,
-  rejected:  XCircle,
+  pending: AlertCircle,
+  approved: CheckCircle2,
+  rejected: XCircle,
   completed: CheckCircle2,
   cancelled: XCircle,
 };
@@ -72,7 +72,7 @@ const formatDateTime = (dtStr: string): string => {
   }
 };
 
-// ─── Detail Modal ────────────────────────────────────────────────────────────
+
 function DetailModal({ request, onClose }: { request: HomeVisitRequest; onClose: () => void }) {
   const status = request.status || "pending";
   const SIcon = StatusIcon[status] || AlertCircle;

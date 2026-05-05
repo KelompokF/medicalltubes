@@ -7,6 +7,7 @@ import { Label } from "@/components/ui/label";
 import { Textarea } from "@/components/ui/textarea";
 import { toast } from "sonner";
 import { homeVisitScheduleService } from "@/services/api";
+import { useNavigate } from "react-router-dom";
 
 const todayStr = new Date().toISOString().split("T")[0];
 
@@ -36,6 +37,7 @@ export default function HomeVisitBookingPage() {
   const [selectedTime, setSelectedTime] = useState("");
   const [loadingDoctors, setLoadingDoctors] = useState(false);
   const [loadingTimes, setLoadingTimes] = useState(false);
+  const navigate = useNavigate();
 
   // --- Form state ---
   const [patientName, setPatientName] = useState("");
@@ -162,6 +164,9 @@ export default function HomeVisitBookingPage() {
 
       toast.success("Permintaan kunjungan rumah berhasil dikirim!");
 
+      // Pindah ke halaman tracking
+      navigate("/tracking");
+
       // Reset form
       setPatientName("");
       setAddress("");
@@ -254,8 +259,8 @@ export default function HomeVisitBookingPage() {
                       {loadingDoctors
                         ? "Memuat dokter..."
                         : availableDoctors.length === 0 && selectedDate
-                        ? "Tidak ada dokter tersedia"
-                        : "Pilih dokter"}
+                          ? "Tidak ada dokter tersedia"
+                          : "Pilih dokter"}
                     </option>
                     {availableDoctors.map((doc) => (
                       <option key={doc.doctor_id} value={doc.doctor_id}>
@@ -279,8 +284,8 @@ export default function HomeVisitBookingPage() {
                       {loadingTimes
                         ? "Memuat jam..."
                         : availableTimes.length === 0 && selectedDoctor
-                        ? "Tidak ada jadwal"
-                        : "Pilih jam"}
+                          ? "Tidak ada jadwal"
+                          : "Pilih jam"}
                     </option>
                     {availableTimes.map((jam) => (
                       <option key={jam} value={jam}>

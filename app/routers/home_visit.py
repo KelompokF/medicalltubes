@@ -184,9 +184,12 @@ async def create_home_visit_request(
         except Exception:
             doctor_id = None
 
-        # preferred_date: ambil "YYYY-MM-DD" → Python date object
-        raw_date = payload.preferred_date.strip()[:10]
-        date_obj = _date.fromisoformat(raw_date)
+        # preferred_date: ubah datetime ke date (hindari AttributeError)
+        if isinstance(payload.preferred_date, str):
+            raw_date = payload.preferred_date.strip()[:10]
+            date_obj = _date.fromisoformat(raw_date)
+        else:
+            date_obj = payload.preferred_date.date()
 
         # preferred_time: "HH:MM" atau "HH:MM:SS" → Python time object
         time_str = payload.preferred_time.strip()
