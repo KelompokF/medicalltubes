@@ -38,8 +38,7 @@ pip install -r requirements.txt
 ```
 ### 5. Jalankan server
 ```bash
-
-
+uvicorn app.main:app --port 8001 --reload
 ```
 
 ### 7. Buka dokumentasi API
