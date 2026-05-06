@@ -26,6 +26,7 @@ import AdminDashboard from "@/pages/admin/AdminDashboard";
 import DoctorDashboard from "@/pages/doctor/DoctorDashboard";
 import DoctorConsultationPage from "@/pages/doctor/DoctorConsultationPage";
 import DoctorSchedulePage from "@/pages/doctor/DoctorSchedulePage";
+import DoctorHomeVisits from "@/pages/doctor/DoctorHomeVisits";
 import AmbulanceDashboard from "@/pages/ambulance/AmbulanceDashboard";
 import AmbulanceActivePage from "@/pages/ambulance/AmbulanceActivePage";
 import AmbulanceHistoryPage from "@/pages/ambulance/AmbulanceHistoryPage";
@@ -91,7 +92,7 @@ const App = () => (
             <Route path="/doctor-dashboard" element={<DoctorDashboard />} />
             <Route path="/doctor-dashboard/patients" element={<ComingSoon title="My Patients" />} />
             <Route path="/doctor-dashboard/consultations" element={<DoctorConsultationPage />} />
-            <Route path="/doctor-dashboard/home-visits" element={<ComingSoon title="Home Visits" />} />
+            <Route path="/doctor-dashboard/home-visits" element={<DoctorHomeVisits />} />
             <Route path="/doctor-dashboard/schedule" element={<DoctorSchedulePage />} />
             <Route path="/doctor-dashboard/prescriptions" element={<ComingSoon title="Prescriptions" />} />
             <Route path="/doctor-dashboard/records" element={<ComingSoon title="Medical Records" />} />
