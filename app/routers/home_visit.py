@@ -15,6 +15,7 @@ from app.schemas.home_visit import (
     HomeVisitTrackingResponse,
     HomeVisitRequestCreate,
     HomeVisitRequestResponse,
+    HomeVisitRequestUpdate,
 )
 
 router = APIRouter(prefix="/home-visits", tags=["Home Visits"])
@@ -116,6 +117,8 @@ async def get_my_requests(
                     r.preferred_date,
                     r.preferred_time,
                     r.created_at,
+                    r.status,
+                    r.notes,
                     u.full_name AS doctor_full_name,
                     dp.specialization
                 FROM home_visit_requests_v3 r
@@ -148,8 +151,8 @@ async def get_my_requests(
                 "complaint": row["complaint"] or "",
                 "preferred_date": str(row["preferred_date"]) if row["preferred_date"] else "",
                 "preferred_time": str(row["preferred_time"])[:5] if row["preferred_time"] else "",
-                "status": "pending",   # tabel belum punya kolom status
-                "notes": "",           # tabel belum punya kolom notes
+                "status": row["status"] or "pending",
+                "notes": row["notes"] or "",
                 "created_at": str(row["created_at"]) if row["created_at"] else "",
             })
 
@@ -160,6 +163,117 @@ async def get_my_requests(
         print(f"[MY-REQUESTS] ERROR:\n{tb}")
         raise HTTPException(status_code=500, detail=f"Gagal mengambil data: {str(e)}")
 
+
+@router.get("/doctor-requests")
+async def get_doctor_requests(
+    current_user: User = Depends(get_current_user),
+    db: AsyncSession = Depends(get_db),
+):
+    """Ambil permintaan Home Visit yang ditugaskan ke dokter yang sedang login."""
+    import traceback
+    try:
+        # Cari doctor_id berdasarkan user_id (current_user.id)
+        result = await db.execute(
+            text("""
+                SELECT
+                    r.id,
+                    r.patient_name,
+                    r.doctor_id,
+                    r.address,
+                    r.phone_number,
+                    r.complaint,
+                    r.preferred_date,
+                    r.preferred_time,
+                    r.created_at,
+                    r.status,
+                    r.notes,
+                    u.full_name AS doctor_full_name,
+                    dp.specialization
+                FROM home_visit_requests_v3 r
+                JOIN doctor_profiles dp ON dp.id = r.doctor_id
+                JOIN users u ON u.id = dp.user_id
+                WHERE dp.user_id = :user_id
+                ORDER BY r.created_at DESC
+            """),
+            {"user_id": current_user.id}
+        )
+        rows = result.mappings().all()
+
+        def fmt_name(name: str | None) -> str:
+            if not name:
+                return "Dokter"
+            if name.lower().startswith("dr."):
+                return name
+            return f"Dr. {name}"
+
+        items = []
+        for row in rows:
+            full_name = row["doctor_full_name"]
+            doctor_name = fmt_name(full_name)
+            items.append({
+                "id": str(row["id"]),
+                "patient_name": row["patient_name"] or "",
+                "doctor_id": str(row["doctor_id"]) if row["doctor_id"] else None,
+                "doctor_name": doctor_name,
+                "specialization": row["specialization"] or "",
+                "address": row["address"] or "",
+                "phone_number": row["phone_number"] or "",
+                "complaint": row["complaint"] or "",
+                "preferred_date": str(row["preferred_date"]) if row["preferred_date"] else "",
+                "preferred_time": str(row["preferred_time"])[:5] if row["preferred_time"] else "",
+                "status": row["status"] or "pending",
+                "notes": row["notes"] or "",
+                "created_at": str(row["created_at"]) if row["created_at"] else "",
+            })
+
+        return items
+
+    except Exception as e:
+        tb = traceback.format_exc()
+        print(f"[DOCTOR-REQUESTS] ERROR:\n{tb}")
+        raise HTTPException(status_code=500, detail=f"Gagal mengambil data: {str(e)}")
+
+
+@router.patch("/{request_id}/status")
+async def update_request_status(
+    request_id: str,
+    payload: HomeVisitRequestUpdate,
+    current_user: User = Depends(get_current_user),
+    db: AsyncSession = Depends(get_db),
+):
+    import traceback
+    import uuid
+    try:
+        try:
+            req_uuid = uuid.UUID(request_id)
+        except ValueError:
+            raise HTTPException(status_code=400, detail="Format ID tidak valid")
+            
+        # Verify the request exists
+        result = await db.execute(
+            text("SELECT doctor_id FROM home_visit_requests_v3 WHERE id = :id"),
+            {"id": str(req_uuid)}
+        )
+        row = result.fetchone()
+        if not row:
+            raise HTTPException(status_code=404, detail="Request tidak ditemukan")
+
+        await db.execute(
+            text("""
+            UPDATE home_visit_requests_v3
+            SET status = :status, notes = :notes
+            WHERE id = :id
+            """),
+            {"status": payload.status, "notes": payload.notes or "", "id": str(req_uuid)}
+        )
+        await db.commit()
+        return {"message": "Status berhasil diupdate"}
+    except HTTPException:
+        raise
+    except Exception as e:
+        tb = traceback.format_exc()
+        print(f"[UPDATE-STATUS] ERROR:\n{tb}")
+        raise HTTPException(status_code=500, detail=f"Gagal update status: {str(e)}")
 
 
 # ========================
