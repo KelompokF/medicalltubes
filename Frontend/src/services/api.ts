@@ -93,6 +93,8 @@ export const doctorService = {
   getPatientRequests: () => api.get("/doctor/requests"),
   acceptRequest: (id: string) => api.post(`/doctor/requests/${id}/accept`),
   createPrescription: (data: any) => api.post("/doctor/prescriptions", data),
+  getPatientProfile: (patientId: string) => api.get(`/doctors/patient/${patientId}/profile`),
+  getPatientHealthRecords: (patientId: string) => api.get(`/doctors/patient/${patientId}/health-records`),
 };
 
 // ============================================

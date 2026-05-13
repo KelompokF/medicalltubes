@@ -15,7 +15,7 @@ import {
   AlertDialogTitle,
   AlertDialogTrigger,
 } from "@/components/ui/alert-dialog";
-import api, { prescriptionService } from "@/services/api";
+import api, { prescriptionService, doctorService } from "@/services/api";
 import { toast } from "sonner";
 import {
   Dialog,
@@ -28,7 +28,7 @@ import {
 } from "@/components/ui/dialog";
 import { Label } from "@/components/ui/label";
 import { Textarea } from "@/components/ui/textarea";
-import { Plus, Trash2, FileText, Check, CheckCheck } from "lucide-react";
+import { Plus, Trash2, FileText, Check, CheckCheck, Activity } from "lucide-react";
 
 interface ChatMessage {
   sender_id: string;
@@ -74,6 +74,36 @@ export default function DoctorConsultationPage() {
     medications: [{ name: "", dosage: "", duration: "", instructions: "" }],
   });
   const [isSubmittingPrescription, setIsSubmittingPrescription] = useState(false);
+
+  // Patient Info State
+  const [isPatientInfoModalOpen, setIsPatientInfoModalOpen] = useState(false);
+  const [patientProfile, setPatientProfile] = useState<any>(null);
+  const [patientHealthRecords, setPatientHealthRecords] = useState<any[]>([]);
+  const [isLoadingPatientInfo, setIsLoadingPatientInfo] = useState(false);
+
+  const fetchPatientInfo = async () => {
+    if (!activeRoom?.partner_id) return;
+    setIsLoadingPatientInfo(true);
+    try {
+      const [profileRes, recordsRes] = await Promise.all([
+        doctorService.getPatientProfile(activeRoom.partner_id),
+        doctorService.getPatientHealthRecords(activeRoom.partner_id)
+      ]);
+      setPatientProfile(profileRes.data);
+      setPatientHealthRecords(recordsRes.data);
+    } catch (err) {
+      toast.error("Gagal memuat info pasien");
+    } finally {
+      setIsLoadingPatientInfo(false);
+    }
+  };
+
+  const handleOpenPatientInfo = (open: boolean) => {
+    setIsPatientInfoModalOpen(open);
+    if (open) {
+      fetchPatientInfo();
+    }
+  };
 
   const wsRef = useRef<WebSocket | null>(null);
   const messagesEndRef = useRef<HTMLDivElement>(null);
@@ -436,6 +466,115 @@ export default function DoctorConsultationPage() {
                 </div>
                 {!sessionEnded && (
                   <div className="flex items-center gap-1">
+                    <Dialog open={isPatientInfoModalOpen} onOpenChange={handleOpenPatientInfo}>
+                      <DialogTrigger asChild>
+                        <Button variant="outline" size="sm" className="gap-1.5 text-blue-600 border-blue-200 hover:bg-blue-50">
+                          <Activity className="h-4 w-4" />
+                          <span className="hidden sm:inline">Info Pasien</span>
+                        </Button>
+                      </DialogTrigger>
+                      <DialogContent className="sm:max-w-[600px] max-h-[90vh] overflow-y-auto">
+                        <DialogHeader>
+                          <DialogTitle>Informasi & Riwayat Medis Pasien</DialogTitle>
+                          <DialogDescription>
+                            Data kesehatan pasien untuk membantu memberikan diagnosis yang lebih tepat.
+                          </DialogDescription>
+                        </DialogHeader>
+                        
+                        {isLoadingPatientInfo ? (
+                          <div className="flex justify-center items-center py-10">
+                            <Loader2 className="h-8 w-8 text-primary animate-spin" />
+                          </div>
+                        ) : (
+                          <div className="space-y-6 py-4">
+                            {/* Profil Pasien */}
+                            <div className="space-y-3">
+                              <h3 className="font-semibold text-lg border-b pb-2">Profil Pasien</h3>
+                              <div className="grid grid-cols-2 gap-4 text-sm">
+                                <div>
+                                  <span className="text-muted-foreground block text-xs">Nama Lengkap</span>
+                                  <span className="font-medium">{patientProfile?.full_name || '-'}</span>
+                                </div>
+                                <div>
+                                  <span className="text-muted-foreground block text-xs">Golongan Darah</span>
+                                  <span className="font-medium">{patientProfile?.blood_type || '-'}</span>
+                                </div>
+                                <div>
+                                  <span className="text-muted-foreground block text-xs">Tanggal Lahir</span>
+                                  <span className="font-medium">{patientProfile?.date_of_birth ? new Date(patientProfile.date_of_birth).toLocaleDateString('id-ID') : '-'}</span>
+                                </div>
+                                <div>
+                                  <span className="text-muted-foreground block text-xs">Alergi</span>
+                                  <span className="font-medium text-destructive">{patientProfile?.allergies || 'Tidak ada/belum diisi'}</span>
+                                </div>
+                              </div>
+                            </div>
+
+                            {/* Riwayat Kesehatan */}
+                            <div className="space-y-3">
+                              <h3 className="font-semibold text-lg border-b pb-2">Riwayat Kesehatan (Rekam Medis)</h3>
+                              {patientHealthRecords && patientHealthRecords.length > 0 ? (
+                                <div className="space-y-4">
+                                  {patientHealthRecords.map((record: any, idx: number) => (
+                                    <div key={idx} className="p-4 rounded-lg border bg-muted/20 space-y-2">
+                                      <div className="flex justify-between items-center mb-2">
+                                        <Badge variant="outline" className="bg-primary/5">
+                                          {new Date(record.date).toLocaleDateString('id-ID', { year: 'numeric', month: 'long', day: 'numeric' })}
+                                        </Badge>
+                                      </div>
+                                      <div className="grid grid-cols-2 gap-x-4 gap-y-2 text-sm">
+                                        <div>
+                                          <span className="text-muted-foreground text-xs block">Kondisi yang didiagnosis</span>
+                                          <span>{record.diagnosed_conditions || '-'}</span>
+                                        </div>
+                                        <div>
+                                          <span className="text-muted-foreground text-xs block">Alergi yang tercatat</span>
+                                          <span className="text-destructive">{record.allergies || '-'}</span>
+                                        </div>
+                                        <div>
+                                          <span className="text-muted-foreground text-xs block">Obat saat ini</span>
+                                          <span>{record.current_medications || '-'}</span>
+                                        </div>
+                                        <div>
+                                          <span className="text-muted-foreground text-xs block">Catatan Keluhan</span>
+                                          <span>{record.notes || '-'}</span>
+                                        </div>
+                                        
+                                        {/* Tanda-tanda vital */}
+                                        {(record.blood_pressure || record.heart_rate || record.weight || record.height) && (
+                                          <div className="col-span-2 mt-2 pt-2 border-t border-border/50 grid grid-cols-4 gap-2">
+                                            {record.blood_pressure && (
+                                              <div><span className="text-muted-foreground text-[10px] block">Tensi</span><span className="text-xs font-medium">{record.blood_pressure}</span></div>
+                                            )}
+                                            {record.heart_rate && (
+                                              <div><span className="text-muted-foreground text-[10px] block">Detak Jantung</span><span className="text-xs font-medium">{record.heart_rate} bpm</span></div>
+                                            )}
+                                            {record.weight && (
+                                              <div><span className="text-muted-foreground text-[10px] block">BB</span><span className="text-xs font-medium">{record.weight} kg</span></div>
+                                            )}
+                                            {record.height && (
+                                              <div><span className="text-muted-foreground text-[10px] block">TB</span><span className="text-xs font-medium">{record.height} cm</span></div>
+                                            )}
+                                          </div>
+                                        )}
+                                      </div>
+                                    </div>
+                                  ))}
+                                </div>
+                              ) : (
+                                <p className="text-sm text-muted-foreground italic text-center py-4 bg-muted/10 rounded border border-dashed">
+                                  Belum ada riwayat kesehatan yang dicatat oleh pasien.
+                                </p>
+                              )}
+                            </div>
+                          </div>
+                        )}
+                        <DialogFooter>
+                          <Button onClick={() => setIsPatientInfoModalOpen(false)}>Tutup</Button>
+                        </DialogFooter>
+                      </DialogContent>
+                    </Dialog>
+
                     <Dialog open={isPrescriptionModalOpen} onOpenChange={setIsPrescriptionModalOpen}>
                       <DialogTrigger asChild>
                         <Button variant="outline" size="sm" className="gap-1.5 text-primary border-primary/20 hover:bg-primary/5">

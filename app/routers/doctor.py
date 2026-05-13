@@ -13,6 +13,7 @@ from sqlalchemy.ext.asyncio import AsyncSession
 from sqlalchemy.future import select
 
 from app.database import get_db
+from app.dependencies import get_current_user
 from app.models.user import User
 from app.models.doctor_profile import DoctorProfile
 from app.schemas.doctor import (
@@ -222,3 +223,79 @@ async def start_consultation(
         doctor_name=doctor.full_name,
         message=f"Konsultasi dengan {doctor.full_name} siap dimulai. Silakan kirim pesan.",
     )
+
+
+# ─── GET /doctors/patient/{patient_id}/profile ────────────────
+@router.get("/patient/{patient_id}/profile")
+async def get_patient_profile_for_doctor(
+    patient_id: str,
+    current_user: User = Depends(get_current_user),
+    db: AsyncSession = Depends(get_db)
+):
+    """
+    Get patient profile and basic info for doctor view.
+    """
+    if current_user.role != "doctor":
+        raise HTTPException(status_code=403, detail="Akses ditolak")
+
+    import uuid as _uuid
+    try:
+        pat_uuid = _uuid.UUID(patient_id)
+    except ValueError:
+        raise HTTPException(status_code=400, detail="Invalid patient ID format")
+
+    from app.models.patient_profile import PatientProfile
+
+    # Get user info
+    result_user = await db.execute(select(User).where(User.id == pat_uuid))
+    patient_user = result_user.scalar_one_or_none()
+    
+    if not patient_user:
+        raise HTTPException(status_code=404, detail="Pasien tidak ditemukan")
+
+    # Get profile info
+    result_profile = await db.execute(select(PatientProfile).where(PatientProfile.user_id == pat_uuid))
+    profile = result_profile.scalar_one_or_none()
+
+    return {
+        "id": str(patient_user.id),
+        "full_name": patient_user.full_name,
+        "email": patient_user.email,
+        "phone": patient_user.phone if hasattr(patient_user, "phone") else None,
+        "blood_type": profile.blood_type if profile else None,
+        "allergies": profile.allergies if profile else None,
+        "place_of_birth": profile.place_of_birth if profile else None,
+        "date_of_birth": str(profile.date_of_birth) if profile and profile.date_of_birth else None,
+    }
+
+
+# ─── GET /doctors/patient/{patient_id}/health-records ─────────
+@router.get("/patient/{patient_id}/health-records")
+async def get_patient_health_records_for_doctor(
+    patient_id: str,
+    current_user: User = Depends(get_current_user),
+    db: AsyncSession = Depends(get_db)
+):
+    """
+    Get patient health records for doctor view.
+    """
+    if current_user.role != "doctor":
+        raise HTTPException(status_code=403, detail="Akses ditolak")
+
+    import uuid as _uuid
+    try:
+        pat_uuid = _uuid.UUID(patient_id)
+    except ValueError:
+        raise HTTPException(status_code=400, detail="Invalid patient ID format")
+
+    from app.models.health_record import HealthRecord
+
+    result = await db.execute(
+        select(HealthRecord)
+        .where(HealthRecord.user_id == pat_uuid)
+        .order_by(HealthRecord.date.desc())
+    )
+    records = result.scalars().all()
+    
+    return records
+
