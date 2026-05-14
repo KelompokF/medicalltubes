@@ -7,6 +7,7 @@ from app.routers.dashboard import router as dashboard_router
 from app.routers.chat import router as chat_router
 from app.routers.home_visit import router as home_visit_router
 from app.routers.doctor import router as doctor_router
+from app.routers.doctor_patients import router as doctor_patients_router
 from app.routers.doctor_schedule import router as doctor_schedule_router
 from app.Websocket.chat import router as websocket_router
 from app.database import engine, Base
@@ -73,6 +74,7 @@ from app.routers.prescription import router as prescription_router
 app.include_router(prescription_router)
 app.include_router(emergency.router)
 app.include_router(doctor_schedule_router)  # must be BEFORE doctor_router (specific before wildcard)
+app.include_router(doctor_patients_router)
 app.include_router(doctor_router)
 
 
