@@ -1,5 +1,5 @@
-import { useState } from "react";
-import { Link, useLocation, Outlet } from "react-router-dom";
+import { useState, useEffect, useRef } from "react";
+import { Link, useLocation, Outlet, useNavigate } from "react-router-dom";
 import {
   LayoutDashboard, AlertTriangle, MapPin, History, Truck,
   Settings, Bell, ChevronDown, Menu, X, LogOut, Ambulance
@@ -8,6 +8,8 @@ import { Button } from "@/components/ui/button";
 import {
   DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuSeparator, DropdownMenuTrigger
 } from "@/components/ui/dropdown-menu";
+import { toast } from "sonner";
+import api from "@/services/api";
 
 const ambulanceNav = [
   { label: "Dashboard", path: "/ambulance-dashboard", icon: LayoutDashboard },
@@ -20,8 +22,90 @@ const ambulanceNav = [
 
 export default function AmbulanceLayout() {
   const [sidebarOpen, setSidebarOpen] = useState(false);
+  const [notifications, setNotifications] = useState<any[]>([]);
   const location = useLocation();
+  const navigate = useNavigate();
   const isActive = (path: string) => location.pathname === path;
+
+  const knownEmergencyIds = useRef<Set<string>>(new Set());
+
+  useEffect(() => {
+    let isMounted = true;
+    let isInitialLoad = true;
+
+    const fetchEmergencies = async () => {
+      try {
+        const res = await api.get("/emergencies/active");
+        if (!isMounted) return;
+
+        if (res.data && Array.isArray(res.data.data)) {
+          const activeEmergencies = res.data.data;
+          const currentActiveIds = new Set(activeEmergencies.map((e: any) => String(e.id)));
+
+          // Remove toast if emergency is no longer active (cancelled/completed)
+          knownEmergencyIds.current.forEach(knownId => {
+            if (!currentActiveIds.has(String(knownId))) {
+              toast.dismiss(`emergency-${knownId}`);
+              knownEmergencyIds.current.delete(knownId);
+            }
+          });
+
+          activeEmergencies.forEach((emergency: any) => {
+            const emergencyIdStr = String(emergency.id);
+            if (!knownEmergencyIds.current.has(emergencyIdStr)) {
+              knownEmergencyIds.current.add(emergencyIdStr);
+
+              if (!isInitialLoad) {
+
+                toast.error("🚨 Darurat Medis!", {
+                  id: `emergency-${emergencyIdStr}`,
+                  description: (
+                    <span className="!text-gray-700">
+                      Lokasi: {emergency.location_address || "Tidak diketahui"} ({emergency.distance_km} km)
+                    </span>
+                  ),
+                  className:
+                    "!bg-white !text-red-600 animate-[pulse_1s_ease-in-out_infinite] !border-2 !border-red-600 shadow-[0_0_20px_rgba(220,38,38,0.8)]",
+
+                  action: {
+                    label: "Lihat",
+                    onClick: () => navigate("/ambulance-dashboard/active"),
+                  },
+
+                  actionButtonStyle: {
+                    backgroundColor: "#dc2626",
+                    color: "#ffffff",
+                  },
+
+                  duration: Number.POSITIVE_INFINITY,
+                });
+              }
+            }
+          });
+
+          isInitialLoad = false;
+
+          setNotifications(activeEmergencies.map((e: any) => ({
+            id: e.id,
+            title: `🚨 Emergency: ${e.type === 'general' ? 'Umum' : e.type}`,
+            description: `${e.location_address || 'Lokasi tidak diketahui'} - ${e.distance_km} km`,
+            time: new Date(e.created_at).toLocaleTimeString("id-ID", { hour: "2-digit", minute: "2-digit" }),
+            status: e.status
+          })));
+        }
+      } catch (error) {
+        console.error("Failed to fetch active emergencies:", error);
+      }
+    };
+
+    fetchEmergencies();
+    const interval = setInterval(fetchEmergencies, 5000);
+
+    return () => {
+      isMounted = false;
+      clearInterval(interval);
+    };
+  }, [navigate]);
 
   return (
     <div className="min-h-screen bg-background">
@@ -43,9 +127,8 @@ export default function AmbulanceLayout() {
           <p className="px-3 text-xs font-semibold uppercase tracking-wider text-sidebar-foreground/50 mb-2">Ambulance Menu</p>
           {ambulanceNav.map((item) => (
             <Link key={item.path} to={item.path} onClick={() => setSidebarOpen(false)}
-              className={`flex items-center gap-3 px-3 py-2.5 rounded-lg text-sm font-medium transition-all duration-200 ${
-                isActive(item.path) ? "bg-sidebar-primary text-sidebar-primary-foreground" : "text-sidebar-foreground/70 hover:bg-sidebar-accent hover:text-sidebar-accent-foreground"
-              }`}>
+              className={`flex items-center gap-3 px-3 py-2.5 rounded-lg text-sm font-medium transition-all duration-200 ${isActive(item.path) ? "bg-sidebar-primary text-sidebar-primary-foreground" : "text-sidebar-foreground/70 hover:bg-sidebar-accent hover:text-sidebar-accent-foreground"
+                }`}>
               <item.icon className="h-4 w-4" />{item.label}
             </Link>
           ))}
@@ -73,16 +156,37 @@ export default function AmbulanceLayout() {
               <DropdownMenu>
                 <DropdownMenuTrigger asChild>
                   <Button variant="ghost" size="icon" className="relative">
-                    <Bell className="h-5 w-5" />
-                    <span className="absolute -top-0.5 -right-0.5 h-4 w-4 rounded-full bg-emergency text-[10px] font-bold text-emergency-foreground flex items-center justify-center">3</span>
+                    <Bell className={`h-5 w-5 ${notifications.length > 0 ? "text-red-600 animate-pulse" : ""}`} />
+                    {notifications.length > 0 && (
+                      <span className="absolute -top-0.5 -right-0.5 h-4 w-4 rounded-full bg-emergency text-[10px] font-bold text-emergency-foreground flex items-center justify-center animate-pulse">
+                        {notifications.length}
+                      </span>
+                    )}
                   </Button>
                 </DropdownMenuTrigger>
                 <DropdownMenuContent align="end" className="w-72">
-                  <div className="px-3 py-2 font-semibold text-sm">Emergency Alerts</div>
+                  <div className="px-3 py-2 font-semibold text-sm flex justify-between items-center">
+                    <span>Emergency Alerts</span>
+                    {notifications.length > 0 && (
+                      <Button variant="ghost" size="sm" className="h-auto p-0 text-[10px] text-primary" onClick={() => setNotifications([])}>Clear all</Button>
+                    )}
+                  </div>
                   <DropdownMenuSeparator />
-                  <DropdownMenuItem className="text-emergency">🚨 Critical: Cardiac emergency nearby</DropdownMenuItem>
-                  <DropdownMenuItem>New emergency request assigned</DropdownMenuItem>
-                  <DropdownMenuItem>Shift change in 30 minutes</DropdownMenuItem>
+                  {notifications.length === 0 ? (
+                    <div className="px-3 py-4 text-center text-xs text-muted-foreground">
+                      No active emergency alerts
+                    </div>
+                  ) : (
+                    notifications.map((n) => (
+                      <DropdownMenuItem key={n.id} className="flex flex-col items-start gap-1 p-3 cursor-pointer text-emergency" onClick={() => navigate("/ambulance-dashboard/active")}>
+                        <div className="flex justify-between w-full">
+                          <span className="font-semibold text-xs">{n.title}</span>
+                          <span className="text-[10px] text-muted-foreground">{n.time}</span>
+                        </div>
+                        <p className="text-xs text-muted-foreground line-clamp-2">{n.description}</p>
+                      </DropdownMenuItem>
+                    ))
+                  )}
                 </DropdownMenuContent>
               </DropdownMenu>
               <DropdownMenu>
