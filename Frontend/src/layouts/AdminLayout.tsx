@@ -1,5 +1,5 @@
 import { useState } from "react";
-import { Link, useLocation, Outlet } from "react-router-dom";
+import { Link, useLocation, Outlet, useNavigate } from "react-router-dom";
 import {
   LayoutDashboard, Users, Stethoscope, AlertTriangle, MessageSquare,
   BarChart3, Settings, Bell, ChevronDown, Menu, X, LogOut, Shield, Heart
@@ -19,7 +19,14 @@ const adminNav = [
 export default function AdminLayout() {
   const [sidebarOpen, setSidebarOpen] = useState(false);
   const location = useLocation();
+  const navigate = useNavigate();
   const isActive = (path: string) => location.pathname === path;
+
+  const handleLogout = () => {
+    localStorage.removeItem("access_token");
+    localStorage.removeItem("user");
+    navigate("/login");
+  };
 
   return (
     <div className="min-h-screen bg-background">
@@ -50,9 +57,9 @@ export default function AdminLayout() {
         </nav>
 
         <div className="absolute bottom-0 left-0 right-0 p-4 border-t border-sidebar-border">
-          <Link to="/login" className="flex items-center gap-3 px-3 py-2.5 rounded-lg text-sm font-medium text-sidebar-foreground/70 hover:bg-sidebar-accent transition-colors">
+          <button onClick={handleLogout} className="flex w-full items-center gap-3 px-3 py-2.5 rounded-lg text-sm font-medium text-sidebar-foreground/70 hover:bg-sidebar-accent transition-colors">
             <LogOut className="h-4 w-4" />Logout
-          </Link>
+          </button>
         </div>
       </aside>
 
@@ -94,7 +101,7 @@ export default function AdminLayout() {
                 <DropdownMenuContent align="end">
                   <DropdownMenuItem><Settings className="h-4 w-4 mr-2" />Settings</DropdownMenuItem>
                   <DropdownMenuSeparator />
-                  <DropdownMenuItem asChild><Link to="/login">Logout</Link></DropdownMenuItem>
+                  <DropdownMenuItem onClick={handleLogout}>Logout</DropdownMenuItem>
                 </DropdownMenuContent>
               </DropdownMenu>
             </div>

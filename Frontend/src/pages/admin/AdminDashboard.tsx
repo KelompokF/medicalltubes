@@ -5,23 +5,54 @@ import { Badge } from "@/components/ui/badge";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
 import StatCard from "@/components/StatCard";
 import { BarChart, Bar, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer, Legend } from "recharts";
+import { useQuery } from "@tanstack/react-query";
+import { adminService } from "@/services/api";
+import { Skeleton } from "@/components/ui/skeleton";
 
 export default function AdminDashboard() {
-  const adminStats = {
+  const { data, isLoading, error } = useQuery({
+    queryKey: ["adminDashboard"],
+    queryFn: async () => {
+      const response = await adminService.getDashboard();
+      return response.data;
+    },
+  });
+
+  if (isLoading) {
+    return (
+      <div className="space-y-6">
+        <Skeleton className="h-8 w-64" />
+        <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
+          <Skeleton className="h-32 w-full" />
+          <Skeleton className="h-32 w-full" />
+          <Skeleton className="h-32 w-full" />
+          <Skeleton className="h-32 w-full" />
+        </div>
+        <Skeleton className="h-80 w-full" />
+        <Skeleton className="h-64 w-full" />
+      </div>
+    );
+  }
+
+  if (error) {
+    return <div className="text-red-500">Failed to load admin dashboard data.</div>;
+  }
+
+  const { stats, recentUsers = [], analyticsData = [] } = data || {};
+
+  const adminStats = stats || {
     totalUsers: 0,
     totalDoctors: 0,
     activeEmergencies: 0,
     totalConsultations: 0,
   };
-  const adminUsers: any[] = [];
-  const analyticsData: any[] = [];
-  
+
   return (
     <div className="space-y-6 animate-fade-in">
       <h1 className="text-2xl font-bold text-foreground">Admin Dashboard</h1>
 
       <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
-        <StatCard title="Total Users" value={adminStats.totalUsers.toLocaleString()} icon={Users} variant="primary" trend="+12% this month" />
+        <StatCard title="Total Users" value={adminStats.totalUsers.toLocaleString()} icon={Users} variant="primary" />
         <StatCard title="Total Doctors" value={adminStats.totalDoctors} icon={Stethoscope} variant="success" />
         <StatCard title="Active Emergencies" value={adminStats.activeEmergencies} icon={AlertTriangle} variant="emergency" />
         <StatCard title="Total Consultations" value={adminStats.totalConsultations.toLocaleString()} icon={MessageSquare} variant="warning" />
@@ -48,7 +79,7 @@ export default function AdminDashboard() {
 
       {/* User Table */}
       <Card className="shadow-card">
-        <CardHeader><CardTitle>User Management</CardTitle></CardHeader>
+        <CardHeader><CardTitle>Recent Users</CardTitle></CardHeader>
         <CardContent>
           <Table>
             <TableHeader>
@@ -62,11 +93,11 @@ export default function AdminDashboard() {
               </TableRow>
             </TableHeader>
             <TableBody>
-              {adminUsers.map((user) => (
+              {recentUsers.map((user: any) => (
                 <TableRow key={user.id}>
                   <TableCell className="font-medium">{user.name}</TableCell>
                   <TableCell className="text-muted-foreground">{user.email}</TableCell>
-                  <TableCell><Badge variant="outline">{user.role}</Badge></TableCell>
+                  <TableCell><Badge variant="outline" className="capitalize">{user.role}</Badge></TableCell>
                   <TableCell>
                     <Badge className={user.status === "Active" ? "bg-success/10 text-success border-success/20" : "bg-muted text-muted-foreground"}>
                       {user.status}
