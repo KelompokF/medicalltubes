@@ -60,9 +60,10 @@ export default function AmbulanceLayout() {
                 toast.error("🚨 Darurat Medis!", {
                   id: `emergency-${emergencyIdStr}`,
                   description: (
-                    <span className="!text-gray-700">
-                      Lokasi: {emergency.location_address || "Tidak diketahui"} ({emergency.distance_km} km)
-                    </span>
+                    <div className="!text-gray-700 flex flex-col gap-0.5 mt-0.5">
+                      <span className="font-semibold text-red-700">Waktu: {new Date(emergency.created_at.endsWith("Z") ? emergency.created_at : emergency.created_at + "Z").toLocaleString("id-ID", { day: "numeric", month: "long", year: "numeric", hour: "2-digit", minute: "2-digit" })}</span>
+                      <span>Lokasi: {emergency.location_address || "Tidak diketahui"} ({emergency.distance_km} km)</span>
+                    </div>
                   ),
                   className:
                     "!bg-white !text-red-600 animate-[pulse_1s_ease-in-out_infinite] !border-2 !border-red-600 shadow-[0_0_20px_rgba(220,38,38,0.8)]",
@@ -89,7 +90,7 @@ export default function AmbulanceLayout() {
             id: e.id,
             title: `🚨 Emergency: ${e.type === 'general' ? 'Umum' : e.type}`,
             description: `${e.location_address || 'Lokasi tidak diketahui'} - ${e.distance_km} km`,
-            time: new Date(e.created_at).toLocaleTimeString("id-ID", { hour: "2-digit", minute: "2-digit" }),
+            time: new Date(e.created_at.endsWith("Z") ? e.created_at : e.created_at + "Z").toLocaleString("id-ID", { day: "numeric", month: "short", hour: "2-digit", minute: "2-digit" }),
             status: e.status
           })));
         }
