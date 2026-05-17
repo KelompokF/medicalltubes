@@ -84,14 +84,14 @@ export function useAmbulanceTracking(
    * Check if the location data is stale (>5 minutes old)
    */
   const checkLocationStaleness = useCallback(() => {
-    if (!trackingData?.ambulance?.current_location) {
+    if (lastUpdateTimeRef.current === 0) {
       setIsLocationStale(false);
       return;
     }
 
     const timeSinceLastUpdate = Date.now() - lastUpdateTimeRef.current;
     setIsLocationStale(timeSinceLastUpdate > STALE_LOCATION_THRESHOLD);
-  }, [trackingData]);
+  }, []);
 
   // ============================================
   // WEBSOCKET CONNECTION MANAGEMENT
