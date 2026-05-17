@@ -1,5 +1,5 @@
 from contextlib import asynccontextmanager
-from fastapi import FastAPI
+from fastapi import FastAPI, WebSocket, WebSocketDisconnect, Depends, HTTPException, status
 from fastapi.middleware.cors import CORSMiddleware
 from app.routers import auth, health_record, user, emergency
 from app.routers.patient import router as patient_router
@@ -10,7 +10,12 @@ from app.routers.doctor import router as doctor_router
 from app.routers.doctor_patients import router as doctor_patients_router
 from app.routers.doctor_schedule import router as doctor_schedule_router
 from app.Websocket.chat import router as websocket_router
-from app.database import engine, Base
+from app.Websocket.tracking_manager import tracking_manager
+from app.database import engine, Base, get_db
+from app.auth import get_current_user
+from sqlalchemy.ext.asyncio import AsyncSession
+from app.models.emergency_request import EmergencyRequest
+from sqlalchemy import select
 # Ensure models are loaded for create_all
 import app.models.doctor_profile  # noqa: F401
 import app.models.doctor_schedule  # noqa: F401
@@ -77,6 +82,126 @@ app.include_router(doctor_schedule_router)  # must be BEFORE doctor_router (spec
 app.include_router(doctor_patients_router)
 app.include_router(doctor_router)
 
+
+
+@app.websocket("/ws/tracking/{emergency_request_id}")
+async def websocket_tracking_endpoint(
+    websocket: WebSocket,
+    emergency_request_id: int,
+    token: str = None
+):
+    """
+    WebSocket endpoint for real-time ambulance tracking.
+    
+    Args:
+        websocket: WebSocket connection
+        emergency_request_id: ID of the emergency request to track
+        token: Authentication token (passed as query parameter)
+    """
+    # Accept the WebSocket connection first
+    await websocket.accept()
+    
+    try:
+        # Authenticate user
+        if not token:
+            await websocket.send_json({
+                "type": "error",
+                "message": "Authentication token required"
+            })
+            await websocket.close(code=1008)  # Policy violation
+            return
+        
+        # Get database session
+        async for db in get_db():
+            try:
+                # Verify token and get user
+                from app.auth import verify_token
+                payload = verify_token(token)
+                if not payload:
+                    await websocket.send_json({
+                        "type": "error",
+                        "message": "Invalid or expired token"
+                    })
+                    await websocket.close(code=1008)
+                    return
+                
+                user_id = payload.get("user_id")
+                if not user_id:
+                    await websocket.send_json({
+                        "type": "error",
+                        "message": "Invalid token payload"
+                    })
+                    await websocket.close(code=1008)
+                    return
+                
+                # Verify user has access to this emergency request
+                result = await db.execute(
+                    select(EmergencyRequest).where(
+                        EmergencyRequest.id == emergency_request_id
+                    )
+                )
+                emergency = result.scalar_one_or_none()
+                
+                if not emergency:
+                    await websocket.send_json({
+                        "type": "error",
+                        "message": "Emergency request not found"
+                    })
+                    await websocket.close(code=1008)
+                    return
+                
+                # Check if user is the requester or assigned ambulance driver
+                if emergency.user_id != user_id and emergency.ambulance_driver_id != user_id:
+                    await websocket.send_json({
+                        "type": "error",
+                        "message": "Access denied to this emergency request"
+                    })
+                    await websocket.close(code=1008)
+                    return
+                
+                # Connect to tracking room
+                await tracking_manager.connect(emergency_request_id, websocket)
+                
+                # Send initial connection success message
+                await websocket.send_json({
+                    "type": "connected",
+                    "message": "Connected to tracking room",
+                    "emergency_request_id": emergency_request_id
+                })
+                
+                # Keep connection alive and handle incoming messages
+                try:
+                    while True:
+                        # Receive messages from client (e.g., ping/pong for keep-alive)
+                        data = await websocket.receive_json()
+                        
+                        # Handle ping messages
+                        if data.get("type") == "ping":
+                            await websocket.send_json({"type": "pong"})
+                        
+                except WebSocketDisconnect:
+                    # Client disconnected normally
+                    pass
+                
+            finally:
+                # Always disconnect from tracking room
+                tracking_manager.disconnect(emergency_request_id, websocket)
+                break
+    
+    except Exception as e:
+        # Handle any unexpected errors
+        try:
+            await websocket.send_json({
+                "type": "error",
+                "message": f"Server error: {str(e)}"
+            })
+        except:
+            pass
+        finally:
+            try:
+                await websocket.close(code=1011)  # Internal error
+            except:
+                pass
 
 
 @app.get("/", tags=["Root"])
