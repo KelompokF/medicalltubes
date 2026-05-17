@@ -5,9 +5,10 @@ Provides REST API endpoints for ambulance GPS tracking and route information.
 Integrates with OSRM routing service and WebSocket tracking manager.
 """
 
+import asyncio
 import logging
 import uuid
-from datetime import datetime
+from datetime import datetime, timezone
 from typing import Optional
 
 from fastapi import APIRouter, HTTPException, Depends, Body
@@ -213,6 +214,13 @@ async def update_ambulance_location(
             detail=f"Tidak dapat mengupdate lokasi untuk emergency dengan status: {emergency_request.status}"
         )
     
+    # Validate patient location coordinates are not null
+    if emergency_request.location_lat is None or emergency_request.location_lng is None:
+        raise HTTPException(
+            status_code=400,
+            detail="Lokasi pasien tidak valid (koordinat tidak tersedia)"
+        )
+    
     # Store location update in database
     location_update = AmbulanceLocationUpdate(
         ambulance_service_id=ambulance.id,
@@ -222,7 +230,7 @@ async def update_ambulance_location(
         accuracy=location_data.accuracy,
         speed=location_data.speed,
         heading=location_data.heading,
-        timestamp=datetime.utcnow()
+        timestamp=datetime.now(timezone.utc)
     )
     db.add(location_update)
     await db.commit()
@@ -236,17 +244,27 @@ async def update_ambulance_location(
     # Calculate route and ETA using routing service
     try:
         async with routing_service as rs:
-            route_data = await rs.calculate_route(
-                origin_lat=location_data.lat,
-                origin_lng=location_data.lng,
-                dest_lat=emergency_request.location_lat,
-                dest_lng=emergency_request.location_lng
+            # Add timeout to prevent hanging on routing service calls
+            route_data = await asyncio.wait_for(
+                rs.calculate_route(
+                    origin_lat=location_data.lat,
+                    origin_lng=location_data.lng,
+                    dest_lat=emergency_request.location_lat,
+                    dest_lng=emergency_request.location_lng
+                ),
+                timeout=10.0  # 10 second timeout
             )
             
             eta_data = rs.calculate_eta(
                 distance_km=route_data["distance_km"],
                 current_speed_kmh=location_data.speed
             )
+    except asyncio.TimeoutError:
+        logger.error("Timeout calculating route")
+        raise HTTPException(
+            status_code=504,
+            detail="Timeout menghitung rute - layanan routing tidak merespons"
+        )
     except Exception as e:
         logger.error(f"Error calculating route: {e}")
         raise HTTPException(
@@ -377,8 +395,24 @@ async def get_tracking_data(
             latest_location = result.scalar_one_or_none()
             
             if latest_location:
-                # Build ambulance info with current location
-                ambulance_info = AmbulanceInfo(
+                # Validate patient location coordinates before calculating route
+                if emergency_request.location_lat is None or emergency_request.location_lng is None:
+                    logger.warning(f"Emergency {emergency_request.id} has null location coordinates")
+                    # Build ambulance info without route calculation
+                    ambulance_info = AmbulanceInfo(
+                        id=str(ambulance_service.id),
+                        name=ambulance_service.name,
+                        phone=ambulance_service.phone,
+                        vehicle_type=ambulance_service.vehicle_type,
+                        current_lat=latest_location.lat,
+                        current_lng=latest_location.lng,
+                        speed=latest_location.speed,
+                        heading=latest_location.heading,
+                        last_update=latest_location.timestamp
+                    )
+                else:
+                    # Build ambulance info with current location
+                    ambulance_info = AmbulanceInfo(
                     id=str(ambulance_service.id),
                     name=ambulance_service.name,
                     phone=ambulance_service.phone,
@@ -388,33 +422,40 @@ async def get_tracking_data(
                     speed=latest_location.speed,
                     heading=latest_location.heading,
                     last_update=latest_location.timestamp
-                )
-                
-                # Calculate current route and ETA
-                try:
-                    async with routing_service as rs:
-                        route_data = await rs.calculate_route(
-                            origin_lat=latest_location.lat,
-                            origin_lng=latest_location.lng,
-                            dest_lat=emergency_request.location_lat,
-                            dest_lng=emergency_request.location_lng
-                        )
-                        
-                        eta_data = rs.calculate_eta(
-                            distance_km=route_data["distance_km"],
-                            current_speed_kmh=latest_location.speed
-                        )
-                        
-                        route_info = RouteInfo(
-                            distance_km=round(route_data["distance_km"], 2),
-                            duration_minutes=round(route_data["duration_minutes"], 1),
-                            coordinates=route_data["coordinates"],
-                            eta_minutes=eta_data["minutes_remaining"],
-                            estimated_arrival=eta_data["estimated_arrival"]
-                        )
-                except Exception as e:
-                    logger.error(f"Error calculating route for tracking data: {e}")
-                    # Continue without route info if calculation fails
+                    )
+                    
+                    # Calculate current route and ETA
+                    try:
+                        async with routing_service as rs:
+                            # Add timeout to prevent hanging on routing service calls
+                            route_data = await asyncio.wait_for(
+                                rs.calculate_route(
+                                    origin_lat=latest_location.lat,
+                                    origin_lng=latest_location.lng,
+                                    dest_lat=emergency_request.location_lat,
+                                    dest_lng=emergency_request.location_lng
+                                ),
+                                timeout=10.0  # 10 second timeout
+                            )
+                            
+                            eta_data = rs.calculate_eta(
+                                distance_km=route_data["distance_km"],
+                                current_speed_kmh=latest_location.speed
+                            )
+                            
+                            route_info = RouteInfo(
+                                distance_km=round(route_data["distance_km"], 2),
+                                duration_minutes=round(route_data["duration_minutes"], 1),
+                                coordinates=route_data["coordinates"],
+                                eta_minutes=eta_data["minutes_remaining"],
+                                estimated_arrival=eta_data["estimated_arrival"]
+                            )
+                    except asyncio.TimeoutError:
+                        logger.error("Timeout calculating route for tracking data")
+                        # Continue without route info if calculation times out
+                    except Exception as e:
+                        logger.error(f"Error calculating route for tracking data: {e}")
+                        # Continue without route info if calculation fails
             else:
                 # No location updates yet, use ambulance base location
                 ambulance_info = AmbulanceInfo(
@@ -435,5 +476,5 @@ async def get_tracking_data(
         patient_location=patient_location,
         ambulance=ambulance_info,
         route=route_info,
-        last_updated=datetime.utcnow()
+        last_updated=datetime.now(timezone.utc)
     )
