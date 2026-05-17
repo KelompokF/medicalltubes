@@ -7,7 +7,7 @@ with fallback to Haversine formula for straight-line distance.
 
 import logging
 import math
-from datetime import datetime, timedelta
+from datetime import datetime, timedelta, timezone
 from typing import Dict, List, Optional, Tuple
 
 import httpx
@@ -23,6 +23,44 @@ class RoutingService:
         self.osrm_base_url = "https://router.project-osrm.org"
         self.timeout = 5.0
         self.default_speed_kmh = 40.0  # Average speed for fallback calculations
+        self.client = None
+    
+    async def __aenter__(self):
+        """Async context manager entry."""
+        self.client = httpx.AsyncClient(timeout=self.timeout)
+        return self
+    
+    async def __aexit__(self, exc_type, exc_val, exc_tb):
+        """Async context manager exit."""
+        if self.client:
+            await self.client.aclose()
+    
+    def _validate_coordinates(
+        self,
+        origin_lat: float,
+        origin_lng: float,
+        dest_lat: float,
+        dest_lng: float
+    ) -> None:
+        """Validate coordinate ranges.
+        
+        Args:
+            origin_lat: Origin latitude
+            origin_lng: Origin longitude
+            dest_lat: Destination latitude
+            dest_lng: Destination longitude
+            
+        Raises:
+            ValueError: If coordinates are out of valid range
+        """
+        if not -90 <= origin_lat <= 90:
+            raise ValueError(f"Origin latitude {origin_lat} out of range [-90, 90]")
+        if not -180 <= origin_lng <= 180:
+            raise ValueError(f"Origin longitude {origin_lng} out of range [-180, 180]")
+        if not -90 <= dest_lat <= 90:
+            raise ValueError(f"Destination latitude {dest_lat} out of range [-90, 90]")
+        if not -180 <= dest_lng <= 180:
+            raise ValueError(f"Destination longitude {dest_lng} out of range [-180, 180]")
     
     async def calculate_route(
         self,
@@ -46,9 +84,13 @@ class RoutingService:
                 - duration_minutes: Estimated duration in minutes
                 - coordinates: List of [lng, lat] coordinate pairs (if available)
         """
+        # Validate coordinates
+        self._validate_coordinates(origin_lat, origin_lng, dest_lat, dest_lng)
+        
         try:
             # Try OSRM API first
-            async with httpx.AsyncClient(timeout=self.timeout) as client:
+            if not self.client:
+                self.client = httpx.AsyncClient(timeout=self.timeout)
                 # OSRM route endpoint format: /route/v1/{profile}/{coordinates}
                 # Coordinates format: lng,lat;lng,lat
                 url = (
@@ -61,7 +103,7 @@ class RoutingService:
                 }
                 
                 logger.info(f"Requesting route from OSRM: {url}")
-                response = await client.get(url, params=params)
+                response = await self.client.get(url, params=params)
                 response.raise_for_status()
                 
                 data = response.json()
@@ -156,7 +198,7 @@ class RoutingService:
             "coordinates": [[lng1, lat1], [lng2, lat2]]
         }
     
-    async def calculate_eta(
+    def calculate_eta(
         self,
         distance_km: float,
         current_speed_kmh: Optional[float] = None
@@ -180,7 +222,7 @@ class RoutingService:
         minutes_remaining = (distance_km / speed) * 60
         
         # Calculate estimated arrival time
-        estimated_arrival = datetime.utcnow() + timedelta(minutes=minutes_remaining)
+        estimated_arrival = datetime.now(timezone.utc) + timedelta(minutes=minutes_remaining)
         
         logger.debug(
             f"ETA calculated: {minutes_remaining:.1f} minutes "
