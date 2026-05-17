@@ -80,7 +80,7 @@ class TrackingService {
    */
   async getTrackingData(emergencyRequestId: string): Promise<TrackingData> {
     const response = await api.get<TrackingData>(
-      `/tracking/${emergencyRequestId}`
+      `/api/tracking/emergencies/${emergencyRequestId}`
     );
     return response.data;
   }
