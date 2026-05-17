@@ -96,8 +96,8 @@ class TrackingService {
       timestamp: data.timestamp || new Date().toISOString(),
     };
     
-    const response = await api.post<LocationUpdateResponse>(
-      `/tracking/${data.emergency_request_id}/location`,
+    const response = await api.patch<LocationUpdateResponse>(
+      `/tracking/ambulances/location`,
       payload
     );
     return response.data;
