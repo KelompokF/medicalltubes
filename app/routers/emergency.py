@@ -425,8 +425,8 @@ async def get_my_active_emergency_requests(
         "requests": [{
             "id": str(record.id),
             "status": record.status,
-            "message": record.message or "Permintaan darurat aktif",
-            "address": record.address,
+            "message": record.notes or "Permintaan darurat aktif",
+            "address": record.location_address,
             "ambulance_service": {
                 "id": str(ambulance_service.id),
                 "name": ambulance_service.name,
