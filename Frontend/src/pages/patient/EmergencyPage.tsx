@@ -113,6 +113,37 @@ export default function EmergencyPage() {
     queryFn: () => patientService.getLocationSharing().then((r) => r.data),
   });
   const isLocationSharingEnabled = locationSetting?.location_sharing_enabled ?? null;
+
+  // Fetch active emergency requests
+  const { data: activeEmergencies } = useQuery({
+    queryKey: ["activeEmergencies"],
+    queryFn: () => emergencyService.getActiveEmergencies().then((r) => r.data),
+    refetchInterval: 5000, // Refetch every 5 seconds to keep status updated
+  });
+
+  // Update emergencyStatus when active emergencies are fetched
+  useEffect(() => {
+    if (activeEmergencies?.emergencies && activeEmergencies.emergencies.length > 0) {
+      const activeRequest = activeEmergencies.emergencies[0]; // Get the first active request
+      setEmergencyStatus({
+        id: activeRequest.id,
+        status: activeRequest.status,
+        message: activeRequest.message || "Permintaan darurat aktif",
+        address: activeRequest.address,
+        ambulance: activeRequest.ambulance_service ? {
+          id: activeRequest.ambulance_service.id,
+          name: activeRequest.ambulance_service.name,
+          address: activeRequest.ambulance_service.address,
+          lat: activeRequest.ambulance_service.lat,
+          lng: activeRequest.ambulance_service.lng,
+          distance_km: activeRequest.ambulance_service.distance_km || 0,
+          distance_text: activeRequest.ambulance_service.distance_text || "",
+          eta_minutes: activeRequest.ambulance_service.eta_minutes || 0,
+          eta_text: activeRequest.ambulance_service.eta_text || "",
+        } : undefined,
+      });
+    }
+  }, [activeEmergencies]);
   const locationRequestId = useRef(0);
   const ambulanceRequestId = useRef(0);
   const radiusKmRef = useRef(radiusKm);
