@@ -12,7 +12,7 @@ from app.routers.doctor_schedule import router as doctor_schedule_router
 from app.Websocket.chat import router as websocket_router
 from app.Websocket.tracking_manager import tracking_manager
 from app.database import engine, Base, get_db
-from app.auth import get_current_user
+from app.routers.auth import get_current_user
 from sqlalchemy.ext.asyncio import AsyncSession
 from app.models.emergency_request import EmergencyRequest
 from sqlalchemy import select
@@ -116,7 +116,7 @@ async def websocket_tracking_endpoint(
         async for db in get_db():
             try:
                 # Verify token and get user
-                from app.auth import verify_token
+                from app.routers.auth import verify_token
                 payload = verify_token(token)
                 if not payload:
                     await websocket.send_json({
