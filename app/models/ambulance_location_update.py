@@ -14,7 +14,7 @@ class AmbulanceLocationUpdate(Base):
     """
     __tablename__ = "ambulance_location_updates"
 
-    id = Column(GUID(), primary_key=True, default=uuid.uuid4)
+    id = Column(GUID(), primary_key=True, default=lambda: uuid.uuid4())
     ambulance_service_id = Column(
         GUID(),
         ForeignKey("ambulance_services.id", ondelete="CASCADE"),
@@ -32,5 +32,5 @@ class AmbulanceLocationUpdate(Base):
     accuracy = Column(Float, nullable=True)
     speed = Column(Float, nullable=True)
     heading = Column(Float, nullable=True)
-    timestamp = Column(DateTime, default=datetime.utcnow, nullable=False, index=True)
-    created_at = Column(DateTime, default=datetime.utcnow, nullable=False)
+    timestamp = Column(DateTime, default=lambda: datetime.utcnow(), nullable=False, index=True)
+    created_at = Column(DateTime, default=lambda: datetime.utcnow(), nullable=False)
