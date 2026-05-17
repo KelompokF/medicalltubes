@@ -126,7 +126,7 @@ async def websocket_tracking_endpoint(
                     await websocket.close(code=1008)
                     return
                 
-                user_id = payload.get("user_id")
+                user_id = payload.get("sub")
                 if not user_id:
                     await websocket.send_json({
                         "type": "error",
