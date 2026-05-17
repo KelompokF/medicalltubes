@@ -78,7 +78,7 @@ const App = () => (
             <Route path="/home-visit-history" element={<HomeVisitHistoryPage />} />
             <Route path="/tracking" element={<HomeVisitTrackingPage />} />
             <Route path="/emergency" element={<EmergencyPage />} />
-            <Route path="/ambulance-tracking/:id" element={<AmbulanceTrackingPage />} />
+            <Route path="/ambulance-tracking/:requestId" element={<AmbulanceTrackingPage />} />
             <Route path="/profile" element={<UserProfilePage />} />
           </Route>
 
