@@ -91,44 +91,45 @@ class RoutingService:
             # Try OSRM API first
             if not self.client:
                 self.client = httpx.AsyncClient(timeout=self.timeout)
-                # OSRM route endpoint format: /route/v1/{profile}/{coordinates}
-                # Coordinates format: lng,lat;lng,lat
-                url = (
-                    f"{self.osrm_base_url}/route/v1/driving/"
-                    f"{origin_lng},{origin_lat};{dest_lng},{dest_lat}"
+            
+            # OSRM route endpoint format: /route/v1/{profile}/{coordinates}
+            # Coordinates format: lng,lat;lng,lat
+            url = (
+                f"{self.osrm_base_url}/route/v1/driving/"
+                f"{origin_lng},{origin_lat};{dest_lng},{dest_lat}"
+            )
+            params = {
+                "overview": "full",  # Get full route geometry
+                "geometries": "geojson"  # Return coordinates as GeoJSON
+            }
+            
+            logger.info(f"Requesting route from OSRM: {url}")
+            response = await self.client.get(url, params=params)
+            response.raise_for_status()
+            
+            data = response.json()
+            
+            if data.get("code") != "Ok" or not data.get("routes"):
+                logger.warning(f"OSRM returned no routes: {data.get('code')}")
+                return self._calculate_straight_line(
+                    origin_lat, origin_lng, dest_lat, dest_lng
                 )
-                params = {
-                    "overview": "full",  # Get full route geometry
-                    "geometries": "geojson"  # Return coordinates as GeoJSON
-                }
-                
-                logger.info(f"Requesting route from OSRM: {url}")
-                response = await self.client.get(url, params=params)
-                response.raise_for_status()
-                
-                data = response.json()
-                
-                if data.get("code") != "Ok" or not data.get("routes"):
-                    logger.warning(f"OSRM returned no routes: {data.get('code')}")
-                    return self._calculate_straight_line(
-                        origin_lat, origin_lng, dest_lat, dest_lng
-                    )
-                
-                route = data["routes"][0]
-                distance_m = route["distance"]
-                duration_s = route["duration"]
-                coordinates = route["geometry"]["coordinates"]
-                
-                logger.info(
-                    f"OSRM route calculated: {distance_m/1000:.2f} km, "
-                    f"{duration_s/60:.1f} minutes"
-                )
-                
-                return {
-                    "distance_km": distance_m / 1000,
-                    "duration_minutes": duration_s / 60,
-                    "coordinates": coordinates
-                }
+            
+            route = data["routes"][0]
+            distance_m = route["distance"]
+            duration_s = route["duration"]
+            coordinates = route["geometry"]["coordinates"]
+            
+            logger.info(
+                f"OSRM route calculated: {distance_m/1000:.2f} km, "
+                f"{duration_s/60:.1f} minutes"
+            )
+            
+            return {
+                "distance_km": distance_m / 1000,
+                "duration_minutes": duration_s / 60,
+                "coordinates": coordinates
+            }
                 
         except httpx.TimeoutException:
             logger.warning("OSRM request timed out, using fallback calculation")
