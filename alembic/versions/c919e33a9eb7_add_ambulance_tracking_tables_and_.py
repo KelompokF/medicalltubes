@@ -26,8 +26,8 @@ def upgrade() -> None:
         sa.Column('id', sa.UUID(), nullable=False),
         sa.Column('ambulance_service_id', sa.UUID(), nullable=False),
         sa.Column('emergency_request_id', sa.UUID(), nullable=False),
-        sa.Column('lat', sa.Float(), nullable=False),
-        sa.Column('lng', sa.Float(), nullable=False),
+        sa.Column('lat', sa.Float(precision=53), nullable=False),
+        sa.Column('lng', sa.Float(precision=53), nullable=False),
         sa.Column('accuracy', sa.Float(), nullable=True),
         sa.Column('speed', sa.Float(), nullable=True),
         sa.Column('heading', sa.Float(), nullable=True),
@@ -42,15 +42,16 @@ def upgrade() -> None:
     op.create_index('idx_emergency_request', 'ambulance_location_updates', ['emergency_request_id'])
     op.create_index('idx_ambulance_service', 'ambulance_location_updates', ['ambulance_service_id'])
     op.create_index('idx_timestamp', 'ambulance_location_updates', ['timestamp'])
+    op.create_index('idx_emergency_request_timestamp', 'ambulance_location_updates', ['emergency_request_id', 'timestamp'])
     
     # Add is_sharing_location column to ambulance_services
-    op.add_column('ambulance_services', sa.Column('is_sharing_location', sa.Boolean(), nullable=False, server_default='0'))
+    op.add_column('ambulance_services', sa.Column('is_sharing_location', sa.Boolean(), nullable=False, server_default=sa.text('false')))
     
     # Add tracking metadata columns to emergency_requests
     op.add_column('emergency_requests', sa.Column('tracking_started_at', sa.DateTime(), nullable=True))
     op.add_column('emergency_requests', sa.Column('tracking_stopped_at', sa.DateTime(), nullable=True))
-    op.add_column('emergency_requests', sa.Column('last_ambulance_location_lat', sa.Float(), nullable=True))
-    op.add_column('emergency_requests', sa.Column('last_ambulance_location_lng', sa.Float(), nullable=True))
+    op.add_column('emergency_requests', sa.Column('last_ambulance_location_lat', sa.Float(precision=53), nullable=True))
+    op.add_column('emergency_requests', sa.Column('last_ambulance_location_lng', sa.Float(precision=53), nullable=True))
     op.add_column('emergency_requests', sa.Column('last_ambulance_location_updated_at', sa.DateTime(), nullable=True))
 
 
@@ -67,6 +68,7 @@ def downgrade() -> None:
     op.drop_column('ambulance_services', 'is_sharing_location')
     
     # Drop indexes for ambulance_location_updates
+    op.drop_index('idx_emergency_request_timestamp', table_name='ambulance_location_updates')
     op.drop_index('idx_timestamp', table_name='ambulance_location_updates')
     op.drop_index('idx_ambulance_service', table_name='ambulance_location_updates')
     op.drop_index('idx_emergency_request', table_name='ambulance_location_updates')
