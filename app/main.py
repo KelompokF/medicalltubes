@@ -1,4 +1,5 @@
 from contextlib import asynccontextmanager
+from uuid import UUID
 from fastapi import FastAPI, WebSocket, WebSocketDisconnect, Depends, HTTPException, status
 from fastapi.middleware.cors import CORSMiddleware
 from app.routers import auth, health_record, user, emergency, tracking
@@ -126,7 +127,7 @@ async def websocket_tracking_endpoint(
                     await websocket.close(code=1008)
                     return
                 
-                user_id = payload.get("sub")
+                user_id = UUID(payload.get("sub"))
                 if not user_id:
                     await websocket.send_json({
                         "type": "error",
