@@ -20,6 +20,11 @@ class TrackingConnectionManager:
         """
         self.tracking_rooms: Dict[str, List[WebSocket]] = {}
 
+    def _validate_emergency_request_id(self, emergency_request_id: str) -> None:
+        """Validate emergency_request_id is not None or empty."""
+        if not emergency_request_id or not isinstance(emergency_request_id, str):
+            raise ValueError("emergency_request_id must be a non-empty string")
+
     async def connect_to_tracking(self, emergency_request_id: str, websocket: WebSocket):
         """
         Add a client to a tracking room.
@@ -28,27 +33,29 @@ class TrackingConnectionManager:
             emergency_request_id: The emergency request ID to track
             websocket: The WebSocket connection to add
         """
+        self._validate_emergency_request_id(emergency_request_id)
         await websocket.accept()
         
         if emergency_request_id not in self.tracking_rooms:
             self.tracking_rooms[emergency_request_id] = []
             logger.info(f"Created new tracking room for emergency request {emergency_request_id}")
         
-        self.tracking_rooms[emergency_request_id].append(websocket)
-        logger.info(
-            f"Client connected to tracking room {emergency_request_id}. "
-            f"Total clients in room: {len(self.tracking_rooms[emergency_request_id])}"
-        )
-        
-        # Send initial connection confirmation
+        # Send initial connection confirmation before adding to room
         try:
             await websocket.send_json({
                 "type": "connection_established",
                 "emergency_request_id": emergency_request_id,
                 "message": "Connected to tracking room"
             })
+            # Only add to room if confirmation was successful
+            self.tracking_rooms[emergency_request_id].append(websocket)
+            logger.info(
+                f"Client connected to tracking room {emergency_request_id}. "
+                f"Total clients in room: {len(self.tracking_rooms[emergency_request_id])}"
+            )
         except Exception as e:
             logger.error(f"Failed to send connection confirmation: {e}")
+            # Don't add the connection to the room if confirmation failed
 
     async def disconnect_from_tracking(self, emergency_request_id: str, websocket: WebSocket):
         """
@@ -58,6 +65,7 @@ class TrackingConnectionManager:
             emergency_request_id: The emergency request ID
             websocket: The WebSocket connection to remove
         """
+        self._validate_emergency_request_id(emergency_request_id)
         if emergency_request_id in self.tracking_rooms:
             if websocket in self.tracking_rooms[emergency_request_id]:
                 self.tracking_rooms[emergency_request_id].remove(websocket)
@@ -71,22 +79,23 @@ class TrackingConnectionManager:
                 del self.tracking_rooms[emergency_request_id]
                 logger.info(f"Tracking room {emergency_request_id} cleaned up (no clients remaining)")
 
-    async def broadcast_location_update(self, emergency_request_id: str, location_data: dict):
+    async def _broadcast_to_room(self, emergency_request_id: str, message_type: str, data: dict):
         """
-        Broadcast ambulance location update to all clients in a tracking room.
+        Private method to broadcast a message to all clients in a tracking room.
         
         Args:
             emergency_request_id: The emergency request ID
-            location_data: Dictionary containing location information (latitude, longitude, timestamp, etc.)
+            message_type: Type of message (e.g., 'location_update', 'status_change')
+            data: Data to broadcast
         """
         if emergency_request_id not in self.tracking_rooms:
             logger.warning(f"No tracking room found for emergency request {emergency_request_id}")
             return
         
         message = {
-            "type": "location_update",
+            "type": message_type,
             "emergency_request_id": emergency_request_id,
-            "data": location_data
+            "data": data
         }
         
         disconnected_clients = []
@@ -96,7 +105,7 @@ class TrackingConnectionManager:
                 await websocket.send_json(message)
             except Exception as e:
                 logger.error(
-                    f"Failed to send location update to client in room {emergency_request_id}: {e}"
+                    f"Failed to send {message_type} to client in room {emergency_request_id}: {e}"
                 )
                 disconnected_clients.append(websocket)
         
@@ -108,6 +117,17 @@ class TrackingConnectionManager:
             logger.info(
                 f"Removed {len(disconnected_clients)} disconnected clients from room {emergency_request_id}"
             )
+
+    async def broadcast_location_update(self, emergency_request_id: str, location_data: dict):
+        """
+        Broadcast ambulance location update to all clients in a tracking room.
+        
+        Args:
+            emergency_request_id: The emergency request ID
+            location_data: Dictionary containing location information (latitude, longitude, timestamp, etc.)
+        """
+        self._validate_emergency_request_id(emergency_request_id)
+        await self._broadcast_to_room(emergency_request_id, "location_update", location_data)
 
     async def broadcast_status_change(self, emergency_request_id: str, status_data: dict):
         """
@@ -117,35 +137,8 @@ class TrackingConnectionManager:
             emergency_request_id: The emergency request ID
             status_data: Dictionary containing status information (status, timestamp, etc.)
         """
-        if emergency_request_id not in self.tracking_rooms:
-            logger.warning(f"No tracking room found for emergency request {emergency_request_id}")
-            return
-        
-        message = {
-            "type": "status_change",
-            "emergency_request_id": emergency_request_id,
-            "data": status_data
-        }
-        
-        disconnected_clients = []
-        
-        for websocket in self.tracking_rooms[emergency_request_id]:
-            try:
-                await websocket.send_json(message)
-            except Exception as e:
-                logger.error(
-                    f"Failed to send status change to client in room {emergency_request_id}: {e}"
-                )
-                disconnected_clients.append(websocket)
-        
-        # Clean up disconnected clients
-        for websocket in disconnected_clients:
-            await self.disconnect_from_tracking(emergency_request_id, websocket)
-        
-        if disconnected_clients:
-            logger.info(
-                f"Removed {len(disconnected_clients)} disconnected clients from room {emergency_request_id}"
-            )
+        self._validate_emergency_request_id(emergency_request_id)
+        await self._broadcast_to_room(emergency_request_id, "status_change", status_data)
 
     async def send_tracking_stopped(self, emergency_request_id: str, reason: str):
         """
@@ -155,6 +148,7 @@ class TrackingConnectionManager:
             emergency_request_id: The emergency request ID
             reason: Reason why tracking was stopped
         """
+        self._validate_emergency_request_id(emergency_request_id)
         if emergency_request_id not in self.tracking_rooms:
             logger.warning(f"No tracking room found for emergency request {emergency_request_id}")
             return
@@ -165,7 +159,7 @@ class TrackingConnectionManager:
             "reason": reason
         }
         
-        # Send message to all clients
+        # Send message to all clients and close connections
         for websocket in self.tracking_rooms[emergency_request_id][:]:  # Create a copy of the list
             try:
                 await websocket.send_json(message)
@@ -174,6 +168,12 @@ class TrackingConnectionManager:
                 logger.error(
                     f"Failed to send tracking stopped message to client in room {emergency_request_id}: {e}"
                 )
+            
+            # Close the WebSocket connection
+            try:
+                await websocket.close()
+            except Exception as e:
+                logger.error(f"Failed to close WebSocket connection: {e}")
         
         # Clean up the entire room
         del self.tracking_rooms[emergency_request_id]
@@ -189,6 +189,7 @@ class TrackingConnectionManager:
         Returns:
             Number of connected clients (0 if room doesn't exist)
         """
+        self._validate_emergency_request_id(emergency_request_id)
         if emergency_request_id in self.tracking_rooms:
             return len(self.tracking_rooms[emergency_request_id])
         return 0
