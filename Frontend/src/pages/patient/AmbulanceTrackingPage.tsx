@@ -1,6 +1,6 @@
 import { useParams, useNavigate } from "react-router-dom";
-import { useAmbulanceTracking } from "../hooks/useAmbulanceTracking";
-import TrackingMap from "../components/tracking/TrackingMap";
+import { useAmbulanceTracking } from "@/hooks/useAmbulanceTracking";
+import TrackingMap from "@/components/tracking/TrackingMap";
 
 /**
  * AmbulanceTrackingPage Component
@@ -244,12 +244,12 @@ const AmbulanceTrackingPage = () => {
         <div className="h-[65vh] lg:h-auto lg:flex-[7]">
           <TrackingMap
             patientLocation={{
-              latitude: trackingData.patient.location.lat,
-              longitude: trackingData.patient.location.lng,
+              latitude: trackingData.patient_location.lat,
+              longitude: trackingData.patient_location.lng,
             }}
             ambulanceLocation={{
-              latitude: trackingData.ambulance?.current_location.lat || trackingData.patient.location.lat,
-              longitude: trackingData.ambulance?.current_location.lng || trackingData.patient.location.lng,
+              latitude: trackingData.ambulance?.current_lat || trackingData.patient_location.lat,
+              longitude: trackingData.ambulance?.current_lng || trackingData.patient_location.lng,
             }}
             className="h-full"
           />
