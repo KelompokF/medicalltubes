@@ -123,8 +123,8 @@ export default function EmergencyPage() {
 
   // Update emergencyStatus when active emergencies are fetched
   useEffect(() => {
-    if (activeEmergencies?.emergencies && activeEmergencies.emergencies.length > 0) {
-      const activeRequest = activeEmergencies.emergencies[0]; // Get the first active request
+    if (activeEmergencies?.requests && activeEmergencies.requests.length > 0) {
+      const activeRequest = activeEmergencies.requests[0]; // Get the first active request
       setEmergencyStatus({
         id: activeRequest.id,
         status: activeRequest.status,
