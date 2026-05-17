@@ -380,6 +380,67 @@ async def request_emergency(
         ambulance_assigned=nearest_response,
     )
 
+@router.get("/my-active-requests")
+async def get_my_active_emergency_requests(
+    db: AsyncSession = Depends(get_db),
+    current_user: User = Depends(get_current_user),
+):
+    """Get active emergency requests for the current patient."""
+    # Fetch active emergency requests for the current user
+    result = await db.execute(
+        select(EmergencyRequestRecord, AmbulanceService)
+        .outerjoin(AmbulanceService, EmergencyRequestRecord.ambulance_service_id == AmbulanceService.id)
+        .where(
+            EmergencyRequestRecord.user_id == current_user.id,
+            EmergencyRequestRecord.status.in_(ACTIVE_REQUEST_STATUSES),
+        )
+        .order_by(EmergencyRequestRecord.created_at.desc())
+    )
+    records = result.all()
+    
+    if not records:
+        return {"requests": []}
+    
+    # Get the most recent active request
+    record, ambulance_service = records[0]
+    
+    # Calculate distance and ETA if ambulance is assigned
+    distance_km = None
+    distance_text = None
+    eta_minutes = None
+    eta_text = None
+    
+    if ambulance_service:
+        distance_km = haversine(
+            ambulance_service.lat,
+            ambulance_service.lng,
+            record.location_lat,
+            record.location_lng,
+        )
+        distance_text = f"{distance_km:.1f} km"
+        eta_minutes = int(distance_km / 0.5)  # Assuming 30 km/h average speed
+        eta_text = f"{eta_minutes} menit"
+    
+    return {
+        "requests": [{
+            "id": str(record.id),
+            "status": record.status,
+            "message": record.message or "Permintaan darurat aktif",
+            "address": record.address,
+            "ambulance_service": {
+                "id": str(ambulance_service.id),
+                "name": ambulance_service.name,
+                "address": ambulance_service.address,
+                "lat": ambulance_service.lat,
+                "lng": ambulance_service.lng,
+                "distance_km": distance_km,
+                "distance_text": distance_text,
+                "eta_minutes": eta_minutes,
+                "eta_text": eta_text,
+            } if ambulance_service else None,
+        }]
+    }
+
 @router.get("/{request_id}/status")
 async def get_emergency_status(
     request_id: str,

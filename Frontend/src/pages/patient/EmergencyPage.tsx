@@ -117,7 +117,7 @@ export default function EmergencyPage() {
   // Fetch active emergency requests
   const { data: activeEmergencies } = useQuery({
     queryKey: ["activeEmergencies"],
-    queryFn: () => emergencyService.getActiveEmergencies().then((r) => r.data),
+    queryFn: () => emergencyService.getMyActiveRequests().then((r) => r.data),
     refetchInterval: 5000, // Refetch every 5 seconds to keep status updated
   });
 
