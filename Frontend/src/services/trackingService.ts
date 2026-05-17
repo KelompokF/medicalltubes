@@ -97,7 +97,7 @@ class TrackingService {
     };
     
     const response = await api.patch<LocationUpdateResponse>(
-      `/tracking/ambulances/location`,
+      `/api/tracking/ambulances/location`,
       payload
     );
     return response.data;
