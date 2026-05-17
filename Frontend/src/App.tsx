@@ -21,6 +21,7 @@ import HomeVisitBookingPage from "@/pages/patient/HomeVisitBookingPage";
 import HomeVisitTrackingPage from "@/pages/patient/HomeVisitTrackingPage";
 import HomeVisitHistoryPage from "@/pages/patient/HomeVisitHistoryPage";
 import EmergencyPage from "@/pages/patient/EmergencyPage";
+import AmbulanceTrackingPage from "@/pages/patient/AmbulanceTrackingPage";
 import UserProfilePage from "@/pages/patient/UserProfilePage";
 import AdminDashboard from "@/pages/admin/AdminDashboard";
 import DoctorDashboard from "@/pages/doctor/DoctorDashboard";
@@ -77,6 +78,7 @@ const App = () => (
             <Route path="/home-visit-history" element={<HomeVisitHistoryPage />} />
             <Route path="/tracking" element={<HomeVisitTrackingPage />} />
             <Route path="/emergency" element={<EmergencyPage />} />
+            <Route path="/ambulance-tracking/:id" element={<AmbulanceTrackingPage />} />
             <Route path="/profile" element={<UserProfilePage />} />
           </Route>
 
