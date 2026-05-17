@@ -1,7 +1,7 @@
 from contextlib import asynccontextmanager
 from fastapi import FastAPI, WebSocket, WebSocketDisconnect, Depends, HTTPException, status
 from fastapi.middleware.cors import CORSMiddleware
-from app.routers import auth, health_record, user, emergency
+from app.routers import auth, health_record, user, emergency, tracking
 from app.routers.patient import router as patient_router
 from app.routers.dashboard import router as dashboard_router
 from app.routers.chat import router as chat_router
@@ -78,6 +78,7 @@ app.include_router(home_visit_router)
 from app.routers.prescription import router as prescription_router
 app.include_router(prescription_router)
 app.include_router(emergency.router)
+app.include_router(tracking.router, prefix="/api")
 app.include_router(doctor_schedule_router)  # must be BEFORE doctor_router (specific before wildcard)
 app.include_router(doctor_patients_router)
 app.include_router(doctor_router)
