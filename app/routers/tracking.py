@@ -230,7 +230,7 @@ async def update_ambulance_location(
         accuracy=location_data.accuracy,
         speed=location_data.speed,
         heading=location_data.heading,
-        timestamp=datetime.now(timezone.utc)
+        timestamp=datetime.now(timezone.utc).replace(tzinfo=None)
     )
     db.add(location_update)
     await db.commit()
