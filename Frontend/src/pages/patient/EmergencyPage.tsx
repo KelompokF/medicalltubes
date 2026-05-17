@@ -15,6 +15,7 @@ import {
 import { toast } from "sonner";
 import { emergencyService, patientService } from "@/services/api";
 import { useQuery } from "@tanstack/react-query";
+import { useNavigate } from "react-router-dom";
 
 export type EmergencyAction = "cancel" | "complete";
 
@@ -104,6 +105,7 @@ export default function EmergencyPage() {
     ambulance?: AmbulanceService;
   } | null>(null);
   const [radiusKm, setRadiusKm] = useState(50);
+  const navigate = useNavigate();
 
   // Fetch location sharing setting from user profile
   const { data: locationSetting } = useQuery({
@@ -656,6 +658,16 @@ export default function EmergencyPage() {
                     <span>ETA: {emergencyStatus.ambulance.eta_text}</span>
                   </div>
                 </div>
+              )}
+              {emergencyStatus.ambulance && (emergencyStatus.status === "on_my_way" || emergencyStatus.status === "on_progress") && (
+                <Button 
+                  onClick={() => navigate(`/ambulance-tracking/${emergencyStatus.id}`)}
+                  className="w-full"
+                  variant="default"
+                >
+                  <Navigation className="h-4 w-4 mr-2" />
+                  Lacak Ambulans
+                </Button>
               )}
               <div className="grid grid-cols-1 sm:grid-cols-2 gap-2">
                 <Button variant="outline" onClick={() => setPendingAction("cancel")}>
