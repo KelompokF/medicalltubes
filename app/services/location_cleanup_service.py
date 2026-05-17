@@ -5,7 +5,7 @@ Provides functionality to clean up old ambulance location data
 to keep the database size manageable.
 """
 
-from datetime import datetime, timedelta
+from datetime import datetime, timedelta, timezone
 from typing import Dict
 
 from sqlalchemy import delete
@@ -32,7 +32,10 @@ class LocationCleanupService:
                 - deleted_count: Number of records deleted
                 - cutoff_time: ISO format timestamp of cutoff time
         """
-        cutoff_time = datetime.utcnow() - timedelta(hours=hours)
+        if hours <= 0:
+            raise ValueError("hours must be positive")
+
+        cutoff_time = datetime.now(timezone.utc) - timedelta(hours=hours)
 
         result = await db.execute(
             delete(AmbulanceLocationUpdate).where(
@@ -40,7 +43,6 @@ class LocationCleanupService:
             )
         )
 
-        await db.commit()
         deleted_count = result.rowcount
 
         return {
