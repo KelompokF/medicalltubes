@@ -14,6 +14,20 @@ from app.models.emergency_request import EmergencyRequest
 from app.models.prescription import Prescription
 from app.schemas.dashboard import DashboardResponse, DashboardStats, ActivityItem, UpcomingAppointment, HistoryItem
 from sqlalchemy import text
+from app.models.doctor_profile import DoctorProfile
+from pydantic import BaseModel
+from typing import List, Any
+
+class AdminStats(BaseModel):
+    totalUsers: int
+    totalDoctors: int
+    activeEmergencies: int
+    totalConsultations: int
+
+class AdminDashboardResponse(BaseModel):
+    stats: AdminStats
+    recentUsers: List[Any]
+    analyticsData: List[Any]
 
 router = APIRouter(tags=["Dashboard"])
 
@@ -348,4 +362,71 @@ async def get_doctor_dashboard_summary(
         consultationHistory=consultation_history,
         bookingHistory=booking_history,
         upcomingAppointment=None
+    )
+
+@router.get("/admin/dashboard", response_model=AdminDashboardResponse)
+async def get_admin_dashboard_summary(
+    current_user: User = Depends(get_current_user),
+    db: AsyncSession = Depends(get_db)
+):
+    """Dashboard khusus admin."""
+    if current_user.role != "admin":
+        return AdminDashboardResponse(
+            stats=AdminStats(totalUsers=0, totalDoctors=0, activeEmergencies=0, totalConsultations=0),
+            recentUsers=[],
+            analyticsData=[]
+        )
+
+    # 1. Total Users (Pasien)
+    res_users = await db.execute(select(func.count(User.id)).where(User.role == "patient"))
+    total_users = res_users.scalar() or 0
+
+    # 2. Total Doctors
+    res_doctors = await db.execute(select(func.count(User.id)).where(User.role == "doctor"))
+    total_doctors = res_doctors.scalar() or 0
+
+    # 3. Active Emergencies
+    res_emergencies = await db.execute(select(func.count(EmergencyRequest.id)).where(EmergencyRequest.status == "pending"))
+    active_emergencies = res_emergencies.scalar() or 0
+
+    # 4. Total Consultations (ChatRooms)
+    res_chat = await db.execute(select(func.count(ChatRoom.id)))
+    total_consultations = res_chat.scalar() or 0
+
+    stats = AdminStats(
+        totalUsers=total_users,
+        totalDoctors=total_doctors,
+        activeEmergencies=active_emergencies,
+        totalConsultations=total_consultations
+    )
+
+    # 5. Recent Users Table (5 newest users)
+    recent_users_result = await db.execute(
+        select(User).order_by(User.created_at.desc()).limit(5)
+    )
+    
+    recent_users = []
+    for u in recent_users_result.scalars():
+        recent_users.append({
+            "id": str(u.id),
+            "name": u.full_name,
+            "email": u.email,
+            "role": u.role,
+            "status": "Active" if u.is_active else "Inactive",
+            "joined": u.created_at.strftime("%b %d, %Y") if u.created_at else "N/A"
+        })
+
+    # 6. Analytics Data (Mock data for now, could be dynamic)
+    analytics_data = [
+        {"month": "Jan", "consultations": 40, "homeVisits": 24, "emergencies": 10},
+        {"month": "Feb", "consultations": 30, "homeVisits": 13, "emergencies": 5},
+        {"month": "Mar", "consultations": 50, "homeVisits": 38, "emergencies": 15},
+        {"month": "Apr", "consultations": 45, "homeVisits": 43, "emergencies": 8},
+        {"month": "May", "consultations": total_consultations, "homeVisits": 20, "emergencies": active_emergencies},
+    ]
+
+    return AdminDashboardResponse(
+        stats=stats,
+        recentUsers=recent_users,
+        analyticsData=analytics_data
     )

@@ -80,7 +80,8 @@ const progressSteps: Array<{
 ];
 
 function formatDateTime(value: string) {
-  return new Date(value).toLocaleString("id-ID", {
+  const dateStr = value.endsWith("Z") ? value : value + "Z";
+  return new Date(dateStr).toLocaleString("id-ID", {
     day: "2-digit",
     month: "short",
     hour: "2-digit",

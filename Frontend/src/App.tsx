@@ -27,6 +27,7 @@ import DoctorDashboard from "@/pages/doctor/DoctorDashboard";
 import DoctorConsultationPage from "@/pages/doctor/DoctorConsultationPage";
 import DoctorSchedulePage from "@/pages/doctor/DoctorSchedulePage";
 import DoctorHomeVisits from "@/pages/doctor/DoctorHomeVisits";
+import DoctorPatientsPage from "@/pages/doctor/DoctorPatientsPage";
 import AmbulanceDashboard from "@/pages/ambulance/AmbulanceDashboard";
 import AmbulanceActivePage from "@/pages/ambulance/AmbulanceActivePage";
 import AmbulanceHistoryPage from "@/pages/ambulance/AmbulanceHistoryPage";
@@ -90,7 +91,7 @@ const App = () => (
           {/* Doctor Routes */}
           <Route element={<DoctorLayout />}>
             <Route path="/doctor-dashboard" element={<DoctorDashboard />} />
-            <Route path="/doctor-dashboard/patients" element={<ComingSoon title="My Patients" />} />
+            <Route path="/doctor-dashboard/patients" element={<DoctorPatientsPage />} />
             <Route path="/doctor-dashboard/consultations" element={<DoctorConsultationPage />} />
             <Route path="/doctor-dashboard/home-visits" element={<DoctorHomeVisits />} />
             <Route path="/doctor-dashboard/schedule" element={<DoctorSchedulePage />} />
