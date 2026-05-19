@@ -93,6 +93,14 @@ export const doctorService = {
   getPatientRequests: () => api.get("/doctor/requests"),
   acceptRequest: (id: string) => api.post(`/doctor/requests/${id}/accept`),
   createPrescription: (data: any) => api.post("/doctor/prescriptions", data),
+  // Patient data endpoints for doctor
+  getPatientProfile: (patientId: string) =>
+    api.get(`/doctors/patient/${patientId}/profile`),
+  getPatientHealthRecords: (patientId: string) =>
+    api.get(`/doctors/patient/${patientId}/health-records`),
+  /** Single combined request: profile + all health records + aggregated summary */
+  getPatientSummary: (patientId: string) =>
+    api.get(`/doctors/patient/${patientId}/summary`),
 };
 
 // ============================================

@@ -1,6 +1,6 @@
 import { useEffect, useRef, useState } from "react";
 import { useSearchParams } from "react-router-dom";
-import { Send, Loader2, MessageCircle, User, XCircle, Lock } from "lucide-react";
+import { Send, Loader2, MessageCircle, User, XCircle, Lock, AlertTriangle, Heart, Pill, Stethoscope, CalendarDays, Droplets, ClipboardList } from "lucide-react";
 import { Input } from "@/components/ui/input";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
@@ -15,7 +15,7 @@ import {
   AlertDialogTitle,
   AlertDialogTrigger,
 } from "@/components/ui/alert-dialog";
-import api, { prescriptionService } from "@/services/api";
+import api, { prescriptionService, doctorService } from "@/services/api";
 import { toast } from "sonner";
 import {
   Dialog,
@@ -28,7 +28,7 @@ import {
 } from "@/components/ui/dialog";
 import { Label } from "@/components/ui/label";
 import { Textarea } from "@/components/ui/textarea";
-import { Plus, Trash2, FileText, Check, CheckCheck } from "lucide-react";
+import { Plus, Trash2, FileText, Check, CheckCheck, Activity } from "lucide-react";
 
 interface ChatMessage {
   sender_id: string;
@@ -74,6 +74,33 @@ export default function DoctorConsultationPage() {
     medications: [{ name: "", dosage: "", duration: "", instructions: "" }],
   });
   const [isSubmittingPrescription, setIsSubmittingPrescription] = useState(false);
+
+  // Patient Info State
+  const [isPatientInfoModalOpen, setIsPatientInfoModalOpen] = useState(false);
+  const [patientSummary, setPatientSummary] = useState<any>(null);
+  const [isLoadingPatientInfo, setIsLoadingPatientInfo] = useState(false);
+  const [patientInfoTab, setPatientInfoTab] = useState<"overview" | "records">("overview");
+
+  const fetchPatientInfo = async () => {
+    if (!activeRoom?.partner_id) return;
+    setIsLoadingPatientInfo(true);
+    try {
+      const res = await doctorService.getPatientSummary(activeRoom.partner_id);
+      setPatientSummary(res.data);
+    } catch (err) {
+      toast.error("Gagal memuat info pasien");
+    } finally {
+      setIsLoadingPatientInfo(false);
+    }
+  };
+
+  const handleOpenPatientInfo = (open: boolean) => {
+    setIsPatientInfoModalOpen(open);
+    if (open) {
+      setPatientInfoTab("overview");
+      fetchPatientInfo();
+    }
+  };
 
   const wsRef = useRef<WebSocket | null>(null);
   const messagesEndRef = useRef<HTMLDivElement>(null);
@@ -434,8 +461,221 @@ export default function DoctorConsultationPage() {
                   <Lock className="h-3 w-3 text-success" />
                   <span className="text-[10px] text-success font-medium hidden sm:inline">Encrypted</span>
                 </div>
-                {!sessionEnded && (
-                  <div className="flex items-center gap-1">
+                {/* Info Pasien — tersedia selalu (termasuk saat sesi ended) */}
+                <div className="flex items-center gap-1">
+                    <Dialog open={isPatientInfoModalOpen} onOpenChange={handleOpenPatientInfo}>
+                      <DialogTrigger asChild>
+                        <Button variant="outline" size="sm" className="gap-1.5 text-blue-600 border-blue-200 hover:bg-blue-50 dark:border-blue-800 dark:hover:bg-blue-950">
+                          <Activity className="h-4 w-4" />
+                          <span className="hidden sm:inline">Info Pasien</span>
+                        </Button>
+                      </DialogTrigger>
+                      <DialogContent className="sm:max-w-[640px] max-h-[90vh] overflow-hidden flex flex-col">
+                        <DialogHeader className="pb-3 border-b">
+                          <DialogTitle className="flex items-center gap-2">
+                            <Stethoscope className="h-5 w-5 text-blue-600" />
+                            Rekam Medis Pasien
+                          </DialogTitle>
+                          <DialogDescription>
+                            {patientSummary?.profile?.full_name
+                              ? `Data kesehatan milik ${patientSummary.profile.full_name}`
+                              : "Data kesehatan pasien untuk membantu diagnosis yang lebih tepat."}
+                          </DialogDescription>
+                        </DialogHeader>
+
+                        {isLoadingPatientInfo ? (
+                          <div className="flex justify-center items-center py-16">
+                            <div className="flex flex-col items-center gap-3">
+                              <Loader2 className="h-8 w-8 text-blue-600 animate-spin" />
+                              <p className="text-sm text-muted-foreground">Memuat data pasien...</p>
+                            </div>
+                          </div>
+                        ) : patientSummary ? (
+                          <div className="flex flex-col flex-1 overflow-hidden">
+                            {/* TAB NAVIGATION */}
+                            <div className="flex border-b my-3">
+                              <button
+                                onClick={() => setPatientInfoTab("overview")}
+                                className={`px-4 py-2 text-sm font-medium border-b-2 transition-colors ${
+                                  patientInfoTab === "overview"
+                                    ? "border-blue-600 text-blue-600"
+                                    : "border-transparent text-muted-foreground hover:text-foreground"
+                                }`}
+                              >
+                                Ringkasan
+                              </button>
+                              <button
+                                onClick={() => setPatientInfoTab("records")}
+                                className={`px-4 py-2 text-sm font-medium border-b-2 transition-colors flex items-center gap-1.5 ${
+                                  patientInfoTab === "records"
+                                    ? "border-blue-600 text-blue-600"
+                                    : "border-transparent text-muted-foreground hover:text-foreground"
+                                }`}
+                              >
+                                Riwayat Rekam Medis
+                                {patientSummary.total_records > 0 && (
+                                  <span className="bg-blue-100 text-blue-700 text-[10px] font-bold px-1.5 py-0.5 rounded-full">
+                                    {patientSummary.total_records}
+                                  </span>
+                                )}
+                              </button>
+                            </div>
+
+                            <div className="overflow-y-auto flex-1 pr-1">
+                              {patientInfoTab === "overview" && (
+                                <div className="space-y-4">
+                                  {/* Profil Dasar */}
+                                  <div className="grid grid-cols-2 gap-3">
+                                    <div className="p-3 rounded-lg bg-muted/30 border">
+                                      <span className="text-xs text-muted-foreground flex items-center gap-1 mb-1"><User className="h-3 w-3" />Nama Lengkap</span>
+                                      <p className="font-semibold text-sm">{patientSummary.profile.full_name || '-'}</p>
+                                    </div>
+                                    <div className="p-3 rounded-lg bg-muted/30 border">
+                                      <span className="text-xs text-muted-foreground flex items-center gap-1 mb-1"><Droplets className="h-3 w-3" />Golongan Darah</span>
+                                      <p className="font-semibold text-sm">{patientSummary.profile.blood_type || <span className="text-muted-foreground italic font-normal">Belum diisi</span>}</p>
+                                    </div>
+                                    <div className="p-3 rounded-lg bg-muted/30 border">
+                                      <span className="text-xs text-muted-foreground flex items-center gap-1 mb-1"><CalendarDays className="h-3 w-3" />Tanggal Lahir</span>
+                                      <p className="font-semibold text-sm">
+                                        {patientSummary.profile.date_of_birth
+                                          ? new Date(patientSummary.profile.date_of_birth).toLocaleDateString('id-ID', { day: 'numeric', month: 'long', year: 'numeric' })
+                                          : <span className="text-muted-foreground italic font-normal">Belum diisi</span>}
+                                      </p>
+                                    </div>
+                                    <div className="p-3 rounded-lg bg-muted/30 border">
+                                      <span className="text-xs text-muted-foreground flex items-center gap-1 mb-1"><ClipboardList className="h-3 w-3" />Total Rekam Medis</span>
+                                      <p className="font-semibold text-sm">{patientSummary.total_records} catatan</p>
+                                    </div>
+                                  </div>
+
+                                  {/* ALERGI — ditampilkan menonjol */}
+                                  {patientSummary.latest_allergies ? (
+                                    <div className="p-4 rounded-lg bg-red-50 border border-red-200 dark:bg-red-950/30 dark:border-red-800">
+                                      <div className="flex items-center gap-2 mb-2">
+                                        <AlertTriangle className="h-4 w-4 text-red-600" />
+                                        <span className="font-semibold text-red-700 dark:text-red-400 text-sm">PERINGATAN ALERGI</span>
+                                      </div>
+                                      <p className="text-red-800 dark:text-red-300 font-medium text-sm">{patientSummary.latest_allergies}</p>
+                                    </div>
+                                  ) : (
+                                    <div className="p-3 rounded-lg bg-green-50 border border-green-200 dark:bg-green-950/30 dark:border-green-800 flex items-center gap-2">
+                                      <Heart className="h-4 w-4 text-green-600" />
+                                      <span className="text-green-700 dark:text-green-400 text-sm font-medium">Tidak ada riwayat alergi yang tercatat</span>
+                                    </div>
+                                  )}
+
+                                  {/* Kondisi & Obat Terkini */}
+                                  <div className="grid grid-cols-1 gap-3">
+                                    <div className="p-3 rounded-lg border bg-muted/20">
+                                      <span className="text-xs text-muted-foreground flex items-center gap-1 mb-1"><Stethoscope className="h-3 w-3" />Kondisi/Penyakit Terkini</span>
+                                      <p className="text-sm font-medium">{patientSummary.latest_conditions || <span className="italic text-muted-foreground font-normal">Tidak ada data</span>}</p>
+                                    </div>
+                                    <div className="p-3 rounded-lg border bg-muted/20">
+                                      <span className="text-xs text-muted-foreground flex items-center gap-1 mb-1"><Pill className="h-3 w-3" />Obat yang Sedang Dikonsumsi</span>
+                                      <p className="text-sm font-medium">{patientSummary.latest_medications || <span className="italic text-muted-foreground font-normal">Tidak ada data</span>}</p>
+                                    </div>
+                                  </div>
+
+                                  {/* Tanda Vital Terkini */}
+                                  {patientSummary.latest_vitals && (
+                                    <div className="space-y-2">
+                                      <p className="text-xs text-muted-foreground font-medium uppercase tracking-wider">Tanda Vital Terakhir</p>
+                                      <div className="grid grid-cols-2 sm:grid-cols-4 gap-2">
+                                        {patientSummary.latest_vitals.blood_pressure && (
+                                          <div className="p-2.5 rounded-lg border bg-blue-50 dark:bg-blue-950/20 text-center">
+                                            <p className="text-[10px] text-muted-foreground mb-0.5">Tekanan Darah</p>
+                                            <p className="font-bold text-sm text-blue-700 dark:text-blue-400">{patientSummary.latest_vitals.blood_pressure}</p>
+                                          </div>
+                                        )}
+                                        {patientSummary.latest_vitals.heart_rate && (
+                                          <div className="p-2.5 rounded-lg border bg-red-50 dark:bg-red-950/20 text-center">
+                                            <p className="text-[10px] text-muted-foreground mb-0.5">Detak Jantung</p>
+                                            <p className="font-bold text-sm text-red-700 dark:text-red-400">{patientSummary.latest_vitals.heart_rate} bpm</p>
+                                          </div>
+                                        )}
+                                        {patientSummary.latest_vitals.weight && (
+                                          <div className="p-2.5 rounded-lg border bg-orange-50 dark:bg-orange-950/20 text-center">
+                                            <p className="text-[10px] text-muted-foreground mb-0.5">Berat Badan</p>
+                                            <p className="font-bold text-sm text-orange-700 dark:text-orange-400">{patientSummary.latest_vitals.weight} kg</p>
+                                          </div>
+                                        )}
+                                        {patientSummary.latest_vitals.height && (
+                                          <div className="p-2.5 rounded-lg border bg-purple-50 dark:bg-purple-950/20 text-center">
+                                            <p className="text-[10px] text-muted-foreground mb-0.5">Tinggi Badan</p>
+                                            <p className="font-bold text-sm text-purple-700 dark:text-purple-400">{patientSummary.latest_vitals.height} cm</p>
+                                          </div>
+                                        )}
+                                      </div>
+                                    </div>
+                                  )}
+                                </div>
+                              )}
+
+                              {patientInfoTab === "records" && (
+                                <div className="space-y-3">
+                                  {patientSummary.health_records.length === 0 ? (
+                                    <div className="flex flex-col items-center justify-center py-12 text-center">
+                                      <ClipboardList className="h-12 w-12 text-muted-foreground/30 mb-3" />
+                                      <p className="text-sm font-medium text-muted-foreground">Belum ada rekam medis</p>
+                                      <p className="text-xs text-muted-foreground/70 mt-1">Pasien belum menambahkan catatan kesehatan apapun.</p>
+                                    </div>
+                                  ) : (
+                                    patientSummary.health_records.map((record: any, idx: number) => (
+                                      <div key={idx} className="p-4 rounded-lg border bg-card space-y-3">
+                                        <div className="flex items-center justify-between">
+                                          <Badge variant="outline" className="bg-blue-50 text-blue-700 border-blue-200">
+                                            {new Date(record.date).toLocaleDateString('id-ID', { day: 'numeric', month: 'long', year: 'numeric' })}
+                                          </Badge>
+                                          {idx === 0 && <Badge className="bg-green-100 text-green-700 border-0 text-[10px]">Terbaru</Badge>}
+                                        </div>
+                                        <div className="grid grid-cols-2 gap-x-4 gap-y-2 text-sm">
+                                          <div>
+                                            <p className="text-[11px] text-muted-foreground mb-0.5">Diagnosa/Kondisi</p>
+                                            <p className="font-medium text-sm">{record.diagnosed_conditions || <span className="text-muted-foreground italic font-normal">-</span>}</p>
+                                          </div>
+                                          <div>
+                                            <p className="text-[11px] text-muted-foreground mb-0.5">Alergi</p>
+                                            <p className={`font-medium text-sm ${record.allergies ? 'text-red-600' : 'text-muted-foreground italic font-normal'}`}>{record.allergies || '-'}</p>
+                                          </div>
+                                          <div>
+                                            <p className="text-[11px] text-muted-foreground mb-0.5">Obat Dikonsumsi</p>
+                                            <p className="font-medium text-sm">{record.current_medications || <span className="text-muted-foreground italic font-normal">-</span>}</p>
+                                          </div>
+                                          <div>
+                                            <p className="text-[11px] text-muted-foreground mb-0.5">Catatan</p>
+                                            <p className="font-medium text-sm">{record.notes || <span className="text-muted-foreground italic font-normal">-</span>}</p>
+                                          </div>
+                                        </div>
+                                        {(record.blood_pressure || record.heart_rate || record.weight || record.height) && (
+                                          <div className="grid grid-cols-4 gap-2 pt-2 border-t">
+                                            {record.blood_pressure && <div className="text-center"><p className="text-[10px] text-muted-foreground">Tensi</p><p className="text-xs font-bold">{record.blood_pressure}</p></div>}
+                                            {record.heart_rate && <div className="text-center"><p className="text-[10px] text-muted-foreground">Nadi</p><p className="text-xs font-bold">{record.heart_rate} bpm</p></div>}
+                                            {record.weight && <div className="text-center"><p className="text-[10px] text-muted-foreground">BB</p><p className="text-xs font-bold">{record.weight} kg</p></div>}
+                                            {record.height && <div className="text-center"><p className="text-[10px] text-muted-foreground">TB</p><p className="text-xs font-bold">{record.height} cm</p></div>}
+                                          </div>
+                                        )}
+                                      </div>
+                                    ))
+                                  )}
+                                </div>
+                              )}
+                            </div>
+                          </div>
+                        ) : (
+                          <div className="flex flex-col items-center justify-center py-12">
+                            <User className="h-12 w-12 text-muted-foreground/30 mb-3" />
+                            <p className="text-sm text-muted-foreground">Data pasien tidak tersedia</p>
+                          </div>
+                        )}
+
+                        <DialogFooter className="pt-3 border-t mt-3">
+                          <Button variant="outline" onClick={() => setIsPatientInfoModalOpen(false)}>Tutup</Button>
+                         </DialogFooter>
+                      </DialogContent>
+                    </Dialog>
+                 </div>
+                 {!sessionEnded && (
+                   <div className="flex items-center gap-1">
                     <Dialog open={isPrescriptionModalOpen} onOpenChange={setIsPrescriptionModalOpen}>
                       <DialogTrigger asChild>
                         <Button variant="outline" size="sm" className="gap-1.5 text-primary border-primary/20 hover:bg-primary/5">
