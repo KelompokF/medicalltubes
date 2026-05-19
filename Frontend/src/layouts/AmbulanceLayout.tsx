@@ -25,6 +25,24 @@ export default function AmbulanceLayout() {
   const [notifications, setNotifications] = useState<any[]>([]);
   const [notificationOpen, setNotificationOpen] = useState(false);
   const notificationRef = useRef<HTMLDivElement>(null);
+  const [userName, setUserName] = useState("Unit 1");
+  const [userInitials, setUserInitials] = useState("U1");
+
+  useEffect(() => {
+    try {
+      const userStr = localStorage.getItem("user");
+      if (userStr) {
+        const user = JSON.parse(userStr);
+        if (user && user.full_name) {
+          setUserName(user.full_name);
+          const parts = user.full_name.split(" ").filter(Boolean);
+          setUserInitials(parts.length ? parts.map((p: string) => p[0].toUpperCase()).slice(0, 2).join("") : "U1");
+        }
+      }
+    } catch (e) {
+      console.error("Failed to parse user from localStorage", e);
+    }
+  }, []);
 
   // Close notification dropdown when clicking outside
   useEffect(() => {
@@ -227,8 +245,8 @@ export default function AmbulanceLayout() {
               <DropdownMenu modal={false}>
                 <DropdownMenuTrigger asChild>
                   <Button variant="ghost" className="gap-2">
-                    <div className="h-8 w-8 rounded-full bg-warning flex items-center justify-center text-warning-foreground text-sm font-bold">U1</div>
-                    <span className="hidden sm:inline text-sm font-medium">Unit 1</span>
+                    <div className="h-8 w-8 rounded-full bg-warning flex items-center justify-center text-warning-foreground text-sm font-bold">{userInitials}</div>
+                    <span className="hidden sm:inline text-sm font-medium">{userName}</span>
                     <ChevronDown className="h-4 w-4 text-muted-foreground" />
                   </Button>
                 </DropdownMenuTrigger>

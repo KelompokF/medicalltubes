@@ -70,19 +70,11 @@ export default function AmbulanceDashboard() {
               </TableRow>
             </TableHeader>
             <TableBody>
-              {[
-                { patient: "David Lee", type: "Heart Attack", location: "321 Elm St", priority: "Critical", status: "Completed" },
-                { patient: "Sarah Kim", type: "Fall Injury", location: "654 Maple Ave", priority: "High", status: "Completed" },
-                { patient: "Tom Harris", type: "Allergic Reaction", location: "987 Oak Blvd", priority: "Medium", status: "Completed" },
-              ].map((h, i) => (
-                <TableRow key={i}>
-                  <TableCell className="font-medium">{h.patient}</TableCell>
-                  <TableCell>{h.type}</TableCell>
-                  <TableCell className="text-muted-foreground">{h.location}</TableCell>
-                  <TableCell><Badge className={priorityColors[h.priority as keyof typeof priorityColors]}>{h.priority}</Badge></TableCell>
-                  <TableCell><Badge className="bg-success/10 text-success border-success/20">{h.status}</Badge></TableCell>
-                </TableRow>
-              ))}
+              <TableRow>
+                <TableCell colSpan={5} className="text-center text-muted-foreground py-8">
+                  No emergency history available.
+                </TableCell>
+              </TableRow>
             </TableBody>
           </Table>
         </CardContent>
