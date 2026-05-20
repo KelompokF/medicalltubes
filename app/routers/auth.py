@@ -93,7 +93,51 @@ async def delete_account(
     db: AsyncSession = Depends(get_db),
     current_user: User = Depends(get_current_user)
 ):
-    # Perform hard delete
+    from sqlalchemy import delete
+    from app.models.ambulance import AmbulanceService
+    from app.models.emergency import Emergency
+    from app.models.emergency_request import EmergencyRequest
+    from app.models.prescription import Prescription
+    from app.models.health_record import HealthRecord
+    from app.models.consultation import Consultation
+    from app.models.home_visit import HomeVisit
+    from app.models.doctor_profile import DoctorProfile
+    from app.models.patient_profile import PatientProfile
+    from app.models.message import Message
+    from app.models.chat_room import ChatRoom
+    from app.models.doctor_schedule import DoctorSchedule
+    from sqlalchemy import or_
+
+    user_id = current_user.id
+
+    # Hapus semua data relasi secara eksplisit (Manual Cascade Delete)
+    # Ini menjamin akun terhapus bersih 100% dan mencegah IntegrityError
+    # pada tabel yang belum menerapkan ON DELETE CASCADE di database schema.
+    await db.execute(delete(AmbulanceService).where(AmbulanceService.user_id == user_id))
+    await db.execute(delete(Emergency).where(Emergency.user_id == user_id))
+    await db.execute(delete(EmergencyRequest).where(EmergencyRequest.user_id == user_id))
+    
+    # Hapus prescription baik sebagai dokter maupun pasien
+    await db.execute(delete(Prescription).where(Prescription.doctor_id == user_id))
+    await db.execute(delete(Prescription).where(Prescription.patient_id == user_id))
+
+    # Hapus data dari tabel-tabel lainnya
+    await db.execute(delete(HealthRecord).where(HealthRecord.user_id == user_id))
+    await db.execute(delete(Consultation).where(Consultation.patient_id == user_id))
+    await db.execute(delete(HomeVisit).where(HomeVisit.patient_id == user_id))
+    await db.execute(delete(DoctorProfile).where(DoctorProfile.user_id == user_id))
+    await db.execute(delete(PatientProfile).where(PatientProfile.user_id == user_id))
+    await db.execute(delete(DoctorSchedule).where(DoctorSchedule.doctor_id == user_id))
+
+    # Hapus chat dan pesan
+    await db.execute(delete(ChatRoom).where(or_(ChatRoom.patient_id == user_id, ChatRoom.doctor_id == user_id)))
+    await db.execute(delete(Message).where(or_(Message.sender_id == user_id, Message.receiver_id == user_id)))
+
+    # Untuk HomeVisit di mana user ini adalah dokternya, set doctor_id menjadi NULL
+    from sqlalchemy import update
+    await db.execute(update(HomeVisit).where(HomeVisit.doctor_id == user_id).values(doctor_id=None))
+
+    # Perform hard delete user utama
     await db.delete(current_user)
     await db.commit()
 
