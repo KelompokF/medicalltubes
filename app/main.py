@@ -21,6 +21,8 @@ import app.models.home_visit  # noqa: F401
 import app.models.consultation  # noqa: F401
 import app.models.health_record  # noqa: F401
 import app.models.patient_profile  # noqa: F401
+import app.models.report  # noqa: F401
+import app.models.report_message  # noqa: F401
 
 
 @asynccontextmanager
@@ -78,6 +80,9 @@ app.include_router(emergency.router)
 app.include_router(doctor_schedule_router)  # must be BEFORE doctor_router (specific before wildcard)
 app.include_router(doctor_patients_router)
 app.include_router(doctor_router)
+
+from app.routers.report import router as report_router
+app.include_router(report_router)
 
 
 

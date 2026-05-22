@@ -1,11 +1,12 @@
 import { useEffect, useRef, useState } from "react";
 import { useSearchParams, Link } from "react-router-dom";
-import { Send, Loader2, MessageCircle, Lock, FileText, ChevronRight, Check, CheckCheck } from "lucide-react";
+import { Send, Loader2, MessageCircle, Lock, FileText, ChevronRight, Check, CheckCheck, AlertTriangle } from "lucide-react";
 import { Input } from "@/components/ui/input";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
 import api, { prescriptionService } from "@/services/api";
 import { toast } from "sonner";
+import ReportModal from "@/components/ReportModal";
 import {
   Dialog,
   DialogContent,
@@ -71,6 +72,7 @@ export default function ConsultationChatPage() {
   const [sessionEnded, setSessionEnded] = useState(false);
   const [prescriptions, setPrescriptions] = useState<Prescription[]>([]);
   const [isPrescriptionModalOpen, setIsPrescriptionModalOpen] = useState(false);
+  const [isReportModalOpen, setIsReportModalOpen] = useState(false);
 
   const wsRef = useRef<WebSocket | null>(null);
   const messagesEndRef = useRef<HTMLDivElement>(null);
@@ -482,7 +484,27 @@ export default function ConsultationChatPage() {
                       </div>
                     </DialogContent>
                   </Dialog>
+                  <Button
+                    variant="ghost"
+                    size="sm"
+                    className="gap-1.5 text-destructive hover:bg-destructive/10 hover:text-destructive"
+                    onClick={() => setIsReportModalOpen(true)}
+                    title="Laporkan pengguna ini"
+                  >
+                    <AlertTriangle className="h-4 w-4" />
+                    <span className="hidden sm:inline">Report</span>
+                  </Button>
               </div>
+              {activeRoom && (
+                <ReportModal
+                  open={isReportModalOpen}
+                  onOpenChange={setIsReportModalOpen}
+                  reportedId={activeRoom.partner_id}
+                  reportedName={activeRoom.partner_name}
+                  contextType="consultation"
+                  contextId={activeRoom.room_id}
+                />
+              )}
             </>
           ) : (
             <p className="font-semibold text-sm text-muted-foreground">

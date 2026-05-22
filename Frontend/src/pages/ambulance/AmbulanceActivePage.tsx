@@ -18,6 +18,7 @@ import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { cn } from "@/lib/utils";
 import { emergencyService } from "@/services/api";
+import ReportModal from "@/components/ReportModal";
 
 import {
   buildMapsUrl,
@@ -134,6 +135,7 @@ function getProgressStepState(
 export default function AmbulanceActivePage() {
   const queryClient = useQueryClient();
   const [selectedId, setSelectedId] = useState<string | null>(null);
+  const [reportTarget, setReportTarget] = useState<{ id: string; name: string; emergencyId: string } | null>(null);
 
   const { data, isLoading, isError, isFetching, refetch } =
     useQuery<ActiveEmergenciesResponse>({
@@ -426,6 +428,24 @@ export default function AmbulanceActivePage() {
                             <div onClick={(event) => event.stopPropagation()}>
                               {renderActionButton(item)}
                             </div>
+                            {item.user_id && (
+                              <Button
+                                variant="ghost"
+                                size="sm"
+                                className="w-full gap-1.5 text-amber-600 hover:bg-amber-50 hover:text-amber-700 dark:hover:bg-amber-950/30 sm:w-auto"
+                                onClick={(event) => {
+                                  event.stopPropagation();
+                                  setReportTarget({
+                                    id: item.user_id!,
+                                    name: item.user_name || "Pasien",
+                                    emergencyId: item.id,
+                                  });
+                                }}
+                              >
+                                <AlertTriangle className="h-3.5 w-3.5" />
+                                Report
+                              </Button>
+                            )}
                           </div>
                         </div>
                       </div>
@@ -560,6 +580,16 @@ export default function AmbulanceActivePage() {
           )}
         </div>
       )}
+
+      {/* Report Modal for Patient */}
+      <ReportModal
+        open={!!reportTarget}
+        onOpenChange={(open) => { if (!open) setReportTarget(null); }}
+        reportedId={reportTarget?.id || ""}
+        reportedName={reportTarget?.name || ""}
+        contextType="emergency"
+        contextId={reportTarget?.emergencyId}
+      />
     </div>
   );
 }

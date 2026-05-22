@@ -1,32 +1,143 @@
-import { useState } from "react";
+import { useState, useEffect, useRef } from "react";
 import { Link, useLocation, Outlet, useNavigate } from "react-router-dom";
 import {
   LayoutDashboard, Users, Stethoscope, AlertTriangle, MessageSquare,
-  BarChart3, Settings, Bell, ChevronDown, Menu, X, LogOut, Shield, Heart
+  BarChart3, Settings, Bell, ChevronDown, Menu, X, LogOut, Shield, Heart, FileWarning
 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import {
   DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuSeparator, DropdownMenuTrigger
 } from "@/components/ui/dropdown-menu";
+import { toast } from "sonner";
 
 const adminNav = [
   { label: "Dashboard", path: "/admin", icon: LayoutDashboard },
   { label: "Emergency Monitor", path: "/admin/emergencies", icon: AlertTriangle },
   { label: "Consultations", path: "/admin/consultations", icon: MessageSquare },
+  { label: "Reports", path: "/admin/reports", icon: FileWarning },
   { label: "Settings", path: "/admin/settings", icon: Settings },
 ];
 
+interface AdminNotification {
+  id: number;
+  title: string;
+  description: string;
+  type: string;
+  time: string;
+  report_id?: string;
+}
+
 export default function AdminLayout() {
   const [sidebarOpen, setSidebarOpen] = useState(false);
+  const [notifications, setNotifications] = useState<AdminNotification[]>([]);
   const location = useLocation();
   const navigate = useNavigate();
+  const wsRef = useRef<WebSocket | null>(null);
   const isActive = (path: string) => location.pathname === path;
+
+  const user =
+    typeof window !== "undefined"
+      ? JSON.parse(localStorage.getItem("user") || "null")
+      : null;
+  const adminId = user?.id || user?.sub || null;
 
   const handleLogout = () => {
     localStorage.removeItem("access_token");
     localStorage.removeItem("user");
     navigate("/login");
   };
+
+  // WebSocket for real-time admin notifications
+  useEffect(() => {
+    if (!adminId) return;
+
+    const connectWS = () => {
+      const port =
+        window.location.hostname === "localhost"
+          ? "8001"
+          : window.location.port;
+      const wsUrl = `${
+        window.location.protocol === "https:" ? "wss" : "ws"
+      }://${window.location.hostname}:${port}/ws/chat/${adminId}`;
+
+      const ws = new WebSocket(wsUrl);
+      wsRef.current = ws;
+
+      ws.onmessage = (event) => {
+        try {
+          const data = JSON.parse(event.data);
+
+          if (data.type === "new_report") {
+            const reportData = data.report;
+            const notif: AdminNotification = {
+              id: Date.now(),
+              title: "Laporan Baru",
+              description: data.message || `Laporan dari ${reportData?.reporter_name}`,
+              type: "new_report",
+              time: new Date().toLocaleTimeString("id-ID", {
+                hour: "2-digit",
+                minute: "2-digit",
+              }),
+              report_id: reportData?.id,
+            };
+            setNotifications((prev) => [notif, ...prev]);
+            toast("📢 Laporan Baru Masuk", {
+              description: notif.description,
+              action: {
+                label: "Lihat",
+                onClick: () => navigate("/admin/reports"),
+              },
+            });
+            // Inject new report directly to AdminReportsPage if active
+            if (reportData) {
+              window.dispatchEvent(
+                new CustomEvent("new_report_data", { detail: reportData })
+              );
+            }
+          }
+
+          if (data.type === "report_message") {
+            const notif: AdminNotification = {
+              id: Date.now(),
+              title: "Pesan Report",
+              description: `${data.sender_name}: ${data.content}`,
+              type: "report_message",
+              time: new Date().toLocaleTimeString("id-ID", {
+                hour: "2-digit",
+                minute: "2-digit",
+              }),
+              report_id: data.report_id,
+            };
+            setNotifications((prev) => [notif, ...prev]);
+            // Only show toast if not on reports page
+            if (!location.pathname.includes("/admin/reports")) {
+              toast("💬 Pesan Report Baru", {
+                description: notif.description,
+                action: {
+                  label: "Lihat",
+                  onClick: () => navigate("/admin/reports"),
+                },
+              });
+            }
+          }
+        } catch (e) {
+          console.error("Admin WS error", e);
+        }
+      };
+
+      ws.onclose = () => {
+        console.log("Admin WS closed, reconnecting...");
+        setTimeout(connectWS, 3000);
+      };
+    };
+
+    connectWS();
+    return () => {
+      wsRef.current?.close();
+    };
+  }, [adminId, location.pathname, navigate]);
+
+  const clearNotifications = () => setNotifications([]);
 
   return (
     <div className="min-h-screen bg-background">
@@ -75,21 +186,68 @@ export default function AdminLayout() {
               </nav>
             </div>
             <div className="flex items-center gap-2">
+              {/* Notification Bell — real-time */}
               <DropdownMenu>
                 <DropdownMenuTrigger asChild>
                   <Button variant="ghost" size="icon" className="relative">
                     <Bell className="h-5 w-5" />
-                    <span className="absolute -top-0.5 -right-0.5 h-4 w-4 rounded-full bg-emergency text-[10px] font-bold text-emergency-foreground flex items-center justify-center">5</span>
+                    {notifications.length > 0 && (
+                      <span className="absolute -top-0.5 -right-0.5 h-4 w-4 rounded-full bg-emergency text-[10px] font-bold text-emergency-foreground flex items-center justify-center animate-pulse">
+                        {notifications.length > 9 ? "9+" : notifications.length}
+                      </span>
+                    )}
                   </Button>
                 </DropdownMenuTrigger>
-                <DropdownMenuContent align="end" className="w-72">
-                  <div className="px-3 py-2 font-semibold text-sm">Admin Notifications</div>
+                <DropdownMenuContent align="end" className="w-80">
+                  <div className="flex items-center justify-between px-3 py-2">
+                    <span className="font-semibold text-sm">Notifications</span>
+                    {notifications.length > 0 && (
+                      <button
+                        onClick={clearNotifications}
+                        className="text-xs text-primary hover:underline"
+                      >
+                        Clear all
+                      </button>
+                    )}
+                  </div>
                   <DropdownMenuSeparator />
-                  <DropdownMenuItem>New doctor registration pending</DropdownMenuItem>
-                  <DropdownMenuItem>3 active emergency requests</DropdownMenuItem>
-                  <DropdownMenuItem>System health report ready</DropdownMenuItem>
+                  {notifications.length === 0 ? (
+                    <div className="px-3 py-6 text-center">
+                      <Bell className="h-8 w-8 text-muted-foreground/30 mx-auto mb-2" />
+                      <p className="text-xs text-muted-foreground">
+                        Tidak ada notifikasi baru
+                      </p>
+                    </div>
+                  ) : (
+                    <div className="max-h-80 overflow-y-auto">
+                      {notifications.slice(0, 20).map((n) => (
+                        <DropdownMenuItem
+                          key={n.id}
+                          className="flex flex-col items-start gap-1 px-3 py-3 cursor-pointer"
+                          onClick={() => navigate("/admin/reports")}
+                        >
+                          <div className="flex items-center gap-2 w-full">
+                            <span className={`h-2 w-2 rounded-full shrink-0 ${
+                              n.type === "new_report" ? "bg-amber-500" : "bg-blue-500"
+                            }`} />
+                            <span className="font-medium text-xs text-foreground flex-1 truncate">
+                              {n.title}
+                            </span>
+                            <span className="text-[10px] text-muted-foreground shrink-0">
+                              {n.time}
+                            </span>
+                          </div>
+                          <p className="text-xs text-muted-foreground pl-4 line-clamp-2">
+                            {n.description}
+                          </p>
+                        </DropdownMenuItem>
+                      ))}
+                    </div>
+                  )}
                 </DropdownMenuContent>
               </DropdownMenu>
+
+              {/* Profile dropdown */}
               <DropdownMenu>
                 <DropdownMenuTrigger asChild>
                   <Button variant="ghost" className="gap-2">

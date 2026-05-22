@@ -262,3 +262,38 @@ export const doctorScheduleService = {
   updateMySchedule: (schedule: DaySchedule[]) =>
     api.put<DoctorScheduleResponse>("/doctor/schedule", { schedule }),
 };
+
+// ============================================
+// REPORT ENDPOINTS
+// ============================================
+export const reportService = {
+  /** Buat laporan baru */
+  createReport: (data: {
+    reported_id: string;
+    reason: string;
+    description: string;
+    context_type: "consultation" | "emergency";
+    context_id?: string;
+  }) => api.post("/reports", data),
+
+  /** Lihat laporan yang pernah saya buat */
+  getMyReports: () => api.get("/reports/my"),
+
+  /** (Admin) Lihat semua laporan */
+  getAllReports: (params?: { status?: string }) =>
+    api.get("/reports", { params }),
+
+  /** (Admin) Update status laporan */
+  updateReportStatus: (
+    id: string,
+    data: { status: string; admin_notes?: string }
+  ) => api.patch(`/reports/${id}/status`, data),
+
+  /** Ambil pesan chat untuk sebuah report */
+  getReportMessages: (reportId: string) =>
+    api.get(`/reports/${reportId}/messages`),
+
+  /** Kirim pesan chat di sebuah report */
+  sendReportMessage: (reportId: string, content: string) =>
+    api.post(`/reports/${reportId}/messages`, { content }),
+};

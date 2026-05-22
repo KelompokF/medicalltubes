@@ -19,10 +19,11 @@ import ConsultationChatPage from "@/pages/patient/ConsultationChatPage";
 import ChatHistoryPage from "@/pages/patient/ChatHistoryPage";
 import HomeVisitBookingPage from "@/pages/patient/HomeVisitBookingPage";
 import HomeVisitTrackingPage from "@/pages/patient/HomeVisitTrackingPage";
-import HomeVisitHistoryPage from "@/pages/patient/HomeVisitHistoryPage";
+import ReportTrackingPage from "@/pages/patient/ReportTrackingPage";
 import EmergencyPage from "@/pages/patient/EmergencyPage";
 import UserProfilePage from "@/pages/patient/UserProfilePage";
 import AdminDashboard from "@/pages/admin/AdminDashboard";
+import AdminReportsPage from "@/pages/admin/AdminReportsPage";
 import DoctorDashboard from "@/pages/doctor/DoctorDashboard";
 import DoctorConsultationPage from "@/pages/doctor/DoctorConsultationPage";
 import DoctorSchedulePage from "@/pages/doctor/DoctorSchedulePage";
@@ -74,7 +75,7 @@ const App = () => (
             <Route path="/chat" element={<ConsultationChatPage />} />
             <Route path="/chat-history" element={<ChatHistoryPage />} />
             <Route path="/home-visit" element={<HomeVisitBookingPage />} />
-            <Route path="/home-visit-history" element={<HomeVisitHistoryPage />} />
+            <Route path="/report-tracking" element={<ReportTrackingPage />} />
             <Route path="/tracking" element={<HomeVisitTrackingPage />} />
             <Route path="/emergency" element={<EmergencyPage />} />
             <Route path="/profile" element={<UserProfilePage />} />
@@ -85,6 +86,7 @@ const App = () => (
             <Route path="/admin" element={<AdminDashboard />} />
             <Route path="/admin/emergencies" element={<ComingSoon title="Emergency Monitor" />} />
             <Route path="/admin/consultations" element={<ComingSoon title="Consultations" />} />
+            <Route path="/admin/reports" element={<AdminReportsPage />} />
             <Route path="/admin/settings" element={<ComingSoon title="Admin Settings" />} />
           </Route>
 
@@ -97,6 +99,7 @@ const App = () => (
             <Route path="/doctor-dashboard/schedule" element={<DoctorSchedulePage />} />
             <Route path="/doctor-dashboard/prescriptions" element={<ComingSoon title="Prescriptions" />} />
             <Route path="/doctor-dashboard/records" element={<ComingSoon title="Medical Records" />} />
+            <Route path="/doctor-dashboard/report-tracking" element={<ReportTrackingPage />} />
             <Route path="/doctor-dashboard/settings" element={<ComingSoon title="Doctor Settings" />} />
           </Route>
 
@@ -107,6 +110,7 @@ const App = () => (
             <Route path="/ambulance-dashboard/tracking" element={<ComingSoon title="Live Tracking" />} />
             <Route path="/ambulance-dashboard/fleet" element={<ComingSoon title="Fleet Status" />} />
             <Route path="/ambulance-dashboard/history" element={<AmbulanceHistoryPage />} />
+            <Route path="/ambulance-dashboard/report-tracking" element={<ReportTrackingPage />} />
             <Route path="/ambulance-dashboard/settings" element={<ComingSoon title="Ambulance Settings" />} />
           </Route>
 

@@ -17,6 +17,7 @@ import {
 } from "@/components/ui/alert-dialog";
 import api, { prescriptionService, doctorService } from "@/services/api";
 import { toast } from "sonner";
+import ReportModal from "@/components/ReportModal";
 import {
   Dialog,
   DialogContent,
@@ -80,6 +81,7 @@ export default function DoctorConsultationPage() {
   const [patientSummary, setPatientSummary] = useState<any>(null);
   const [isLoadingPatientInfo, setIsLoadingPatientInfo] = useState(false);
   const [patientInfoTab, setPatientInfoTab] = useState<"overview" | "records">("overview");
+  const [isReportModalOpen, setIsReportModalOpen] = useState(false);
 
   const fetchPatientInfo = async () => {
     if (!activeRoom?.partner_id) return;
@@ -807,7 +809,28 @@ export default function DoctorConsultationPage() {
                     </AlertDialog>
                   </div>
                 )}
+                {/* Report Patient Button — always visible */}
+                <Button
+                  variant="ghost"
+                  size="sm"
+                  className="gap-1.5 text-amber-600 hover:bg-amber-50 hover:text-amber-700 dark:hover:bg-amber-950/30"
+                  onClick={() => setIsReportModalOpen(true)}
+                  title="Laporkan pasien ini"
+                >
+                  <AlertTriangle className="h-4 w-4" />
+                  <span className="hidden sm:inline">Report</span>
+                </Button>
               </div>
+              {activeRoom && (
+                <ReportModal
+                  open={isReportModalOpen}
+                  onOpenChange={setIsReportModalOpen}
+                  reportedId={activeRoom.partner_id}
+                  reportedName={activeRoom.partner_name}
+                  contextType="consultation"
+                  contextId={activeRoom.room_id}
+                />
+              )}
             </div>
           ) : (
             <p className="font-semibold text-sm text-muted-foreground">

@@ -2,7 +2,7 @@ import { useState, useEffect, useRef } from "react";
 import { Link, useLocation, Outlet, useNavigate } from "react-router-dom";
 import {
   LayoutDashboard, Users, Calendar, Pill, MessageSquare,
-  ClipboardList, Settings, Bell, ChevronDown, Menu, X, LogOut, Stethoscope, Home
+  ClipboardList, Settings, Bell, ChevronDown, Menu, X, LogOut, Stethoscope, Home, FileWarning
 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import {
@@ -19,6 +19,7 @@ const doctorNav = [
   { label: "Schedule", path: "/doctor-dashboard/schedule", icon: Calendar },
   { label: "Prescriptions", path: "/doctor-dashboard/prescriptions", icon: Pill },
   { label: "Medical Records", path: "/doctor-dashboard/records", icon: ClipboardList },
+  { label: "Report Tracking", path: "/doctor-dashboard/report-tracking", icon: FileWarning },
   { label: "Settings", path: "/doctor-dashboard/settings", icon: Settings },
 ];
 

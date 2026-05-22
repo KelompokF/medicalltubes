@@ -15,6 +15,7 @@ import {
 import { toast } from "sonner";
 import { emergencyService, patientService } from "@/services/api";
 import { useQuery } from "@tanstack/react-query";
+import ReportModal from "@/components/ReportModal";
 
 export type EmergencyAction = "cancel" | "complete";
 
@@ -104,6 +105,7 @@ export default function EmergencyPage() {
     ambulance?: AmbulanceService;
   } | null>(null);
   const [radiusKm, setRadiusKm] = useState(50);
+  const [isReportModalOpen, setIsReportModalOpen] = useState(false);
 
   // Fetch location sharing setting from user profile
   const { data: locationSetting } = useQuery({
@@ -667,6 +669,20 @@ export default function EmergencyPage() {
                   Selesaikan
                 </Button>
               </div>
+              {/* Report Ambulance Button */}
+              {emergencyStatus.ambulance && (
+                <div className="pt-2 border-t border-dashed">
+                  <Button
+                    variant="ghost"
+                    size="sm"
+                    className="w-full gap-2 text-amber-600 hover:bg-amber-50 hover:text-amber-700 dark:hover:bg-amber-950/30"
+                    onClick={() => setIsReportModalOpen(true)}
+                  >
+                    <AlertTriangle className="h-4 w-4" />
+                    Laporkan Layanan Ambulans
+                  </Button>
+                </div>
+              )}
             </div>
           ) : (
             <p className="text-muted-foreground text-sm">
@@ -786,6 +802,18 @@ export default function EmergencyPage() {
           </DialogFooter>
         </DialogContent>
       </Dialog>
+
+      {/* Report Modal for Ambulance */}
+      {emergencyStatus?.ambulance && (
+        <ReportModal
+          open={isReportModalOpen}
+          onOpenChange={setIsReportModalOpen}
+          reportedId={emergencyStatus.ambulance.id}
+          reportedName={emergencyStatus.ambulance.name}
+          contextType="emergency"
+          contextId={emergencyStatus.id}
+        />
+      )}
     </div>
   );
 }

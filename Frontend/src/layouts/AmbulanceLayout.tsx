@@ -2,7 +2,7 @@ import { useState, useEffect, useRef } from "react";
 import { Link, useLocation, Outlet, useNavigate } from "react-router-dom";
 import {
   LayoutDashboard, AlertTriangle, MapPin, History, Truck,
-  Settings, Bell, ChevronDown, Menu, X, LogOut, Ambulance
+  Settings, Bell, ChevronDown, Menu, X, LogOut, Ambulance, FileWarning
 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import {
@@ -17,6 +17,7 @@ const ambulanceNav = [
   { label: "Live Tracking", path: "/ambulance-dashboard/tracking", icon: MapPin },
   { label: "Fleet Status", path: "/ambulance-dashboard/fleet", icon: Truck },
   { label: "Emergency History", path: "/ambulance-dashboard/history", icon: History },
+  { label: "Report Tracking", path: "/ambulance-dashboard/report-tracking", icon: FileWarning },
   { label: "Settings", path: "/ambulance-dashboard/settings", icon: Settings },
 ];
 
