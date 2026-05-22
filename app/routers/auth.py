@@ -55,7 +55,7 @@ async def login(data: UserLogin, db: AsyncSession = Depends(get_db)):
     
     if not verify_password(data.password, user.hashed_password):
         logger.warning(f"LOGIN DEBUG: Password verification FAILED for email={data.email}")
-        raise HTTPException(status_code=401, detail="Email atau password salah")
+        raise HTTPException(status_code=401, detail="Wrong Password or Email")
         
     if getattr(user, 'is_deleted', False):
         raise HTTPException(status_code=403, detail="Akun telah dihapus")
@@ -93,15 +93,24 @@ async def delete_account(
     db: AsyncSession = Depends(get_db),
     current_user: User = Depends(get_current_user)
 ):
-    if current_user.is_deleted:
-        raise HTTPException(status_code=403, detail="Akun sudah dihapus")
-
-    current_user.is_deleted = True
-
-    # soft delete data terkait (kalau ada relasi)
-    # Since we don't have async lazy loading, we'd need to manually update them if needed.
-    # For now, just mark the user as deleted.
-
+    # Perform hard delete
+    await db.delete(current_user)
     await db.commit()
 
-    return {"message": "Akun berhasil dihapus"}
+    return {"message": "Akun berhasil dihapus total"}
+
+from pydantic import BaseModel
+from app.dependencies import get_current_user
+
+class ChangePasswordRequest(BaseModel):
+    current_password: str
+    new_password: str
+
+@router.put("/change-password")
+async def change_password(data: ChangePasswordRequest, current_user: User = Depends(get_current_user), db: AsyncSession = Depends(get_db)):
+    if not verify_password(data.current_password, current_user.hashed_password):
+        raise HTTPException(status_code=400, detail="Current password incorrect")
+    current_user.hashed_password = hash_password(data.new_password)
+    db.add(current_user)
+    await db.commit()
+    return {"detail": "Password updated successfully"}

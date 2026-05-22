@@ -45,6 +45,11 @@ class HomeVisitRequestResponse(BaseModel):
     model_config = ConfigDict(from_attributes=True)
 
 
+class HomeVisitRequestUpdate(BaseModel):
+    status: str
+    notes: Optional[str] = None
+
+
 # ========================
 # BOOKING (FITUR BARU)
 # ========================

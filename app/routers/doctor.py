@@ -4,15 +4,24 @@ Doctor Router
 Provides endpoints to search/filter doctors from the database,
 get doctor detail, and start a consultation.
 Supports GPS-based "nearby" sorting using the Haversine formula.
+
+CRITICAL NOTE on route order:
+  Static-segment routes (e.g. /patient/...) MUST be registered
+  BEFORE wildcard routes (e.g. /{doctor_id}) so FastAPI matches
+  them correctly.
 """
 
 import math
-from typing import Optional
+from typing import Optional, List
 from fastapi import APIRouter, Query, Depends, HTTPException
 from sqlalchemy.ext.asyncio import AsyncSession
 from sqlalchemy.future import select
+from pydantic import BaseModel
+from datetime import datetime
+from uuid import UUID
 
 from app.database import get_db
+from app.dependencies import get_current_user
 from app.models.user import User
 from app.models.doctor_profile import DoctorProfile
 from app.schemas.doctor import (
@@ -48,6 +57,297 @@ def format_distance(km: float) -> str:
     return f"{km:.1f} km"
 
 
+# ─── Response Schemas for Patient Data ────────────────────────
+class HealthRecordItem(BaseModel):
+    id: str
+    date: str
+    diagnosed_conditions: Optional[str] = None
+    allergies: Optional[str] = None
+    current_medications: Optional[str] = None
+    notes: Optional[str] = None
+    blood_pressure: Optional[str] = None
+    heart_rate: Optional[int] = None
+    weight: Optional[float] = None
+    height: Optional[float] = None
+    created_at: str
+
+    class Config:
+        from_attributes = True
+
+
+class PatientProfileResponse(BaseModel):
+    id: str
+    full_name: str
+    email: str
+    blood_type: Optional[str] = None
+    allergies: Optional[str] = None
+    place_of_birth: Optional[str] = None
+    date_of_birth: Optional[str] = None
+
+    class Config:
+        from_attributes = True
+
+
+class PatientSummaryResponse(BaseModel):
+    """Combined patient summary: profile + latest health record data."""
+    profile: PatientProfileResponse
+    health_records: List[HealthRecordItem]
+    # Aggregated summary fields
+    latest_allergies: Optional[str] = None
+    latest_conditions: Optional[str] = None
+    latest_medications: Optional[str] = None
+    latest_vitals: Optional[dict] = None
+    total_records: int = 0
+
+
+# ─── POST /doctors/start-consultation ─────────────────────────
+# NOTE: This must be registered before /{doctor_id} to avoid
+# "start-consultation" being parsed as a doctor_id.
+@router.post("/start-consultation", response_model=StartConsultationResponse)
+async def start_consultation(
+    data: StartConsultationRequest,
+    db: AsyncSession = Depends(get_db),
+):
+    """
+    Initiate a consultation chat with a doctor.
+    Returns the doctor info needed to open the WebSocket chat.
+    """
+    import uuid as _uuid
+
+    try:
+        doc_uuid = _uuid.UUID(data.doctor_id)
+    except ValueError:
+        raise HTTPException(status_code=400, detail="Invalid doctor ID format")
+
+    result = await db.execute(
+        select(User, DoctorProfile)
+        .join(DoctorProfile, User.id == DoctorProfile.user_id)
+        .where(User.id == doc_uuid, User.role == "doctor")
+    )
+    row = result.first()
+
+    if not row:
+        raise HTTPException(status_code=404, detail="Dokter tidak ditemukan")
+
+    doctor, profile = row
+
+    return StartConsultationResponse(
+        success=True,
+        doctor_id=str(doctor.id),
+        doctor_name=doctor.full_name,
+        message=f"Konsultasi dengan {doctor.full_name} siap dimulai. Silakan kirim pesan.",
+    )
+
+
+# ─── GET /doctors/patient/{patient_id}/profile ────────────────
+# IMPORTANT: Must be registered BEFORE /{doctor_id} wildcard!
+@router.get("/patient/{patient_id}/profile", response_model=PatientProfileResponse)
+async def get_patient_profile_for_doctor(
+    patient_id: str,
+    current_user: User = Depends(get_current_user),
+    db: AsyncSession = Depends(get_db)
+):
+    """
+    Get patient profile and basic info for doctor view.
+    Only accessible by authenticated doctors.
+    """
+    if current_user.role != "doctor":
+        raise HTTPException(status_code=403, detail="Akses ditolak. Hanya dokter yang dapat mengakses data ini.")
+
+    import uuid as _uuid
+    try:
+        pat_uuid = _uuid.UUID(patient_id)
+    except ValueError:
+        raise HTTPException(status_code=400, detail="Invalid patient ID format")
+
+    from app.models.patient_profile import PatientProfile
+
+    # Get user info
+    result_user = await db.execute(select(User).where(User.id == pat_uuid))
+    patient_user = result_user.scalar_one_or_none()
+
+    if not patient_user:
+        raise HTTPException(status_code=404, detail="Pasien tidak ditemukan")
+
+    # Get profile info (PatientProfile has more details)
+    result_profile = await db.execute(
+        select(PatientProfile).where(PatientProfile.user_id == pat_uuid)
+    )
+    profile = result_profile.scalar_one_or_none()
+
+    return PatientProfileResponse(
+        id=str(patient_user.id),
+        full_name=patient_user.full_name,
+        email=patient_user.email,
+        blood_type=profile.blood_type if profile else None,
+        allergies=profile.allergies if profile else None,
+        place_of_birth=profile.place_of_birth if profile else None,
+        date_of_birth=str(profile.date_of_birth) if profile and profile.date_of_birth else None,
+    )
+
+
+# ─── GET /doctors/patient/{patient_id}/health-records ─────────
+# IMPORTANT: Must be registered BEFORE /{doctor_id} wildcard!
+@router.get("/patient/{patient_id}/health-records", response_model=List[HealthRecordItem])
+async def get_patient_health_records_for_doctor(
+    patient_id: str,
+    current_user: User = Depends(get_current_user),
+    db: AsyncSession = Depends(get_db)
+):
+    """
+    Get patient health records (sorted by date desc) for doctor view.
+    Only accessible by authenticated doctors.
+    """
+    if current_user.role != "doctor":
+        raise HTTPException(status_code=403, detail="Akses ditolak. Hanya dokter yang dapat mengakses data ini.")
+
+    import uuid as _uuid
+    try:
+        pat_uuid = _uuid.UUID(patient_id)
+    except ValueError:
+        raise HTTPException(status_code=400, detail="Invalid patient ID format")
+
+    from app.models.health_record import HealthRecord
+
+    # Verify the patient exists
+    result_user = await db.execute(select(User).where(User.id == pat_uuid))
+    patient_user = result_user.scalar_one_or_none()
+    if not patient_user:
+        raise HTTPException(status_code=404, detail="Pasien tidak ditemukan")
+
+    result = await db.execute(
+        select(HealthRecord)
+        .where(HealthRecord.user_id == pat_uuid)
+        .order_by(HealthRecord.date.desc())
+    )
+    records = result.scalars().all()
+
+    return [
+        HealthRecordItem(
+            id=str(r.id),
+            date=r.date.isoformat() if r.date else "",
+            diagnosed_conditions=r.diagnosed_conditions,
+            allergies=r.allergies,
+            current_medications=r.current_medications,
+            notes=r.notes,
+            blood_pressure=r.blood_pressure,
+            heart_rate=r.heart_rate,
+            weight=r.weight,
+            height=r.height,
+            created_at=r.created_at.isoformat() if r.created_at else "",
+        )
+        for r in records
+    ]
+
+
+# ─── GET /doctors/patient/{patient_id}/summary ────────────────
+# Combined endpoint: profile + health records + aggregated data
+@router.get("/patient/{patient_id}/summary", response_model=PatientSummaryResponse)
+async def get_patient_summary_for_doctor(
+    patient_id: str,
+    current_user: User = Depends(get_current_user),
+    db: AsyncSession = Depends(get_db)
+):
+    """
+    Get a complete patient summary (profile + all health records) in a
+    single request. Returns aggregated latest data for quick doctor review.
+    Only accessible by authenticated doctors.
+    """
+    if current_user.role != "doctor":
+        raise HTTPException(status_code=403, detail="Akses ditolak. Hanya dokter yang dapat mengakses data ini.")
+
+    import uuid as _uuid
+    try:
+        pat_uuid = _uuid.UUID(patient_id)
+    except ValueError:
+        raise HTTPException(status_code=400, detail="Invalid patient ID format")
+
+    from app.models.patient_profile import PatientProfile
+    from app.models.health_record import HealthRecord
+
+    # Get user
+    result_user = await db.execute(select(User).where(User.id == pat_uuid))
+    patient_user = result_user.scalar_one_or_none()
+    if not patient_user:
+        raise HTTPException(status_code=404, detail="Pasien tidak ditemukan")
+
+    # Get profile
+    result_profile = await db.execute(
+        select(PatientProfile).where(PatientProfile.user_id == pat_uuid)
+    )
+    profile = result_profile.scalar_one_or_none()
+
+    # Get all health records sorted by newest first
+    result_records = await db.execute(
+        select(HealthRecord)
+        .where(HealthRecord.user_id == pat_uuid)
+        .order_by(HealthRecord.date.desc())
+    )
+    records = result_records.scalars().all()
+
+    # Build serialized records
+    serialized_records = [
+        HealthRecordItem(
+            id=str(r.id),
+            date=r.date.isoformat() if r.date else "",
+            diagnosed_conditions=r.diagnosed_conditions,
+            allergies=r.allergies,
+            current_medications=r.current_medications,
+            notes=r.notes,
+            blood_pressure=r.blood_pressure,
+            heart_rate=r.heart_rate,
+            weight=r.weight,
+            height=r.height,
+            created_at=r.created_at.isoformat() if r.created_at else "",
+        )
+        for r in records
+    ]
+
+    # Aggregate from all records: pick the latest non-null value
+    def first_non_null(values):
+        return next((v for v in values if v), None)
+
+    latest_allergies = first_non_null(
+        [r.allergies for r in records]
+    ) or (profile.allergies if profile else None)
+    latest_conditions = first_non_null([r.diagnosed_conditions for r in records])
+    latest_medications = first_non_null([r.current_medications for r in records])
+
+    latest_vitals = None
+    latest_record_with_vitals = next(
+        (r for r in records if any([r.blood_pressure, r.heart_rate, r.weight, r.height])),
+        None
+    )
+    if latest_record_with_vitals:
+        latest_vitals = {
+            "blood_pressure": latest_record_with_vitals.blood_pressure,
+            "heart_rate": latest_record_with_vitals.heart_rate,
+            "weight": latest_record_with_vitals.weight,
+            "height": latest_record_with_vitals.height,
+            "date": latest_record_with_vitals.date.isoformat() if latest_record_with_vitals.date else None,
+        }
+
+    profile_response = PatientProfileResponse(
+        id=str(patient_user.id),
+        full_name=patient_user.full_name,
+        email=patient_user.email,
+        blood_type=profile.blood_type if profile else None,
+        allergies=profile.allergies if profile else None,
+        place_of_birth=profile.place_of_birth if profile else None,
+        date_of_birth=str(profile.date_of_birth) if profile and profile.date_of_birth else None,
+    )
+
+    return PatientSummaryResponse(
+        profile=profile_response,
+        health_records=serialized_records,
+        latest_allergies=latest_allergies,
+        latest_conditions=latest_conditions,
+        latest_medications=latest_medications,
+        latest_vitals=latest_vitals,
+        total_records=len(serialized_records),
+    )
+
+
 # ─── GET /doctors ─────────────────────────────────────────────
 @router.get("", response_model=DoctorSearchResponse)
 async def search_doctors(
@@ -61,14 +361,12 @@ async def search_doctors(
     """
     Search doctors with optional name search, specialization filter, and GPS nearby sort.
     """
-    # Build query: join DoctorProfile + User to get full_name
     stmt = (
         select(DoctorProfile, User.full_name)
         .join(User, DoctorProfile.user_id == User.id)
         .where(User.role == "doctor", User.is_active == True)
     )
 
-    # Apply filters
     if search:
         stmt = stmt.where(User.full_name.ilike(f"%{search}%"))
     if specialization and specialization != "All":
@@ -77,7 +375,6 @@ async def search_doctors(
     result = await db.execute(stmt)
     rows = result.all()
 
-    # Build response items + compute distance if GPS provided
     items = []
     for profile, full_name in rows:
         dist_km = None
@@ -104,17 +401,14 @@ async def search_doctors(
             distance_text=dist_text,
         ))
 
-    # Filter by radius if provided
     if lat is not None and lng is not None and radius_km is not None:
         items = [i for i in items if i.distance_km is not None and i.distance_km <= radius_km]
 
-    # Sort: by distance if GPS available, else by rating desc
     if lat is not None and lng is not None:
         items.sort(key=lambda x: x.distance_km if x.distance_km is not None else float("inf"))
     else:
         items.sort(key=lambda x: x.rating, reverse=True)
 
-    # Collect unique specializations for the filter dropdown
     all_specs_result = await db.execute(
         select(DoctorProfile.specialization).distinct()
     )
@@ -128,6 +422,7 @@ async def search_doctors(
 
 
 # ─── GET /doctors/{doctor_id} ─────────────────────────────────
+# IMPORTANT: Keep this LAST — wildcard must come after all static routes!
 @router.get("/{doctor_id}", response_model=DoctorDetailResponse)
 async def get_doctor_detail(
     doctor_id: str,
@@ -144,7 +439,6 @@ async def get_doctor_detail(
     except ValueError:
         raise HTTPException(status_code=400, detail="Invalid doctor ID format")
 
-    # Try by profile id first, then by user_id
     result = await db.execute(
         select(DoctorProfile, User.full_name)
         .join(User, DoctorProfile.user_id == User.id)

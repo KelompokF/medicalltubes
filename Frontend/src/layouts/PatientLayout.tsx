@@ -3,23 +3,10 @@ import { useQuery } from "@tanstack/react-query";
 import { authService } from "@/services/api";
 import { Link, useLocation, Outlet, useNavigate } from "react-router-dom";
 import {
-  LayoutDashboard,
-  Search,
-  MessageSquare,
-  History,
-  Home,
-  AlertTriangle,
-  User,
-  Bell,
-  ChevronDown,
-  Menu,
-  X,
-  LogOut,
-  Settings,
-  Heart,
-  ClipboardList
+  LayoutDashboard, Search, MessageSquare, History, Home,
+  AlertTriangle, User, Bell, ChevronDown, Menu, X,
+  LogOut, Settings, Heart, ClipboardList
 } from "lucide-react";
-
 import { Button } from "@/components/ui/button";
 import {
   DropdownMenu,
@@ -29,8 +16,9 @@ import {
   DropdownMenuTrigger
 } from "@/components/ui/dropdown-menu";
 import { toast } from "sonner";
+import { AccessibilityProvider } from "@/contexts/AccessibilityContext";
+import AccessibilityPanel from "@/components/AccessibilityPanel";
 
-// UPDATED NAV MENU
 const patientNav = [
   { label: "Dashboard", path: "/dashboard", icon: LayoutDashboard },
   { label: "Search Doctor", path: "/search-doctor", icon: Search },
@@ -38,6 +26,7 @@ const patientNav = [
   { label: "Chat History", path: "/chat-history", icon: History },
   { label: "Home Visit", path: "/home-visit", icon: Home },
   { label: "Home Visit History", path: "/home-visit-history", icon: History },
+  { label: "Home Visit Tracking", path: "/tracking", icon: Home },
   { label: "Medical Records", path: "/health-records", icon: ClipboardList },
   { label: "Emergency", path: "/emergency", icon: AlertTriangle },
   { label: "Profile", path: "/profile", icon: User },
@@ -53,19 +42,25 @@ export default function PatientLayout({
   userInitials = "JD"
 }: PatientLayoutProps) {
   const [sidebarOpen, setSidebarOpen] = useState(false);
-  // fetch current user to show name in header
-  const { data: meData } = useQuery({ queryKey: ["me"], queryFn: () => authService.getMe().then((res) => res.data), staleTime: 1000 * 60 * 5 });
+
+  const { data: meData } = useQuery({
+    queryKey: ["me"],
+    queryFn: () => authService.getMe().then((res) => res.data),
+    staleTime: 1000 * 60 * 5,
+  });
+
   if (meData) {
     userName = meData.full_name || userName;
     const parts = (meData.full_name || "").split(" ").filter(Boolean);
     userInitials = parts.length ? parts.map(p => p[0]).slice(0, 2).join("") : userInitials;
   }
+
   const [notifications, setNotifications] = useState<any[]>([]);
   const location = useLocation();
   const navigate = useNavigate();
+
   const isActive = (path: string) => location.pathname === path;
 
-<<<<<<< Updated upstream
   // WebSocket for notifications
   const userId = meData?.id || JSON.parse(localStorage.getItem("user") || "{}")?.id;
   const wsRef = useRef<WebSocket | null>(null);
@@ -85,15 +80,19 @@ export default function PatientLayout({
           const data = JSON.parse(event.data);
 
           if (data.receiver_id === userId && data.sender_id !== userId) {
-            setNotifications(prev => [
+            setNotifications((prev) => [
               {
                 id: Date.now(),
                 title: "Pesan Baru",
                 description: data.content,
                 sender_id: data.sender_id,
-                time: new Date().toLocaleTimeString("id-ID", { hour: "2-digit", minute: "2-digit" })
+                room_id: data.room_id,
+                time: new Date().toLocaleTimeString("id-ID", {
+                  hour: "2-digit",
+                  minute: "2-digit",
+                }),
               },
-              ...prev
+              ...prev,
             ]);
 
             if (!location.pathname.includes("/chat")) {
@@ -101,7 +100,7 @@ export default function PatientLayout({
                 description: data.content,
                 action: {
                   label: "Lihat Chat",
-                  onClick: () => navigate("/chat")
+                  onClick: () => navigate("/chat"),
                 },
               });
             }
@@ -118,12 +117,12 @@ export default function PatientLayout({
     return () => wsRef.current?.close();
   }, [userId, location.pathname, navigate]);
 
-=======
->>>>>>> Stashed changes
-  return (
-    <div className="min-h-screen bg-background">
 
-      {/* Overlay mobile */}
+  return (
+    <AccessibilityProvider>
+      <div className="patient-shell min-h-screen bg-background">
+
+      {/* overlay mobile */}
       {sidebarOpen && (
         <div
           className="fixed inset-0 z-40 bg-foreground/20 backdrop-blur-sm lg:hidden"
@@ -131,13 +130,11 @@ export default function PatientLayout({
         />
       )}
 
-      {/* Sidebar */}
+      {/* SIDEBAR */}
       <aside
-        className={`fixed top-0 left-0 z-50 h-full w-64 bg-sidebar text-sidebar-foreground transform transition-transform duration-300 lg:translate-x-0 ${
-          sidebarOpen ? "translate-x-0" : "-translate-x-full"
-        }`}
+        className={`fixed top-0 left-0 z-50 h-full w-64 bg-sidebar text-sidebar-foreground transform transition-transform duration-300 lg:translate-x-0 ${sidebarOpen ? "translate-x-0" : "-translate-x-full"
+          }`}
       >
-        {/* Logo */}
         <div className="flex items-center gap-2 px-6 py-5 border-b border-sidebar-border">
           <div className="rounded-lg medical-gradient p-2">
             <Heart className="h-5 w-5 text-primary-foreground" />
@@ -152,7 +149,6 @@ export default function PatientLayout({
           </button>
         </div>
 
-        {/* Menu */}
         <nav className="px-3 py-4 space-y-1 overflow-y-auto h-[calc(100%-140px)]">
           <p className="px-3 text-xs font-semibold uppercase tracking-wider text-sidebar-foreground/50 mb-2">
             Patient Menu
@@ -168,7 +164,6 @@ export default function PatientLayout({
           ))}
         </nav>
 
-        {/* Logout */}
         <div className="absolute bottom-0 left-0 right-0 p-4 border-t border-sidebar-border">
           <Link
             to="/login"
@@ -180,43 +175,38 @@ export default function PatientLayout({
         </div>
       </aside>
 
-      {/* Main Content */}
+      {/* MAIN */}
       <div className="lg:ml-64">
 
-        {/* Header */}
+        {/* HEADER */}
         <header className="sticky top-0 z-30 bg-card/80 backdrop-blur-md border-b">
           <div className="flex items-center justify-between px-4 sm:px-6 py-3">
 
-            {/* Left */}
+            <button
+              className="lg:hidden"
+              onClick={() => setSidebarOpen(true)}
+            >
+              <Menu className="h-5 w-5" />
+            </button>
+
+            {/* breadcrumb */}
+            <nav className="hidden sm:flex items-center text-sm text-muted-foreground">
+              <Link to="/dashboard">Home</Link>
+              <span className="mx-2">/</span>
+              <span className="text-foreground font-medium capitalize">
+                {location.pathname.slice(1).replace(/-/g, " ") || "Dashboard"}
+              </span>
+            </nav>
+
             <div className="flex items-center gap-3">
-              <button
-                className="lg:hidden"
-                onClick={() => setSidebarOpen(true)}
-              >
-                <Menu className="h-5 w-5" />
-              </button>
 
-              <nav className="hidden sm:flex items-center text-sm text-muted-foreground">
-                <Link to="/dashboard" className="hover:text-foreground">
-                  Home
-                </Link>
-                <span className="mx-2">/</span>
-                <span className="text-foreground font-medium capitalize">
-                  {location.pathname.slice(1).replace(/-/g, " ") || "Dashboard"}
-                </span>
-              </nav>
-            </div>
-
-            {/* Right */}
-            <div className="flex items-center gap-2">
-
-              {/* Notification */}
+              {/* notif */}
               <DropdownMenu>
                 <DropdownMenuTrigger asChild>
                   <Button variant="ghost" size="icon" className="relative">
                     <Bell className="h-5 w-5" />
                     {notifications.length > 0 && (
-                      <span className="absolute -top-0.5 -right-0.5 h-4 w-4 rounded-full bg-emergency text-[10px] font-bold text-emergency-foreground flex items-center justify-center animate-pulse">
+                      <span className="absolute -top-1 -right-1 bg-red-500 text-white text-[10px] rounded-full px-1">
                         {notifications.length}
                       </span>
                     )}
@@ -224,42 +214,33 @@ export default function PatientLayout({
                 </DropdownMenuTrigger>
 
                 <DropdownMenuContent align="end" className="w-72">
-                  <div className="px-3 py-2 font-semibold text-sm flex justify-between items-center">
-                    <span>Notifications</span>
-                    {notifications.length > 0 && (
-                      <Button variant="ghost" size="sm" className="h-auto p-0 text-[10px] text-primary" onClick={() => setNotifications([])}>Clear all</Button>
-                    )}
+                  <div className="px-3 py-2 font-semibold text-sm">
+                    Notifications
                   </div>
                   <DropdownMenuSeparator />
+
                   {notifications.length === 0 ? (
-                    <div className="px-3 py-4 text-center text-xs text-muted-foreground">
+                    <div className="px-3 py-4 text-xs text-muted-foreground">
                       No new notifications
                     </div>
                   ) : (
                     notifications.map((n) => (
-                      <DropdownMenuItem key={n.id} className="flex flex-col items-start gap-1 p-3 cursor-pointer" onClick={() => navigate("/chat")}>
-                        <div className="flex justify-between w-full">
-                          <span className="font-semibold text-xs">{n.title}</span>
-                          <span className="text-[10px] text-muted-foreground">{n.time}</span>
-                        </div>
-                        <p className="text-xs text-muted-foreground line-clamp-2">{n.description}</p>
+                      <DropdownMenuItem
+                        key={n.id}
+                        onClick={() => navigate("/chat")}
+                      >
+                        {n.description}
                       </DropdownMenuItem>
                     ))
-                  )}
-                  {notifications.length === 0 && (
-                    <>
-                      <DropdownMenuItem className="text-xs">Appointment reminder for tomorrow</DropdownMenuItem>
-                      <DropdownMenuItem className="text-xs">Prescription updated</DropdownMenuItem>
-                    </>
                   )}
                 </DropdownMenuContent>
               </DropdownMenu>
 
-              {/* User */}
+              {/* profile */}
               <DropdownMenu>
                 <DropdownMenuTrigger asChild>
                   <Button variant="ghost" className="gap-2">
-                    <div className="h-8 w-8 rounded-full bg-primary text-white flex items-center justify-center">
+                    <div className="h-8 w-8 rounded-full bg-primary flex items-center justify-center text-white text-sm font-bold">
                       {userInitials}
                     </div>
                     <span className="hidden sm:inline">{userName}</span>
@@ -286,16 +267,18 @@ export default function PatientLayout({
           </div>
         </header>
 
-        {/* Page Content */}
+        {/* CONTENT */}
         <main className="p-4 sm:p-6 lg:p-8">
           <Outlet />
         </main>
 
-        {/* Footer */}
         <footer className="border-t px-6 py-4 text-center text-sm text-muted-foreground">
           © 2026 Medicall — Healthcare Platform
         </footer>
+
       </div>
     </div>
+      <AccessibilityPanel />
+    </AccessibilityProvider>
   );
 }

@@ -1,11 +1,22 @@
-import { useState, useEffect, useCallback } from "react";
-import { Phone, MapPin, Clock, AlertTriangle, Shield, Heart, Thermometer, Loader2, Navigation, RefreshCw, Search } from "lucide-react";
+/* eslint-disable react-refresh/only-export-components */
+import { useState, useEffect, useCallback, useRef } from "react";
+import { Phone, MapPin, Clock, AlertTriangle, Shield, Heart, Thermometer, Loader2, Navigation, RefreshCw, Search, CheckCircle2, XCircle } from "lucide-react";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
+import {
+  Dialog,
+  DialogContent,
+  DialogDescription,
+  DialogFooter,
+  DialogHeader,
+  DialogTitle,
+} from "@/components/ui/dialog";
 import { toast } from "sonner";
 import { emergencyService, patientService } from "@/services/api";
 import { useQuery } from "@tanstack/react-query";
+
+export type EmergencyAction = "cancel" | "complete";
 
 interface AmbulanceService {
   id: string;
@@ -28,17 +39,68 @@ interface UserLocation {
   address?: string;
 }
 
+export const getLocationFallbackText = () =>
+  "Alamat belum tersedia. Lokasi GPS berhasil ditemukan.";
+
+export const getDisplayAddress = (
+  location: UserLocation | null,
+  fallbackAddress?: string,
+) => location?.address || fallbackAddress || getLocationFallbackText();
+
+export const getLocationDisplayText = (
+  location: UserLocation | null,
+  isResolvingAddress: boolean,
+) => {
+  if (location?.address) {
+    return location.address;
+  }
+
+  return isResolvingAddress ? "Mencari alamat..." : getDisplayAddress(location);
+};
+
+export const syncEmergencyStatus = async (
+  id: string,
+  action: EmergencyAction,
+  updateStatus: (id: string, status: "cancelled" | "completed") => Promise<unknown>,
+) => {
+  try {
+    await updateStatus(id, action === "cancel" ? "cancelled" : "completed");
+    return true;
+  } catch (error: unknown) {
+    console.error("Emergency status sync failed:", error);
+    return false;
+  }
+};
+
+export const reverseGeocodeLocation = async (lat: number, lng: number) => {
+  const response = await fetch(
+    `https://nominatim.openstreetmap.org/reverse?format=jsonv2&lat=${lat}&lon=${lng}`,
+    { headers: { Accept: "application/json" } },
+  );
+
+  if (!response.ok) {
+    return null;
+  }
+
+  const data: { display_name?: string } = await response.json();
+  return data.display_name || null;
+};
+
 export default function EmergencyPage() {
   const [ambulances, setAmbulances] = useState<AmbulanceService[]>([]);
   const [location, setLocation] = useState<UserLocation | null>(null);
   const [locationError, setLocationError] = useState<string | null>(null);
   const [isLoadingLocation, setIsLoadingLocation] = useState(false);
   const [isLoadingAmbulances, setIsLoadingAmbulances] = useState(false);
+  const [isResolvingAddress, setIsResolvingAddress] = useState(false);
   const [isSending, setIsSending] = useState(false);
+  const [showSOSConfirm, setShowSOSConfirm] = useState(false);
+  const [pendingAction, setPendingAction] = useState<EmergencyAction | null>(null);
   const [emergencyStatus, setEmergencyStatus] = useState<{
     id: string;
     status: string;
     message: string;
+    address: string;
     ambulance?: AmbulanceService;
   } | null>(null);
   const [radiusKm, setRadiusKm] = useState(50);
@@ -49,9 +111,61 @@ export default function EmergencyPage() {
     queryFn: () => patientService.getLocationSharing().then((r) => r.data),
   });
   const isLocationSharingEnabled = locationSetting?.location_sharing_enabled ?? null;
+  const locationRequestId = useRef(0);
+  const ambulanceRequestId = useRef(0);
+  const radiusKmRef = useRef(radiusKm);
+
+  const nearestAmbulance = ambulances[0];
+  const isNearestAmbulanceAvailable = Boolean(
+    nearestAmbulance &&
+      !["unavailable", "offline", "busy"].includes((nearestAmbulance.status || "").toLowerCase()),
+  );
+
+  useEffect(() => {
+    radiusKmRef.current = radiusKm;
+  }, [radiusKm]);
+
+  // Fetch nearby ambulances from backend
+  const fetchNearbyAmbulances = useCallback(async (lat: number, lng: number, radiusOverride?: number) => {
+    const requestId = ambulanceRequestId.current + 1;
+    ambulanceRequestId.current = requestId;
+    setIsLoadingAmbulances(true);
+    try {
+      const response = await emergencyService.getNearbyAmbulances(
+        lat,
+        lng,
+        radiusOverride ?? radiusKmRef.current,
+      );
+      const data = response.data;
+      if (ambulanceRequestId.current !== requestId) {
+        return;
+      }
+
+      setAmbulances(data.ambulances || []);
+      if (data.address) {
+        setLocation((prev) =>
+          prev && !prev.address && prev.lat === lat && prev.lng === lng
+            ? { ...prev, address: data.address }
+            : prev
+        );
+      }
+      if (data.ambulances?.length === 0) {
+        toast.info("Tidak ada layanan ambulans ditemukan di area ini. Coba perbesar radius pencarian.");
+      }
+    } catch (error: unknown) {
+      console.error("Error fetching ambulances:", error);
+      toast.error("Gagal memuat data ambulans. Silakan coba lagi.");
+    } finally {
+      if (ambulanceRequestId.current === requestId) {
+        setIsLoadingAmbulances(false);
+      }
+    }
+  }, []);
 
   // Get user's GPS location
   const getLocation = useCallback(() => {
+    const requestId = locationRequestId.current + 1;
+    locationRequestId.current = requestId;
     setIsLoadingLocation(true);
     setLocationError(null);
 
@@ -62,16 +176,63 @@ export default function EmergencyPage() {
     }
 
     navigator.geolocation.getCurrentPosition(
-      (position) => {
-        const loc = {
+      async (position) => {
+        if (locationRequestId.current !== requestId) {
+          return;
+        }
+
+        const loc: UserLocation = {
           lat: position.coords.latitude,
           lng: position.coords.longitude,
         };
+
+        try {
+          const res = await fetch(`https://nominatim.openstreetmap.org/reverse?format=json&lat=${loc.lat}&lon=${loc.lng}&zoom=18&addressdetails=1`);
+          const data = await res.json();
+          if (data && data.address) {
+            const addr = data.address;
+            const road = addr.road || addr.street || "";
+            const village = addr.village || addr.suburb || addr.neighbourhood || "";
+            const subdistrict = addr.city_district || addr.district || "";
+            const city = addr.city || addr.town || addr.county || addr.state || "";
+            
+            const parts = [road, village, subdistrict, city].filter(Boolean);
+            if (parts.length > 0) {
+              loc.address = parts.join(", ");
+            }
+          }
+        } catch (e) {
+          console.error("Geocoding failed", e);
+        }
+
         setLocation(loc);
         setIsLoadingLocation(false);
         fetchNearbyAmbulances(loc.lat, loc.lng);
+        setIsResolvingAddress(true);
+        reverseGeocodeLocation(loc.lat, loc.lng)
+          .then((address) => {
+            if (address && locationRequestId.current === requestId) {
+              setLocation((prev) =>
+                prev && prev.lat === loc.lat && prev.lng === loc.lng
+                  ? { ...prev, address }
+                  : prev,
+              );
+            }
+          })
+          .catch((error: unknown) => {
+            console.error("Reverse geocode error:", error);
+          })
+          .finally(() => {
+            if (locationRequestId.current === requestId) {
+              setIsResolvingAddress(false);
+            }
+          });
       },
       (error) => {
+        if (locationRequestId.current !== requestId) {
+          return;
+        }
+
         let msg = "Gagal mendapatkan lokasi.";
         switch (error.code) {
           case error.PERMISSION_DENIED:
@@ -93,51 +254,50 @@ export default function EmergencyPage() {
         maximumAge: 0,
       }
     );
-  }, []);
-
-  // Fetch nearby ambulances from backend
-  const fetchNearbyAmbulances = async (lat: number, lng: number) => {
-    setIsLoadingAmbulances(true);
-    try {
-      const response = await emergencyService.getNearbyAmbulances(lat, lng);
-      const data = response.data;
-      setAmbulances(data.ambulances || []);
-      if (data.address) {
-        setLocation((prev) =>
-          prev ? { ...prev, address: data.address } : null
-        );
-      }
-      if (data.ambulances?.length === 0) {
-        toast.info("Tidak ada layanan ambulans ditemukan di area ini. Coba perbesar radius pencarian.");
-      }
-    } catch (error: unknown) {
-      console.error("Error fetching ambulances:", error);
-      toast.error("Gagal memuat data ambulans. Silakan coba lagi.");
-    } finally {
-      setIsLoadingAmbulances(false);
-    }
-  };
+  }, [fetchNearbyAmbulances]);
 
   // Send emergency SOS request
-  const handleSOS = async () => {
+  const handleSOS = () => {
     if (!location) {
       toast.error("Lokasi belum tersedia. Silakan izinkan akses lokasi.");
       return;
     }
 
+    if (!isNearestAmbulanceAvailable) {
+      toast.error("Ambulans terdekat belum tersedia. Silakan cari ulang atau hubungi nomor darurat.");
+      return;
+    }
+
+    setShowSOSConfirm(true);
+  };
+
+  const confirmSOS = async () => {
+    if (!location || !isNearestAmbulanceAvailable) {
+      toast.error("Ambulans terdekat belum tersedia. Silakan cari ulang atau hubungi nomor darurat.");
+      setShowSOSConfirm(false);
+      return;
+    }
+
     setIsSending(true);
     try {
+      const address = getDisplayAddress(location);
       const response = await emergencyService.requestEmergency({
         location: { lat: location.lat, lng: location.lng },
         type: "general",
       });
       const data = response.data;
-      setEmergencyStatus({
-        id: data.id,
-        status: data.status,
-        message: data.message,
-        ambulance: data.ambulance_assigned,
-      });
+      if (data.status === "cancelled" || data.status === "completed") {
+        setEmergencyStatus(null);
+      } else {
+        setEmergencyStatus({
+          id: data.id,
+          status: data.status,
+          message: data.message,
+          address,
+          ambulance: data.ambulance_assigned || nearestAmbulance,
+        });
+      }
+      setShowSOSConfirm(false);
       toast.success("Permintaan darurat terkirim! Bantuan sedang dalam perjalanan.");
     } catch (error: unknown) {
       console.error("SOS Error:", error);
@@ -160,6 +320,29 @@ export default function EmergencyPage() {
       console.error("Call error:", error);
       toast.error("Gagal menghubungi ambulans.");
     }
+  };
+
+  const confirmStatusAction = async () => {
+    if (!pendingAction || !emergencyStatus) return;
+
+    const action = pendingAction;
+    const synced = await syncEmergencyStatus(
+      emergencyStatus.id,
+      action,
+      emergencyService.updateEmergencyStatus,
+    );
+
+    if (!synced) {
+      toast.warning("Status lokal diperbarui, tetapi sinkronisasi ke server belum berhasil.");
+    }
+
+    setEmergencyStatus(null);
+    toast.success(
+      action === "cancel"
+        ? "Permintaan darurat dibatalkan."
+        : "Permintaan darurat diselesaikan.",
+    );
+    setPendingAction(null);
   };
 
   // Refresh search with different radius
@@ -193,7 +376,7 @@ export default function EmergencyPage() {
       <div className="flex justify-center">
         <button
           onClick={handleSOS}
-          disabled={isSending || !location}
+          disabled={isSending || !location || !isNearestAmbulanceAvailable}
           className="group relative h-40 w-40 rounded-full bg-emergency hover:bg-emergency/90 transition-all duration-300 flex flex-col items-center justify-center shadow-elevated hover:scale-105 disabled:opacity-50 disabled:cursor-not-allowed"
         >
           {!isSending && (
@@ -269,7 +452,7 @@ export default function EmergencyPage() {
                   )}
                 </p>
                 <p className="font-medium text-foreground text-sm truncate">
-                  {location?.address || (location ? `${location.lat.toFixed(6)}, ${location.lng.toFixed(6)}` : "Lokasi belum didapatkan")}
+                  {getLocationDisplayText(location, isResolvingAddress)}
                 </p>
               </div>
               <Button size="sm" variant="outline" onClick={getLocation}>
@@ -291,6 +474,9 @@ export default function EmergencyPage() {
               onChange={(e) => {
                 const newRadius = Number(e.target.value);
                 setRadiusKm(newRadius);
+                if (location) {
+                  fetchNearbyAmbulances(location.lat, location.lng, newRadius);
+                }
               }}
               className="text-sm border rounded-md px-2 py-1 bg-background text-foreground"
             >
@@ -351,7 +537,7 @@ export default function EmergencyPage() {
                 className="mt-3"
                 onClick={() => {
                   setRadiusKm(50);
-                  if (location) fetchNearbyAmbulances(location.lat, location.lng);
+                  if (location) fetchNearbyAmbulances(location.lat, location.lng, 50);
                 }}
               >
                 Perbesar Radius ke 50 km
@@ -436,27 +622,51 @@ export default function EmergencyPage() {
         </CardHeader>
         <CardContent>
           {emergencyStatus ? (
-            <div className="space-y-3">
-              <div className="flex items-center gap-2">
+            <div className="space-y-4">
+              <div className="flex flex-wrap items-center gap-2">
                 <Badge
                   variant="default"
                   className={
-                    emergencyStatus.status === "dispatched"
+                    emergencyStatus.status === "dispatched" || emergencyStatus.status === "on_route"
                       ? "bg-success/10 text-success border-success/20"
                       : "bg-warning/10 text-warning border-warning/20"
                   }
                 >
-                  {emergencyStatus.status === "dispatched" ? "Dikirim" : "Mencari"}
+                  {emergencyStatus.status === "dispatched" || emergencyStatus.status === "on_route" ? "Dikirim" : "Mencari"}
                 </Badge>
                 <span className="text-sm text-muted-foreground">ID: {emergencyStatus.id.slice(0, 8)}...</span>
               </div>
               <p className="text-sm text-foreground">{emergencyStatus.message}</p>
+              <div className="grid grid-cols-1 sm:grid-cols-2 gap-3 text-sm">
+                <div className="rounded-lg bg-muted/50 p-3">
+                  <p className="text-muted-foreground">Alamat Penjemputan</p>
+                  <p className="font-medium text-foreground mt-1">{emergencyStatus.address}</p>
+                </div>
+                <div className="rounded-lg bg-muted/50 p-3">
+                  <p className="text-muted-foreground">Status Booking</p>
+                  <p className="font-medium text-foreground mt-1 capitalize">{emergencyStatus.status.replace(/_/g, " ")}</p>
+                </div>
+              </div>
               {emergencyStatus.ambulance && (
-                <div className="bg-muted/50 rounded-lg p-3 text-sm">
-                  <p className="font-medium">{emergencyStatus.ambulance.name}</p>
-                  <p className="text-muted-foreground">{emergencyStatus.ambulance.distance_text} • ETA: {emergencyStatus.ambulance.eta_text}</p>
+                <div className="bg-muted/50 rounded-lg p-3 text-sm space-y-1">
+                  <p className="font-medium text-foreground">{emergencyStatus.ambulance.name}</p>
+                  <p className="text-muted-foreground">{emergencyStatus.ambulance.address}</p>
+                  <div className="flex flex-wrap gap-x-4 gap-y-1 text-muted-foreground">
+                    <span>Jarak: {emergencyStatus.ambulance.distance_text}</span>
+                    <span>ETA: {emergencyStatus.ambulance.eta_text}</span>
+                  </div>
                 </div>
               )}
+              <div className="grid grid-cols-1 sm:grid-cols-2 gap-2">
+                <Button variant="outline" onClick={() => setPendingAction("cancel")}>
+                  <XCircle className="h-4 w-4 mr-2" />
+                  Batalkan
+                </Button>
+                <Button onClick={() => setPendingAction("complete")}>
+                  <CheckCircle2 className="h-4 w-4 mr-2" />
+                  Selesaikan
+                </Button>
+              </div>
             </div>
           ) : (
             <p className="text-muted-foreground text-sm">
@@ -521,6 +731,61 @@ export default function EmergencyPage() {
           </div>
         </CardContent>
       </Card>
+
+      <Dialog open={showSOSConfirm} onOpenChange={setShowSOSConfirm}>
+        <DialogContent className="sm:max-w-md">
+          <DialogHeader>
+            <DialogTitle>Konfirmasi SOS Darurat</DialogTitle>
+            <DialogDescription>
+              Permintaan darurat akan dikirim ke ambulans terdekat dengan alamat penjemputan Anda.
+            </DialogDescription>
+          </DialogHeader>
+          <div className="rounded-lg bg-muted/50 p-4 text-sm space-y-2">
+            <p className="font-medium text-foreground">{getDisplayAddress(location)}</p>
+            {nearestAmbulance && (
+              <p className="text-muted-foreground">
+                {nearestAmbulance.name} • {nearestAmbulance.distance_text} • ETA {nearestAmbulance.eta_text}
+              </p>
+            )}
+          </div>
+          <DialogFooter className="gap-2 sm:gap-0">
+            <Button variant="outline" onClick={() => setShowSOSConfirm(false)}>
+              Batal
+            </Button>
+            <Button onClick={confirmSOS} disabled={isSending || !isNearestAmbulanceAvailable} className="bg-emergency hover:bg-emergency/90">
+              {isSending ? <Loader2 className="h-4 w-4 mr-2 animate-spin" /> : <Phone className="h-4 w-4 mr-2" />}
+              Kirim SOS
+            </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
+
+      <Dialog open={Boolean(pendingAction)} onOpenChange={(open) => !open && setPendingAction(null)}>
+        <DialogContent className="sm:max-w-md">
+          <DialogHeader>
+            <DialogTitle>
+              {pendingAction === "cancel" ? "Batalkan Permintaan?" : "Selesaikan Permintaan?"}
+            </DialogTitle>
+            <DialogDescription>
+              {pendingAction === "cancel"
+                ? "Permintaan ini akan dihapus dari Status Permintaan Darurat."
+                : "Tandai bantuan darurat ini selesai dan hapus dari status aktif."}
+            </DialogDescription>
+          </DialogHeader>
+          <DialogFooter className="gap-2 sm:gap-0">
+            <Button variant="outline" onClick={() => setPendingAction(null)}>
+              Kembali
+            </Button>
+            <Button
+              variant={pendingAction === "cancel" ? "destructive" : "default"}
+              onClick={confirmStatusAction}
+            >
+              {pendingAction === "cancel" ? <XCircle className="h-4 w-4 mr-2" /> : <CheckCircle2 className="h-4 w-4 mr-2" />}
+              Konfirmasi
+            </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
     </div>
   );
 }

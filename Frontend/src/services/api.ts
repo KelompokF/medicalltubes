@@ -2,8 +2,7 @@ import axios from "axios";
 
 // Base API configuration — point to your FastAPI backend
 // Default to backend root (no /api/v1) since backend routes use /auth, /chat, etc.
-const API_BASE_URL =
-  import.meta.env.VITE_API_BASE_URL || "http://localhost:8001";
+const API_BASE_URL = import.meta.env.VITE_API_BASE_URL || "http://localhost:8001";
 
 const api = axios.create({
   baseURL: API_BASE_URL,
@@ -32,7 +31,10 @@ api.interceptors.response.use(
     if (error.response?.status === 401) {
       localStorage.removeItem("access_token");
       localStorage.removeItem("user");
-      window.location.href = "/login";
+      // Only redirect if not already on the login page to avoid endless loops and lost error toasts
+      if (window.location.pathname !== "/login" && window.location.pathname !== "/") {
+        window.location.href = "/login";
+      }
     }
     return Promise.reject(error);
   }
@@ -53,6 +55,8 @@ export const authService = {
     api.post("/auth/forgot-password", { email }),
   resetPassword: (data: { token: string; password: string }) =>
     api.post("/auth/reset-password", data),
+  changePassword: (data: { current_password: string; new_password: string }) =>
+    api.put("/auth/change-password", data),
 };
 
 // ============================================
@@ -62,7 +66,7 @@ export const patientService = {
   getDashboard: () => api.get("/patient/dashboard"),
   getProfile: () => api.get("/patient/profile"),
   updateProfile: (data: any) => api.put("/patient/profile", data),
-  deleteAccount: () => api.delete("/patient/account"),
+  deleteAccount: () => api.delete("/auth/delete-account"),
   // Location Sharing
   getLocationSharing: () => api.get("/users/me/location-sharing"),
   updateLocationSharing: (enabled: boolean) =>
@@ -74,6 +78,7 @@ export const patientService = {
 // ============================================
 export const doctorService = {
   searchDoctors: (params: {
+    page?: number;
     search?: string;
     specialization?: string;
     lat?: number;
@@ -92,6 +97,14 @@ export const doctorService = {
   getPatientRequests: () => api.get("/doctor/requests"),
   acceptRequest: (id: string) => api.post(`/doctor/requests/${id}/accept`),
   createPrescription: (data: any) => api.post("/doctor/prescriptions", data),
+  // Patient data endpoints for doctor
+  getPatientProfile: (patientId: string) =>
+    api.get(`/doctors/patient/${patientId}/profile`),
+  getPatientHealthRecords: (patientId: string) =>
+    api.get(`/doctors/patient/${patientId}/health-records`),
+  /** Single combined request: profile + all health records + aggregated summary */
+  getPatientSummary: (patientId: string) =>
+    api.get(`/doctors/patient/${patientId}/summary`),
 };
 
 // ============================================
@@ -130,8 +143,6 @@ export const homeVisitService = {
 };
 
 // ============================================
-<<<<<<< Updated upstream
-=======
 // HOME VISIT SCHEDULE ENDPOINTS (dokter & jam dari backend)
 // ============================================
 export const homeVisitScheduleService = {
@@ -156,15 +167,30 @@ export const homeVisitScheduleService = {
 };
 
 // ============================================
->>>>>>> Stashed changes
+
 // EMERGENCY ENDPOINTS
 // ============================================
 export const emergencyService = {
-  requestEmergency: (data: { location: { lat: number; lng: number }; type?: string }) =>
+  requestEmergency: (data: { location: { lat: number; lng: number }; type?: string; notes?: string }) =>
     api.post("/emergencies", data),
-  getNearbyAmbulances: (lat: number, lng: number) =>
-    api.get("/emergencies/ambulances", { params: { lat, lng } }),
+  getNearbyAmbulances: (lat: number, lng: number, radiusKm?: number) =>
+    api.get("/emergencies/ambulances", { params: { lat, lng, radius_km: radiusKm } }),
+  getEmergencyHistory: (params?: {
+    filter?: "all" | "today" | "yesterday" | "last_7_days" | "this_month";
+    page?: number;
+    limit?: number;
+  }) => api.get("/emergencies/history", { params }),
+  getActiveEmergencies: () => api.get("/emergencies/active"),
+  updateActiveEmergencyStatus: (
+    id: string,
+    status: "on_my_way" | "on_progress" | "completed"
+  ) => api.patch(`/emergencies/${id}/status`, { status }),
   getEmergencyStatus: (id: string) => api.get(`/emergencies/${id}/status`),
+  updateEmergencyStatus: (
+    id: string,
+    status: "cancelled" | "on_my_way" | "on_progress" | "completed"
+  ) =>
+    api.patch(`/emergencies/${id}/status`, { status }),
   callAmbulance: (ambulanceId: string) =>
     api.post(`/emergencies/ambulances/${ambulanceId}/call`),
 };
@@ -213,4 +239,31 @@ export const healthRecordService = {
   getRecordById: (id: string) => api.get(`/health-records/${id}`),
   createRecord: (data: any) => api.post("/health-records", data),
   deleteRecord: (id: string) => api.delete(`/health-records/${id}`),
+};
+
+// ============================================
+// DOCTOR SCHEDULE ENDPOINTS
+// ============================================
+export interface DaySchedule {
+  hari: string;
+  slots: string[]; // "HH:MM" strings
+}
+
+export interface DoctorScheduleResponse {
+  doctor_id: string;
+  schedule: DaySchedule[];
+}
+
+export const doctorScheduleService = {
+  /** Pasien: ambil jadwal dokter berdasarkan profile ID atau user ID */
+  getSchedule: (doctorId: string) =>
+    api.get<DoctorScheduleResponse>(`/doctors/${doctorId}/schedule`),
+
+  /** Dokter: lihat jadwal sendiri */
+  getMySchedule: () =>
+    api.get<DoctorScheduleResponse>("/doctor/schedule"),
+
+  /** Dokter: simpan/update jadwal sendiri (full replace) */
+  updateMySchedule: (schedule: DaySchedule[]) =>
+    api.put<DoctorScheduleResponse>("/doctor/schedule", { schedule }),
 };

@@ -25,7 +25,12 @@ import UserProfilePage from "@/pages/patient/UserProfilePage";
 import AdminDashboard from "@/pages/admin/AdminDashboard";
 import DoctorDashboard from "@/pages/doctor/DoctorDashboard";
 import DoctorConsultationPage from "@/pages/doctor/DoctorConsultationPage";
+import DoctorSchedulePage from "@/pages/doctor/DoctorSchedulePage";
+import DoctorHomeVisits from "@/pages/doctor/DoctorHomeVisits";
+import DoctorPatientsPage from "@/pages/doctor/DoctorPatientsPage";
 import AmbulanceDashboard from "@/pages/ambulance/AmbulanceDashboard";
+import AmbulanceActivePage from "@/pages/ambulance/AmbulanceActivePage";
+import AmbulanceHistoryPage from "@/pages/ambulance/AmbulanceHistoryPage";
 import NotFound from "@/pages/NotFound";
 
 const queryClient = new QueryClient({
@@ -86,22 +91,22 @@ const App = () => (
           {/* Doctor Routes */}
           <Route element={<DoctorLayout />}>
             <Route path="/doctor-dashboard" element={<DoctorDashboard />} />
-            <Route path="/doctor-dashboard/patients" element={<ComingSoon title="My Patients" />} />
+            <Route path="/doctor-dashboard/patients" element={<DoctorPatientsPage />} />
             <Route path="/doctor-dashboard/consultations" element={<DoctorConsultationPage />} />
-            <Route path="/doctor-dashboard/home-visits" element={<ComingSoon title="Home Visits" />} />
-            <Route path="/doctor-dashboard/schedule" element={<ComingSoon title="Schedule Management" />} />
+            <Route path="/doctor-dashboard/home-visits" element={<DoctorHomeVisits />} />
+            <Route path="/doctor-dashboard/schedule" element={<DoctorSchedulePage />} />
             <Route path="/doctor-dashboard/prescriptions" element={<ComingSoon title="Prescriptions" />} />
             <Route path="/doctor-dashboard/records" element={<ComingSoon title="Medical Records" />} />
             <Route path="/doctor-dashboard/settings" element={<ComingSoon title="Doctor Settings" />} />
           </Route>
 
-          {/* Ambulance Routes */}
+          {/* Ambu Routes */}
           <Route element={<AmbulanceLayout />}>
             <Route path="/ambulance-dashboard" element={<AmbulanceDashboard />} />
-            <Route path="/ambulance-dashboard/active" element={<ComingSoon title="Active Emergencies" />} />
+            <Route path="/ambulance-dashboard/active" element={<AmbulanceActivePage />} />
             <Route path="/ambulance-dashboard/tracking" element={<ComingSoon title="Live Tracking" />} />
             <Route path="/ambulance-dashboard/fleet" element={<ComingSoon title="Fleet Status" />} />
-            <Route path="/ambulance-dashboard/history" element={<ComingSoon title="Emergency History" />} />
+            <Route path="/ambulance-dashboard/history" element={<AmbulanceHistoryPage />} />
             <Route path="/ambulance-dashboard/settings" element={<ComingSoon title="Ambulance Settings" />} />
           </Route>
 
