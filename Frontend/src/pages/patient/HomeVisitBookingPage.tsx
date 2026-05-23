@@ -1,4 +1,5 @@
 import { useState, useEffect, FormEvent } from "react";
+import { useNavigate } from "react-router-dom";
 import { Calendar, MapPin, Phone, User, Clock, Stethoscope } from "lucide-react";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
@@ -161,10 +162,11 @@ export default function HomeVisitBookingPage() {
       const response = await homeVisitScheduleService.submitRequest(payload);
       console.log("Success:", response.data);
 
-      toast.success("Permintaan kunjungan rumah berhasil dikirim!");
+      toast.success("Permintaan kunjungan rumah berhasil disimpan!");
 
-      // Pindah ke halaman tracking
-      navigate("/tracking");
+      // Pindah ke halaman pembayaran dummy
+      const requestId = response.data.id;
+      navigate(`/home-visit/payment/${requestId}`);
 
       // Reset form
       setPatientName("");
@@ -367,21 +369,6 @@ export default function HomeVisitBookingPage() {
                 </div>
               </CardContent>
             </Card>
-
-            {/* Alamat & Keluhan */}
-            <Card className="shadow-card">
-              <CardHeader><CardTitle className="flex items-center gap-2"><MapPin className="h-5 w-5 text-primary" /> Alamat & Keluhan</CardTitle></CardHeader>
-              <CardContent className="space-y-4">
-                <div>
-                  <Label htmlFor="address">Alamat Lengkap <span className="text-destructive">*</span></Label>
-                  <Textarea
-                    id="address"
-                    value={address}
-                    onChange={(e) => setAddress(e.target.value)}
-                    placeholder="Alamat lengkap lokasi kunjungan"
-                    className="mt-1"
-                    required
-                  />
           </div>
 
           {/* SECTION 4: Ringkasan & Submit */}

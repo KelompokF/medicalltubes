@@ -59,7 +59,7 @@ async def get_dashboard_summary(
 
     # Tabel 2: home_visit_requests_v3 (tampilkan semua data yang ada sesuai permintaan)
     result_hv_v3 = await db.execute(
-        text("SELECT count(*) FROM home_visit_requests_v3")
+        text("SELECT count(*) FROM home_visit_requests_v3 WHERE payment_status = 'paid_cash'")
     )
     total_hv_v3 = result_hv_v3.scalar() or 0
     
@@ -239,6 +239,7 @@ async def get_dashboard_summary(
             FROM home_visit_requests_v3 r
             LEFT JOIN doctor_profiles dp ON dp.id = r.doctor_id
             LEFT JOIN users u ON u.id = dp.user_id
+            WHERE r.payment_status = 'paid_cash'
             ORDER BY r.created_at DESC
             LIMIT 5
         """)

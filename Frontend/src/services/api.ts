@@ -164,6 +164,13 @@ export const homeVisitScheduleService = {
     preferred_date: string;
     preferred_time: string;
   }) => api.post("/home-visits/request", data),
+
+  /** Ambil detail satu permintaan berdasarkan ID (GET /home-visits/requests/{id}) */
+  getRequestById: (id: string) => api.get(`/home-visits/requests/${id}`),
+
+  /** Update status pembayaran (PATCH /home-visits/requests/{id}/payment) */
+  updatePaymentStatus: (id: string, payment_status: string) =>
+    api.patch(`/home-visits/requests/${id}/payment`, { payment_status }),
 };
 
 // ============================================
@@ -229,6 +236,11 @@ export const prescriptionService = {
   create: (data: any) => api.post("/prescriptions", data),
   getRoomPrescriptions: (roomId: string) => api.get(`/prescriptions/room/${roomId}`),
   getPatientPrescriptions: (patientId: string) => api.get(`/prescriptions/patient/${patientId}`),
+
+  // Admin prescription tracking
+  getAdminPrescriptionsList: () => api.get("/prescriptions/admin/list"),
+  updatePrescriptionStatus: (id: string, status: string) =>
+    api.patch(`/prescriptions/admin/${id}/status`, { status }),
 };
 
 // ============================================
@@ -267,3 +279,39 @@ export const doctorScheduleService = {
   updateMySchedule: (schedule: DaySchedule[]) =>
     api.put<DoctorScheduleResponse>("/doctor/schedule", { schedule }),
 };
+
+// ============================================
+// REPORT ENDPOINTS
+// ============================================
+export const reportService = {
+  /** Buat laporan baru */
+  createReport: (data: {
+    reported_id: string;
+    reason: string;
+    description: string;
+    context_type: "consultation" | "emergency";
+    context_id?: string;
+  }) => api.post("/reports", data),
+
+  /** Lihat laporan yang pernah saya buat */
+  getMyReports: () => api.get("/reports/my"),
+
+  /** (Admin) Lihat semua laporan */
+  getAllReports: (params?: { status?: string }) =>
+    api.get("/reports", { params }),
+
+  /** (Admin) Update status laporan */
+  updateReportStatus: (
+    id: string,
+    data: { status: string; admin_notes?: string }
+  ) => api.patch(`/reports/${id}/status`, data),
+
+  /** Ambil pesan chat untuk sebuah report */
+  getReportMessages: (reportId: string) =>
+    api.get(`/reports/${reportId}/messages`),
+
+  /** Kirim pesan chat di sebuah report */
+  sendReportMessage: (reportId: string, content: string) =>
+    api.post(`/reports/${reportId}/messages`, { content }),
+};
+

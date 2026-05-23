@@ -40,6 +40,7 @@ class HomeVisitRequestResponse(BaseModel):
     preferred_date: datetime
     preferred_time: Optional[str]
     status: HomeVisitStatus
+    payment_status: Optional[str] = "unpaid"
     created_at: datetime
 
     model_config = ConfigDict(from_attributes=True)
