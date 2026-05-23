@@ -37,6 +37,9 @@ class UserResponse(BaseModel):
     status: str
     created_at: str
 
+class UpdateUserStatusRequest(BaseModel):
+    status: str
+
 class AdminUsersResponse(BaseModel):
     users: List[UserResponse]
     total: int
@@ -480,7 +483,7 @@ async def get_admin_users(
             name=u.full_name or "Unknown",
             email=u.email,
             role=u.role,
-            status="Aktif" if u.is_active else "Diblokir",
+            status=(getattr(u, "account_status", None) or ("active" if u.is_active else "suspended")),
             created_at=u.created_at.strftime("%Y-%m-%d %H:%M:%S") if u.created_at else ""
         )
         for u in users_data
@@ -491,11 +494,11 @@ async def get_admin_users(
 @router.patch("/admin/users/{user_id}")
 async def update_user_status(
     user_id: str,
+    payload: UpdateUserStatusRequest,
     current_user: User = Depends(get_current_user),
-    db: AsyncSession = Depends(get_db),
-    status: str = Query(...)
+    db: AsyncSession = Depends(get_db)
 ):
-    """Update status pengguna (active/suspended)."""
+    """Update status pengguna (active/suspended/banned)."""
     if current_user.role != "admin":
         return {"detail": "Unauthorized"}
     
@@ -505,13 +508,37 @@ async def update_user_status(
     
     if not user:
         return {"detail": "User not found"}
-    
-    # Update status
-    if status == "active":
+
+    status_value = payload.status.lower()
+    if status_value == "active":
         user.is_active = True
-    elif status == "suspended":
+    elif status_value in ["suspended", "banned"]:
         user.is_active = False
-    
+    else:
+        return {"detail": "Status tidak valid"}
+
+    user.account_status = status_value
     await db.commit()
     
     return {"message": "Status updated successfully"}
+
+@router.delete("/admin/users/{user_id}")
+async def delete_admin_user(
+    user_id: str,
+    current_user: User = Depends(get_current_user),
+    db: AsyncSession = Depends(get_db)
+):
+    """Delete a user account permanently."""
+    if current_user.role != "admin":
+        return {"detail": "Unauthorized"}
+
+    result = await db.execute(select(User).where(User.id == user_id))
+    user = result.scalars().first()
+
+    if not user:
+        return {"detail": "User not found"}
+
+    await db.delete(user)
+    await db.commit()
+
+    return {"message": "User deleted successfully"}
