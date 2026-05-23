@@ -1,4 +1,5 @@
 import { useState, useEffect } from "react";
+import { useTranslation } from "react-i18next";
 import {
   Loader2,
   Search,
@@ -58,38 +59,10 @@ interface PrescriptionItem {
   patient_phone: string;
 }
 
-const STATUS_CONFIG: Record<
-  string,
-  { label: string; className: string; icon: React.ElementType }
-> = {
-  waiting_confirmation: {
-    label: "Menunggu Konfirmasi",
-    className: "bg-amber-100 text-amber-800 border-amber-200 dark:bg-amber-900/30 dark:text-amber-300 dark:border-amber-800",
-    icon: Clock,
-  },
-  processing: {
-    label: "Diproses",
-    className: "bg-blue-100 text-blue-800 border-blue-200 dark:bg-blue-900/30 dark:text-blue-300 dark:border-blue-800",
-    icon: ClipboardList,
-  },
-  packaging: {
-    label: "Dikemas",
-    className: "bg-purple-100 text-purple-800 border-purple-200 dark:bg-purple-900/30 dark:text-purple-300 dark:border-purple-800",
-    icon: Box,
-  },
-  shipping: {
-    label: "Dikirim",
-    className: "bg-indigo-100 text-indigo-800 border-indigo-200 dark:bg-indigo-900/30 dark:text-indigo-300 dark:border-indigo-800",
-    icon: Truck,
-  },
-  completed: {
-    label: "Selesai",
-    className: "bg-green-100 text-green-800 border-green-200 dark:bg-green-900/30 dark:text-green-300 dark:border-green-800",
-    icon: CheckCircle,
-  },
-};
+
 
 export default function AdminPrescriptionsPage() {
+  const { t } = useTranslation();
   const [prescriptions, setPrescriptions] = useState<PrescriptionItem[]>([]);
   const [isLoading, setIsLoading] = useState(true);
   const [statusFilter, setStatusFilter] = useState<string>("all");
@@ -97,13 +70,44 @@ export default function AdminPrescriptionsPage() {
   const [newStatus, setNewStatus] = useState("");
   const [isUpdating, setIsUpdating] = useState(false);
 
+  const STATUS_CONFIG: Record<
+    string,
+    { label: string; className: string; icon: React.ElementType }
+  > = {
+    waiting_confirmation: {
+      label: t("admin.prescriptions.status.waiting", "Menunggu Konfirmasi"),
+      className: "bg-amber-100 text-amber-800 border-amber-200 dark:bg-amber-900/30 dark:text-amber-300 dark:border-amber-800",
+      icon: Clock,
+    },
+    processing: {
+      label: t("admin.prescriptions.status.processing", "Diproses"),
+      className: "bg-blue-100 text-blue-800 border-blue-200 dark:bg-blue-900/30 dark:text-blue-300 dark:border-blue-800",
+      icon: ClipboardList,
+    },
+    packaging: {
+      label: t("admin.prescriptions.status.packaging", "Dikemas"),
+      className: "bg-purple-100 text-purple-800 border-purple-200 dark:bg-purple-900/30 dark:text-purple-300 dark:border-purple-800",
+      icon: Box,
+    },
+    shipping: {
+      label: t("admin.prescriptions.status.shipping", "Dikirim"),
+      className: "bg-indigo-100 text-indigo-800 border-indigo-200 dark:bg-indigo-900/30 dark:text-indigo-300 dark:border-indigo-800",
+      icon: Truck,
+    },
+    completed: {
+      label: t("admin.prescriptions.status.completed", "Selesai"),
+      className: "bg-green-100 text-green-800 border-green-200 dark:bg-green-900/30 dark:text-green-300 dark:border-green-800",
+      icon: CheckCircle,
+    },
+  };
+
   const fetchPrescriptions = async () => {
     setIsLoading(true);
     try {
       const res = await prescriptionService.getAdminPrescriptionsList();
       setPrescriptions(res.data);
     } catch (err: any) {
-      toast.error("Gagal memuat data resep");
+      toast.error(t("admin.prescriptions.loadError", "Gagal memuat data resep"));
     } finally {
       setIsLoading(false);
     }
@@ -123,11 +127,11 @@ export default function AdminPrescriptionsPage() {
     setIsUpdating(true);
     try {
       await prescriptionService.updatePrescriptionStatus(selectedPrescription.id, newStatus);
-      toast.success("Status resep berhasil diperbarui");
+      toast.success(t("admin.prescriptions.updateSuccess", "Status resep berhasil diperbarui"));
       setSelectedPrescription(null);
       fetchPrescriptions();
     } catch (err: any) {
-      toast.error(err?.response?.data?.detail || "Gagal memperbarui status resep");
+      toast.error(err?.response?.data?.detail || t("admin.prescriptions.updateError", "Gagal memperbarui status resep"));
     } finally {
       setIsUpdating(false);
     }
@@ -161,21 +165,21 @@ export default function AdminPrescriptionsPage() {
         <div>
           <h1 className="text-2xl font-bold text-foreground flex items-center gap-2">
             <Stethoscope className="h-6 w-6 text-primary" />
-            Tracking Distribusi Obat
+            {t("admin.prescriptions.title", "Tracking Distribusi Obat")}
           </h1>
           <p className="text-muted-foreground mt-1">
-            Pantau dan kelola proses pengiriman obat resep pasien home visit
+            {t("admin.prescriptions.desc", "Pantau dan kelola proses pengiriman obat resep pasien home visit")}
           </p>
         </div>
         <div className="flex items-center gap-3">
           {waitingCount > 0 && (
             <Badge className="bg-amber-100 text-amber-800 border-amber-200 dark:bg-amber-900/30 dark:text-amber-300 px-3 py-1">
               <Clock className="h-3.5 w-3.5 mr-1" />
-              {waitingCount} Menunggu Konfirmasi
+              {waitingCount} {t("admin.prescriptions.waitingCount", "Menunggu Konfirmasi")}
             </Badge>
           )}
           <Badge variant="secondary" className="px-3 py-1 text-sm font-medium">
-            Total Resep: {prescriptions.length}
+            {t("admin.prescriptions.totalPrescriptions", "Total Resep:")} {prescriptions.length}
           </Badge>
         </div>
       </div>
@@ -183,15 +187,15 @@ export default function AdminPrescriptionsPage() {
       {/* Filter */}
       <div className="flex items-center gap-3">
         <Search className="h-4 w-4 text-muted-foreground" />
-        <span className="text-sm text-muted-foreground">Filter Status:</span>
+        <span className="text-sm text-muted-foreground">{t("admin.prescriptions.filterStatus", "Filter Status:")}</span>
         <div className="flex flex-wrap gap-2">
           {[
-            { value: "all", label: "Semua" },
-            { value: "waiting_confirmation", label: "Menunggu Konfirmasi" },
-            { value: "processing", label: "Diproses" },
-            { value: "packaging", label: "Dikemas" },
-            { value: "shipping", label: "Dikirim" },
-            { value: "completed", label: "Selesai" },
+            { value: "all", label: t("common.all", "Semua") },
+            { value: "waiting_confirmation", label: t("admin.prescriptions.status.waiting", "Menunggu Konfirmasi") },
+            { value: "processing", label: t("admin.prescriptions.status.processing", "Diproses") },
+            { value: "packaging", label: t("admin.prescriptions.status.packaging", "Dikemas") },
+            { value: "shipping", label: t("admin.prescriptions.status.shipping", "Dikirim") },
+            { value: "completed", label: t("admin.prescriptions.status.completed", "Selesai") },
           ].map((filter) => (
             <Button
               key={filter.value}
@@ -216,7 +220,7 @@ export default function AdminPrescriptionsPage() {
           <CardContent className="flex flex-col items-center justify-center py-16">
             <ClipboardList className="h-12 w-12 text-muted-foreground/30 mb-3" />
             <p className="text-muted-foreground font-medium">
-              Tidak ada data resep{statusFilter !== "all" ? ` dengan status "${STATUS_CONFIG[statusFilter]?.label}"` : ""}
+              {t("admin.prescriptions.noData", "Tidak ada data resep")}{statusFilter !== "all" ? ` ${t("admin.prescriptions.withStatus", "dengan status")} "${STATUS_CONFIG[statusFilter]?.label}"` : ""}
             </p>
           </CardContent>
         </Card>
@@ -241,7 +245,7 @@ export default function AdminPrescriptionsPage() {
                           {statusMeta.label}
                         </Badge>
                         <span className="text-xs text-muted-foreground">
-                          Dibuat: {formatDate(prescription.created_at)}
+                          {t("admin.prescriptions.createdAt", "Dibuat:")} {formatDate(prescription.created_at)}
                         </span>
                       </div>
 
@@ -252,7 +256,7 @@ export default function AdminPrescriptionsPage() {
                             {prescription.patient_name}
                           </p>
                           <p className="text-xs text-muted-foreground pl-5">
-                            Dokter Pembuat: {prescription.doctor_name}
+                            {t("admin.prescriptions.doctorCreator", "Dokter Pembuat:")} {prescription.doctor_name}
                           </p>
                         </div>
                         <div className="space-y-1 text-xs text-muted-foreground">
@@ -271,7 +275,7 @@ export default function AdminPrescriptionsPage() {
 
                       <div className="pt-1">
                         <p className="text-xs font-semibold text-foreground">
-                          Obat ({prescription.medications.length}):
+                          {t("admin.prescriptions.medications", "Obat")} ({prescription.medications.length}):
                         </p>
                         <p className="text-xs text-muted-foreground truncate">
                           {prescription.medications.map((m) => `${m.name} (${m.dosage})`).join(", ")}
@@ -289,7 +293,7 @@ export default function AdminPrescriptionsPage() {
                       }}
                     >
                       <Eye className="h-4 w-4" />
-                      Detail & Update
+                      {t("admin.prescriptions.detailUpdate", "Detail & Update")}
                     </Button>
                   </div>
                 </CardContent>
@@ -312,10 +316,10 @@ export default function AdminPrescriptionsPage() {
               <DialogHeader>
                 <DialogTitle className="flex items-center gap-2">
                   <Stethoscope className="h-5 w-5 text-primary" />
-                  Detail Resep & Tracking Obat
+                  {t("admin.prescriptions.detailTitle", "Detail Resep & Tracking Obat")}
                 </DialogTitle>
                 <DialogDescription>
-                  ID: {selectedPrescription.id.slice(0, 8)}... • {formatDate(selectedPrescription.created_at)}
+                  {t("common.id", "ID:")} {selectedPrescription.id.slice(0, 8)}... • {formatDate(selectedPrescription.created_at)}
                 </DialogDescription>
               </DialogHeader>
 
@@ -324,7 +328,7 @@ export default function AdminPrescriptionsPage() {
                 <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
                   <div className="p-3 rounded-lg bg-muted/40 border">
                     <p className="text-[10px] uppercase font-bold text-muted-foreground tracking-wider mb-1">
-                      Pasien
+                      {t("common.patient", "Pasien")}
                     </p>
                     <p className="font-semibold text-sm text-foreground">
                       {selectedPrescription.patient_name}
@@ -338,7 +342,7 @@ export default function AdminPrescriptionsPage() {
                   </div>
                   <div className="p-3 rounded-lg bg-muted/40 border">
                     <p className="text-[10px] uppercase font-bold text-muted-foreground tracking-wider mb-1">
-                      Dokter Pengirim Resep
+                      {t("admin.prescriptions.doctorSender", "Dokter Pengirim Resep")}
                     </p>
                     <p className="font-semibold text-sm text-foreground">
                       {selectedPrescription.doctor_name}
@@ -349,7 +353,7 @@ export default function AdminPrescriptionsPage() {
                 {/* Delivery Address */}
                 <div className="p-3 rounded-lg bg-muted/40 border space-y-1">
                   <p className="text-[10px] uppercase font-bold text-muted-foreground tracking-wider">
-                    Alamat Pengiriman Obat
+                    {t("admin.prescriptions.shippingAddress", "Alamat Pengiriman Obat")}
                   </p>
                   <p className="text-xs text-foreground flex items-start gap-1.5 leading-relaxed">
                     <MapPin className="h-3.5 w-3.5 text-primary shrink-0 mt-0.5" />
@@ -360,7 +364,7 @@ export default function AdminPrescriptionsPage() {
                 {/* Medications List */}
                 <div className="p-3 rounded-lg bg-muted/40 border space-y-2">
                   <p className="text-[10px] uppercase font-bold text-muted-foreground tracking-wider">
-                    Daftar Obat
+                    {t("admin.prescriptions.medicationList", "Daftar Obat")}
                   </p>
                   <div className="space-y-2">
                     {selectedPrescription.medications.map((med, index) => (
@@ -371,7 +375,7 @@ export default function AdminPrescriptionsPage() {
                         </div>
                         {med.instructions && (
                           <p className="text-muted-foreground mt-1 font-medium">
-                            Instruksi: {med.instructions}
+                            {t("admin.prescriptions.instructions", "Instruksi:")} {med.instructions}
                           </p>
                         )}
                       </div>
@@ -383,7 +387,7 @@ export default function AdminPrescriptionsPage() {
                 {selectedPrescription.notes && (
                   <div className="p-3 rounded-lg bg-muted/40 border">
                     <p className="text-[10px] uppercase text-muted-foreground font-bold tracking-wider mb-1">
-                      Catatan Dokter
+                      {t("admin.prescriptions.doctorNotes", "Catatan Dokter")}
                     </p>
                     <p className="text-xs text-foreground leading-relaxed">
                       {selectedPrescription.notes}
@@ -394,20 +398,20 @@ export default function AdminPrescriptionsPage() {
                 {/* Status Update */}
                 <div className="border-t pt-4 space-y-3">
                   <p className="text-sm font-semibold text-foreground">
-                    Update Status Proses Distribusi Obat
+                    {t("admin.prescriptions.updateStatusTitle", "Update Status Proses Distribusi Obat")}
                   </p>
 
                   <div className="space-y-2">
                     <Select value={newStatus} onValueChange={setNewStatus}>
                       <SelectTrigger>
-                        <SelectValue placeholder="Pilih status baru..." />
+                        <SelectValue placeholder={t("admin.prescriptions.selectStatus", "Pilih status baru...")} />
                       </SelectTrigger>
                       <SelectContent>
-                        <SelectItem value="waiting_confirmation">Menunggu Konfirmasi</SelectItem>
-                        <SelectItem value="processing">Diproses</SelectItem>
-                        <SelectItem value="packaging">Dikemas</SelectItem>
-                        <SelectItem value="shipping">Dikirim</SelectItem>
-                        <SelectItem value="completed">Selesai / Terkirim</SelectItem>
+                        <SelectItem value="waiting_confirmation">{t("admin.prescriptions.status.waiting", "Menunggu Konfirmasi")}</SelectItem>
+                        <SelectItem value="processing">{t("admin.prescriptions.status.processing", "Diproses")}</SelectItem>
+                        <SelectItem value="packaging">{t("admin.prescriptions.status.packaging", "Dikemas")}</SelectItem>
+                        <SelectItem value="shipping">{t("admin.prescriptions.status.shipping", "Dikirim")}</SelectItem>
+                        <SelectItem value="completed">{t("admin.prescriptions.status.completed", "Selesai / Terkirim")}</SelectItem>
                       </SelectContent>
                     </Select>
                   </div>
@@ -420,7 +424,7 @@ export default function AdminPrescriptionsPage() {
                   onClick={() => setSelectedPrescription(null)}
                   disabled={isUpdating}
                 >
-                  Batal
+                  {t("common.cancel", "Batal")}
                 </Button>
                 <Button
                   onClick={handleUpdateStatus}
@@ -430,12 +434,12 @@ export default function AdminPrescriptionsPage() {
                   {isUpdating ? (
                     <>
                       <Loader2 className="h-4 w-4 animate-spin" />
-                      Menyimpan...
+                      {t("common.saving", "Menyimpan...")}
                     </>
                   ) : (
                     <>
                       <CheckCircle className="h-4 w-4" />
-                      Simpan Perubahan
+                      {t("common.saveChanges", "Simpan Perubahan")}
                     </>
                   )}
                 </Button>

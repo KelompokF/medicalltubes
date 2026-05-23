@@ -1,5 +1,6 @@
 import { useState, useEffect } from "react";
 import { Link } from "react-router-dom";
+import { useTranslation } from "react-i18next";
 import { Calendar, Clock, CalendarPlus, User, Loader2 } from "lucide-react";
 import { Card, CardContent } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
@@ -39,6 +40,7 @@ const dayOfWeekIndonesian: { [key: string]: string } = {
 };
 
 export default function HomeVisitSchedulePage() {
+  const { t } = useTranslation();
   const [doctors, setDoctors] = useState<Doctor[]>([]);
   const [isLoading, setIsLoading] = useState(true);
   const [search, setSearch] = useState("");
@@ -69,14 +71,14 @@ export default function HomeVisitSchedulePage() {
     <div className="space-y-6 animate-fade-in">
       <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4">
         <div>
-          <h1 className="text-2xl font-bold text-foreground">Jadwal Dokter Home Visit</h1>
+          <h1 className="text-2xl font-bold text-foreground">{t("patient.homeVisitSchedule.title")}</h1>
           <p className="text-muted-foreground mt-1">
-            Lihat ketersediaan dokter dan jadwalkan kunjungan rumah.
+            {t("patient.homeVisitSchedule.subtitle")}
           </p>
         </div>
         <Button className="medical-gradient text-primary-foreground" asChild>
           <Link to="/home-visit">
-            <CalendarPlus className="mr-2 h-4 w-4" /> Pesan Kunjungan Baru
+            <CalendarPlus className="mr-2 h-4 w-4" /> {t("patient.homeVisitSchedule.bookNewVisit")}
           </Link>
         </Button>
       </div>
@@ -86,7 +88,7 @@ export default function HomeVisitSchedulePage() {
         <div className="relative flex-1">
           <Calendar className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
           <Input
-            placeholder="Cari berdasarkan nama dokter atau spesialisasi..."
+            placeholder={t("patient.homeVisitSchedule.searchPlaceholder")}
             value={search}
             onChange={(e) => setSearch(e.target.value)}
             className="pl-9"
@@ -102,8 +104,8 @@ export default function HomeVisitSchedulePage() {
       ) : filtered.length === 0 ? (
         <div className="text-center py-16">
           <Calendar className="mx-auto h-12 w-12 text-muted-foreground opacity-50 mb-4" />
-          <h3 className="text-lg font-medium">Tidak ada dokter ditemukan</h3>
-          <p className="text-muted-foreground">Coba ubah kata kunci pencarian Anda atau periksa lagi nanti.</p>
+          <h3 className="text-lg font-medium">{t("patient.homeVisitSchedule.noDoctorsFound")}</h3>
+          <p className="text-muted-foreground">{t("patient.homeVisitSchedule.noDoctorsDesc")}</p>
         </div>
       ) : (
         <div className="grid grid-cols-1 xl:grid-cols-2 gap-6">
@@ -124,13 +126,13 @@ export default function HomeVisitSchedulePage() {
                     </div>
                     <div className="flex-1">
                       <h3 className="font-semibold text-lg text-foreground">{doctor.name}</h3>
-                      <p className="text-sm text-primary font-medium">{doctor.specialization || "Umum"}</p>
+                      <p className="text-sm text-primary font-medium">{doctor.specialization || t("patient.homeVisitSchedule.general")}</p>
                       {doctor.hospital_name && (
                         <p className="text-xs text-muted-foreground mt-1">{doctor.hospital_name}</p>
                       )}
                       <div className="flex items-center gap-2 mt-2">
                         <Badge variant="outline" className="bg-primary/5 border-primary/20 text-primary">
-                          <User className="h-3 w-3 mr-1" /> Home Visit Tersedia
+                          <User className="h-3 w-3 mr-1" /> {t("patient.homeVisitSchedule.homeVisitAvailable")}
                         </Badge>
                       </div>
                     </div>
@@ -138,7 +140,7 @@ export default function HomeVisitSchedulePage() {
 
                   <div className="p-5">
                     <h4 className="text-sm font-semibold mb-3 text-muted-foreground uppercase tracking-wider flex items-center gap-2">
-                      <Clock className="h-4 w-4" /> Jadwal Praktik
+                      <Clock className="h-4 w-4" /> {t("patient.homeVisitSchedule.practiceSchedule")}
                     </h4>
                     {doctor.schedules && doctor.schedules.length > 0 ? (
                       <div className="space-y-3">
@@ -154,19 +156,19 @@ export default function HomeVisitSchedulePage() {
                               </div>
                             </div>
                             <Badge variant="secondary" className="bg-success/10 text-success">
-                              Tersedia
+                              {t("patient.homeVisitSchedule.available")}
                             </Badge>
                           </div>
                         ))}
                       </div>
                     ) : (
-                      <p className="text-sm text-muted-foreground">Tidak ada jadwal yang tersedia saat ini</p>
+                      <p className="text-sm text-muted-foreground">{t("patient.homeVisitSchedule.noScheduleAvailable")}</p>
                     )}
 
                     <div className="mt-5">
                       <Button className="w-full" variant="outline" asChild>
                         <Link to={`/home-visit?doctor_id=${doctor.doctor_id}`}>
-                          Pilih Dokter Ini
+                          {t("patient.homeVisitSchedule.selectDoctor")}
                         </Link>
                       </Button>
                     </div>

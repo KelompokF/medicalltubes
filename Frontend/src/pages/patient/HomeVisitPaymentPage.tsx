@@ -1,5 +1,6 @@
 import { useState, useEffect } from "react";
 import { useParams, useNavigate } from "react-router-dom";
+import { useTranslation } from "react-i18next";
 import {
   Calendar, Clock, MapPin, Phone, User, Stethoscope,
   FileText, CreditCard, QrCode, Wallet, Loader2, ArrowRight
@@ -36,6 +37,7 @@ const formatDate = (dateStr: string): string => {
 };
 
 export default function HomeVisitPaymentPage() {
+  const { t } = useTranslation();
   const { id } = useParams<{ id: string }>();
   const navigate = useNavigate();
   const [request, setRequest] = useState<RequestDetails | null>(null);
@@ -43,13 +45,12 @@ export default function HomeVisitPaymentPage() {
   const [paymentMethod, setPaymentMethod] = useState<"qris" | "debit" | "cash" | null>(null);
   const [submitting, setSubmitting] = useState(false);
 
-  // Mencegah navigasi tombol back browser
   useEffect(() => {
     window.history.pushState(null, "", window.location.href);
 
     const handlePopState = () => {
       window.history.pushState(null, "", window.location.href);
-      toast.warning("Silakan selesaikan pembayaran Anda terlebih dahulu.");
+      toast.warning(t("patient.homeVisitPayment.completePaymentFirst"));
     };
 
     window.addEventListener("popstate", handlePopState);
@@ -67,7 +68,7 @@ export default function HomeVisitPaymentPage() {
         setRequest(res.data);
       } catch (err: any) {
         console.error(err);
-        toast.error("Gagal memuat detail pemesanan.");
+        toast.error(t("patient.homeVisitPayment.loadFailed"));
       } finally {
         setLoading(false);
       }
@@ -80,11 +81,11 @@ export default function HomeVisitPaymentPage() {
     try {
       setSubmitting(true);
       await homeVisitScheduleService.updatePaymentStatus(id, "paid_cash");
-      toast.success("Pembayaran berhasil dikonfirmasi!");
+      toast.success(t("patient.homeVisitPayment.paymentSuccess"));
       navigate("/tracking");
     } catch (err: any) {
       console.error(err);
-      toast.error("Gagal memproses pembayaran. Silakan coba lagi.");
+      toast.error(t("patient.homeVisitPayment.paymentFailed"));
     } finally {
       setSubmitting(false);
     }
@@ -94,7 +95,7 @@ export default function HomeVisitPaymentPage() {
     return (
       <div className="flex flex-col items-center justify-center py-32 gap-3">
         <Loader2 className="h-10 w-10 animate-spin text-primary" />
-        <p className="text-muted-foreground text-sm">Memuat detail pembayaran...</p>
+        <p className="text-muted-foreground text-sm">{t("patient.homeVisitPayment.loadingPayment")}</p>
       </div>
     );
   }
@@ -102,9 +103,9 @@ export default function HomeVisitPaymentPage() {
   if (!request) {
     return (
       <div className="text-center py-20">
-        <p className="text-destructive font-medium">Data pemesanan tidak ditemukan.</p>
+        <p className="text-destructive font-medium">{t("patient.homeVisitPayment.notFound")}</p>
         <Button onClick={() => navigate("/home-visit")} className="mt-4">
-          Kembali ke Home Visit
+          {t("patient.homeVisitPayment.backToHomeVisit")}
         </Button>
       </div>
     );
@@ -113,8 +114,8 @@ export default function HomeVisitPaymentPage() {
   return (
     <div className="space-y-6 animate-fade-in relative z-10">
       <div>
-        <h1 className="text-2xl font-bold text-foreground">Pembayaran Kunjungan Rumah</h1>
-        <p className="text-muted-foreground mt-1">Silakan pilih metode pembayaran untuk melanjutkan pemesanan Anda.</p>
+        <h1 className="text-2xl font-bold text-foreground">{t("patient.homeVisitPayment.title")}</h1>
+        <p className="text-muted-foreground mt-1">{t("patient.homeVisitPayment.subtitle")}</p>
       </div>
 
       <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
@@ -124,7 +125,7 @@ export default function HomeVisitPaymentPage() {
             <CardHeader>
               <CardTitle className="text-lg flex items-center gap-2">
                 <CreditCard className="h-5 w-5 text-primary" />
-                Metode Pembayaran
+                {t("patient.homeVisitPayment.paymentMethod")}
               </CardTitle>
             </CardHeader>
             <CardContent className="space-y-4">
@@ -137,27 +138,19 @@ export default function HomeVisitPaymentPage() {
                 }`}
               >
                 <div className="flex items-center gap-3">
-                  <input
-                    type="radio"
-                    id="payment-qris"
-                    name="payment-method"
-                    value="qris"
-                    checked={paymentMethod === "qris"}
-                    disabled={true}
-                    className="h-4 w-4 text-primary focus:ring-primary border-gray-300"
-                  />
+                  <input type="radio" id="payment-qris" name="payment-method" value="qris" checked={paymentMethod === "qris"} disabled={true} className="h-4 w-4 text-primary focus:ring-primary border-gray-300" />
                   <label htmlFor="payment-qris" className="flex items-center gap-3 font-medium text-foreground cursor-not-allowed">
                     <div className="h-10 w-10 rounded-lg bg-primary/10 flex items-center justify-center text-primary shrink-0">
                       <QrCode className="h-5 w-5" />
                     </div>
                     <div>
-                      <p className="text-sm font-semibold">QRIS</p>
-                      <p className="text-xs text-muted-foreground">Bayar cepat menggunakan aplikasi pembayaran digital</p>
+                      <p className="text-sm font-semibold">{t("patient.homeVisitPayment.qris")}</p>
+                      <p className="text-xs text-muted-foreground">{t("patient.homeVisitPayment.qrisDesc")}</p>
                     </div>
                   </label>
                 </div>
                 <Badge variant="secondary" className="bg-yellow-100 text-yellow-800 border-yellow-200">
-                  Coming Soon
+                  {t("common.comingSoon")}
                 </Badge>
               </div>
 
@@ -170,27 +163,19 @@ export default function HomeVisitPaymentPage() {
                 }`}
               >
                 <div className="flex items-center gap-3">
-                  <input
-                    type="radio"
-                    id="payment-debit"
-                    name="payment-method"
-                    value="debit"
-                    checked={paymentMethod === "debit"}
-                    disabled={true}
-                    className="h-4 w-4 text-primary focus:ring-primary border-gray-300"
-                  />
+                  <input type="radio" id="payment-debit" name="payment-method" value="debit" checked={paymentMethod === "debit"} disabled={true} className="h-4 w-4 text-primary focus:ring-primary border-gray-300" />
                   <label htmlFor="payment-debit" className="flex items-center gap-3 font-medium text-foreground cursor-not-allowed">
                     <div className="h-10 w-10 rounded-lg bg-primary/10 flex items-center justify-center text-primary shrink-0">
                       <CreditCard className="h-5 w-5" />
                     </div>
                     <div>
-                      <p className="text-sm font-semibold">Debit / Credit Card</p>
-                      <p className="text-xs text-muted-foreground">Transfer instan kartu Debit atau Kredit</p>
+                      <p className="text-sm font-semibold">{t("patient.homeVisitPayment.debitCard")}</p>
+                      <p className="text-xs text-muted-foreground">{t("patient.homeVisitPayment.debitDesc")}</p>
                     </div>
                   </label>
                 </div>
                 <Badge variant="secondary" className="bg-yellow-100 text-yellow-800 border-yellow-200">
-                  Coming Soon
+                  {t("common.comingSoon")}
                 </Badge>
               </div>
 
@@ -204,27 +189,19 @@ export default function HomeVisitPaymentPage() {
                 }`}
               >
                 <div className="flex items-center gap-3">
-                  <input
-                    type="radio"
-                    id="payment-cash"
-                    name="payment-method"
-                    value="cash"
-                    checked={paymentMethod === "cash"}
-                    onChange={() => setPaymentMethod("cash")}
-                    className="h-4 w-4 text-primary focus:ring-primary border-gray-300 cursor-pointer"
-                  />
+                  <input type="radio" id="payment-cash" name="payment-method" value="cash" checked={paymentMethod === "cash"} onChange={() => setPaymentMethod("cash")} className="h-4 w-4 text-primary focus:ring-primary border-gray-300 cursor-pointer" />
                   <label htmlFor="payment-cash" className="flex items-center gap-3 font-medium text-foreground cursor-pointer">
                     <div className="h-10 w-10 rounded-lg bg-primary/10 flex items-center justify-center text-primary shrink-0">
                       <Wallet className="h-5 w-5" />
                     </div>
                     <div>
-                      <p className="text-sm font-semibold">Cash (Bayar di Tempat)</p>
-                      <p className="text-xs text-muted-foreground">Bayar langsung kepada dokter setelah kunjungan selesai</p>
+                      <p className="text-sm font-semibold">{t("patient.homeVisitPayment.cash")}</p>
+                      <p className="text-xs text-muted-foreground">{t("patient.homeVisitPayment.cashDesc")}</p>
                     </div>
                   </label>
                 </div>
                 <Badge className="bg-green-100 text-green-800 hover:bg-green-100 border-green-200">
-                  Tersedia
+                  {t("common.available")}
                 </Badge>
               </div>
             </CardContent>
@@ -235,7 +212,7 @@ export default function HomeVisitPaymentPage() {
         <div className="space-y-6">
           <Card className="shadow-card sticky top-24">
             <CardHeader>
-              <CardTitle className="text-lg">Ringkasan Kunjungan</CardTitle>
+              <CardTitle className="text-lg">{t("patient.homeVisitPayment.visitSummary")}</CardTitle>
             </CardHeader>
             <CardContent className="space-y-4 text-sm">
               <div className="flex items-center gap-2 border-b pb-3">
@@ -254,7 +231,7 @@ export default function HomeVisitPaymentPage() {
                 <div className="flex items-start gap-2">
                   <User className="h-4 w-4 text-muted-foreground shrink-0 mt-0.5" />
                   <div>
-                    <p className="text-xs text-muted-foreground font-medium">Pasien</p>
+                    <p className="text-xs text-muted-foreground font-medium">{t("patient.homeVisitPayment.patientLabel")}</p>
                     <p className="text-foreground font-medium">{request.patient_name}</p>
                   </div>
                 </div>
@@ -262,7 +239,7 @@ export default function HomeVisitPaymentPage() {
                 <div className="flex items-start gap-2">
                   <Phone className="h-4 w-4 text-muted-foreground shrink-0 mt-0.5" />
                   <div>
-                    <p className="text-xs text-muted-foreground font-medium">Nomor Telepon</p>
+                    <p className="text-xs text-muted-foreground font-medium">{t("patient.homeVisitPayment.phoneLabel")}</p>
                     <p className="text-foreground font-medium">{request.phone_number}</p>
                   </div>
                 </div>
@@ -270,7 +247,7 @@ export default function HomeVisitPaymentPage() {
                 <div className="flex items-start gap-2">
                   <Calendar className="h-4 w-4 text-muted-foreground shrink-0 mt-0.5" />
                   <div>
-                    <p className="text-xs text-muted-foreground font-medium">Tanggal Kunjungan</p>
+                    <p className="text-xs text-muted-foreground font-medium">{t("patient.homeVisitPayment.visitDate")}</p>
                     <p className="text-foreground font-medium">{formatDate(request.preferred_date)}</p>
                   </div>
                 </div>
@@ -278,7 +255,7 @@ export default function HomeVisitPaymentPage() {
                 <div className="flex items-start gap-2">
                   <Clock className="h-4 w-4 text-muted-foreground shrink-0 mt-0.5" />
                   <div>
-                    <p className="text-xs text-muted-foreground font-medium">Jam Kunjungan</p>
+                    <p className="text-xs text-muted-foreground font-medium">{t("patient.homeVisitPayment.visitTime")}</p>
                     <p className="text-foreground font-medium">{request.preferred_time || "-"}</p>
                   </div>
                 </div>
@@ -288,7 +265,7 @@ export default function HomeVisitPaymentPage() {
                 <div className="flex items-start gap-2">
                   <MapPin className="h-4 w-4 text-muted-foreground shrink-0 mt-0.5" />
                   <div>
-                    <p className="text-xs text-muted-foreground font-medium">Alamat</p>
+                    <p className="text-xs text-muted-foreground font-medium">{t("patient.homeVisitPayment.addressLabel")}</p>
                     <p className="text-foreground whitespace-pre-wrap">{request.address}</p>
                   </div>
                 </div>
@@ -298,7 +275,7 @@ export default function HomeVisitPaymentPage() {
                 <div className="flex items-start gap-2">
                   <FileText className="h-4 w-4 text-muted-foreground shrink-0 mt-0.5" />
                   <div>
-                    <p className="text-xs text-muted-foreground font-medium">Keluhan</p>
+                    <p className="text-xs text-muted-foreground font-medium">{t("patient.homeVisitPayment.complaintLabel")}</p>
                     <p className="text-foreground whitespace-pre-wrap">{request.complaint}</p>
                   </div>
                 </div>
@@ -313,11 +290,11 @@ export default function HomeVisitPaymentPage() {
                   {submitting ? (
                     <>
                       <Loader2 className="h-4 w-4 animate-spin" />
-                      Memproses...
+                      {t("patient.homeVisitPayment.processing")}
                     </>
                   ) : (
                     <>
-                      Bayar & Lanjutkan
+                      {t("patient.homeVisitPayment.payAndContinue")}
                       <ArrowRight className="h-4 w-4" />
                     </>
                   )}
