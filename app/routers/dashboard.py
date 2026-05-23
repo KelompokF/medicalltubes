@@ -1,4 +1,4 @@
-from fastapi import APIRouter, Depends
+from fastapi import APIRouter, Depends, Query
 from sqlalchemy.ext.asyncio import AsyncSession
 from sqlalchemy.future import select
 from sqlalchemy import func
@@ -16,7 +16,7 @@ from app.schemas.dashboard import DashboardResponse, DashboardStats, ActivityIte
 from sqlalchemy import text
 from app.models.doctor_profile import DoctorProfile
 from pydantic import BaseModel
-from typing import List, Any
+from typing import List, Any, Optional
 
 class AdminStats(BaseModel):
     totalUsers: int
@@ -28,6 +28,18 @@ class AdminDashboardResponse(BaseModel):
     stats: AdminStats
     recentUsers: List[Any]
     analyticsData: List[Any]
+
+class UserResponse(BaseModel):
+    id: str
+    name: str
+    email: str
+    role: str
+    status: str
+    created_at: str
+
+class AdminUsersResponse(BaseModel):
+    users: List[UserResponse]
+    total: int
 
 router = APIRouter(tags=["Dashboard"])
 
@@ -430,3 +442,76 @@ async def get_admin_dashboard_summary(
         recentUsers=recent_users,
         analyticsData=analytics_data
     )
+
+@router.get("/admin/users", response_model=AdminUsersResponse)
+async def get_admin_users(
+    current_user: User = Depends(get_current_user),
+    db: AsyncSession = Depends(get_db),
+    role: Optional[str] = Query(None)
+):
+    """Ambil daftar SEMUA pengguna untuk admin dengan filter opsional."""
+    if current_user.role != "admin":
+        return AdminUsersResponse(users=[], total=0)
+    
+    # Build query
+    query = select(User)
+    
+    # Apply role filter
+    if role and role != "all":
+        query = query.where(User.role == role)
+    
+    # Count total
+    count_query = select(func.count(User.id))
+    if role and role != "all":
+        count_query = count_query.where(User.role == role)
+    
+    total_result = await db.execute(count_query)
+    total = total_result.scalar() or 0
+    
+    # Get ALL users (no pagination)
+    query = query.order_by(User.created_at.desc())
+    
+    result = await db.execute(query)
+    users_data = result.scalars().all()
+    
+    users_list = [
+        UserResponse(
+            id=str(u.id),
+            name=u.full_name or "Unknown",
+            email=u.email,
+            role=u.role,
+            status="Aktif" if u.is_active else "Diblokir",
+            created_at=u.created_at.strftime("%Y-%m-%d %H:%M:%S") if u.created_at else ""
+        )
+        for u in users_data
+    ]
+    
+    return AdminUsersResponse(users=users_list, total=total)
+
+@router.patch("/admin/users/{user_id}")
+async def update_user_status(
+    user_id: str,
+    current_user: User = Depends(get_current_user),
+    db: AsyncSession = Depends(get_db),
+    status: str = Query(...)
+):
+    """Update status pengguna (active/suspended)."""
+    if current_user.role != "admin":
+        return {"detail": "Unauthorized"}
+    
+    # Get the user
+    result = await db.execute(select(User).where(User.id == user_id))
+    user = result.scalars().first()
+    
+    if not user:
+        return {"detail": "User not found"}
+    
+    # Update status
+    if status == "active":
+        user.is_active = True
+    elif status == "suspended":
+        user.is_active = False
+    
+    await db.commit()
+    
+    return {"message": "Status updated successfully"}
