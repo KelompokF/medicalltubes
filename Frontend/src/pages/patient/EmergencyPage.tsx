@@ -41,16 +41,16 @@ interface UserLocation {
   address?: string;
 }
 
-export const getLocationFallbackText = (t: any) =>
+const getLocationFallbackText = (t: any) =>
   t("patient.emergency.locationFallbackText", "Alamat belum tersedia. Lokasi GPS berhasil ditemukan.");
 
-export const getDisplayAddress = (
+const getDisplayAddress = (
   location: UserLocation | null,
   t: any,
   fallbackAddress?: string,
 ) => location?.address || fallbackAddress || getLocationFallbackText(t);
 
-export const getLocationDisplayText = (
+const getLocationDisplayText = (
   location: UserLocation | null,
   isResolvingAddress: boolean,
   t: any,
@@ -62,7 +62,7 @@ export const getLocationDisplayText = (
   return isResolvingAddress ? t("patient.emergency.resolvingAddress", "Mencari alamat...") : getDisplayAddress(location, t);
 };
 
-export const syncEmergencyStatus = async (
+const syncEmergencyStatus = async (
   id: string,
   action: EmergencyAction,
   updateStatus: (id: string, status: "cancelled" | "completed") => Promise<unknown>,
@@ -76,7 +76,7 @@ export const syncEmergencyStatus = async (
   }
 };
 
-export const reverseGeocodeLocation = async (lat: number, lng: number) => {
+const reverseGeocodeLocation = async (lat: number, lng: number) => {
   const response = await fetch(
     `https://nominatim.openstreetmap.org/reverse?format=jsonv2&lat=${lat}&lon=${lng}`,
     { headers: { Accept: "application/json" } },

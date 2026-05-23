@@ -190,14 +190,14 @@ export default function SearchDoctorPage() {
               {locationStatus === "loading" ? (
                 <div className="flex items-center gap-2 text-sm text-muted-foreground">
                   <Loader2 className="h-4 w-4 animate-spin text-primary" />
-                  <span>Mencari lokasi GPS...</span>
+                  <span>{t("patient.searchDoctor.findingGps", "Mencari lokasi GPS...")}</span>
                 </div>
               ) : locationStatus === "granted" ? (
                 <div className="flex items-center gap-2 text-sm">
                   <div className="rounded-full bg-success/10 p-1.5">
                     <Navigation className="h-3.5 w-3.5 text-success" />
                   </div>
-                  <span className="text-success font-medium">GPS Aktif</span>
+                  <span className="text-success font-medium">{t("patient.searchDoctor.gpsActive", "GPS Aktif")}</span>
                   <span className="text-muted-foreground">•</span>
                   <span className="text-muted-foreground truncate">
                     {location
@@ -208,7 +208,7 @@ export default function SearchDoctorPage() {
               ) : (
                 <div className="flex items-center gap-2 text-sm text-muted-foreground">
                   <MapPin className="h-4 w-4" />
-                  <span>Lokasi tidak aktif</span>
+                  <span>{t("patient.searchDoctor.locationInactive", "Lokasi tidak aktif")}</span>
                 </div>
               )}
             </div>
@@ -222,7 +222,7 @@ export default function SearchDoctorPage() {
                   className="text-xs"
                 >
                   <Navigation className="h-3.5 w-3.5 mr-1" />
-                  {nearbyMode ? "Nearby: ON" : "Nearby: OFF"}
+                  {nearbyMode ? t("patient.searchDoctor.nearbyOn", "Nearby: ON") : t("patient.searchDoctor.nearbyOff", "Nearby: OFF")}
                 </Button>
                 {nearbyMode && (
                   <select
@@ -241,7 +241,7 @@ export default function SearchDoctorPage() {
             {locationStatus === "denied" && (
               <Button size="sm" variant="outline" onClick={getLocation}>
                 <RefreshCw className="h-3.5 w-3.5 mr-1" />
-                Aktifkan GPS
+                {t("patient.searchDoctor.enableGps", "Aktifkan GPS")}
               </Button>
             )}
           </div>
@@ -292,8 +292,8 @@ export default function SearchDoctorPage() {
       {!isLoading && (
         <div className="flex items-center justify-between">
           <p className="text-sm text-muted-foreground">
-            {doctors.length} {t("patient.searchDoctor.noDoctorsFound") !== doctors.length ? "dokter ditemukan" : ""}
-            {nearbyMode && location ? ` dalam radius ${radiusKm} km` : ""}
+            {doctors.length} {t("patient.searchDoctor.noDoctorsFound") !== doctors.length ? t("patient.searchDoctor.doctorsFound", "dokter ditemukan") : ""}
+            {nearbyMode && location ? t("patient.searchDoctor.inRadius", " dalam radius {{radius}} km", { radius: radiusKm }) : ""}
           </p>
           <Button
             size="sm"
@@ -365,7 +365,7 @@ export default function SearchDoctorPage() {
                       </span>
                       <span className="flex items-center gap-1">
                         <Clock className="h-3.5 w-3.5" />
-                        {doctor.experience_years} thn
+                        {doctor.experience_years} {t("patient.searchDoctor.yearsAbbr", "thn")}
                       </span>
                       {doctor.distance_text && (
                         <span className="flex items-center gap-1 text-primary font-medium">
@@ -379,7 +379,7 @@ export default function SearchDoctorPage() {
                       <span className="text-sm font-semibold text-foreground">
                         {formatCurrency(doctor.fee)}
                       </span>
-                      <span className="text-xs text-muted-foreground">/ konsultasi</span>
+                      <span className="text-xs text-muted-foreground">{t("patient.searchDoctor.perConsultation", "/ konsultasi")}</span>
                     </div>
 
                     <div className="flex gap-2 mt-3">
@@ -424,7 +424,7 @@ export default function SearchDoctorPage() {
       {!isLoading && doctors.length > 0 && (
         <div className="flex flex-col sm:flex-row items-center justify-between gap-4 pt-6 border-t border-muted mt-4">
           <div className="flex items-center gap-2 text-sm text-muted-foreground">
-            <span>Tampilkan</span>
+            <span>{t("patient.searchDoctor.show", "Tampilkan")}</span>
             <select
               value={itemsPerPage}
               onChange={(e) => {
@@ -437,7 +437,7 @@ export default function SearchDoctorPage() {
               <option value={20}>20</option>
               <option value={50}>50</option>
             </select>
-            <span>per halaman</span>
+            <span>{t("patient.searchDoctor.perPage", "per halaman")}</span>
           </div>
 
           <div className="flex items-center gap-4">
@@ -452,7 +452,7 @@ export default function SearchDoctorPage() {
             </Button>
 
             <div className="text-sm font-medium">
-              Halaman {currentPage} dari {totalPages || 1}
+              {t("patient.searchDoctor.pageInfo", "Halaman {{current}} dari {{total}}", { current: currentPage, total: totalPages || 1 })}
             </div>
 
             <Button
