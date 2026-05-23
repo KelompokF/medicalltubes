@@ -356,7 +356,7 @@ export default function DoctorHomeVisits() {
                   disabled={isSubmitting}
                   className="bg-primary hover:bg-primary/90 text-primary-foreground sm:w-auto w-full"
                 >
-                  {isSubmitting ? <Loader2 className="h-4 w-4 animate-spin mr-2" /> : <CheckCircle className="h-4 w-4 mr-2" />}
+                  {isSubmitting ? <Loader2 className="h-4 w-4 animate-spin mr-2" /> : <CheckCircle2 className="h-4 w-4 mr-2" />}
                   {t("doctor.homeVisits.confirmAccept", "Konfirmasi Terima")}
                 </Button>
               )}
