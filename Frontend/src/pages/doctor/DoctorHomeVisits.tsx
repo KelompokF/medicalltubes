@@ -350,10 +350,25 @@ export default function DoctorHomeVisits() {
               <Button variant="outline" onClick={() => { setSelectedRequest(null); setNotes(""); }}>
                 {modalAction === "view" ? t("common.close") : t("common.cancel")}
               </Button>
+              {modalAction === "approve" && (
+                <Button
+                  onClick={handleStatusUpdate}
+                  disabled={isSubmitting}
+                  className="bg-primary hover:bg-primary/90 text-primary-foreground sm:w-auto w-full"
+                >
+                  {isSubmitting ? <Loader2 className="h-4 w-4 animate-spin mr-2" /> : <CheckCircle className="h-4 w-4 mr-2" />}
+                  {t("doctor.homeVisits.confirmAccept", "Konfirmasi Terima")}
+                </Button>
+              )}
+              {modalAction === "reject" && (
+                <Button
+                  variant="destructive"
+                  onClick={handleStatusUpdate}
+                  disabled={isSubmitting || !notes.trim()}
                   className="sm:w-auto w-full"
                 >
                   {isSubmitting ? <Loader2 className="h-4 w-4 animate-spin mr-2" /> : <XCircle className="h-4 w-4 mr-2" />}
-                  Konfirmasi Tolak
+                  {t("doctor.homeVisits.confirmReject", "Konfirmasi Tolak")}
                 </Button>
               )}
             </div>
