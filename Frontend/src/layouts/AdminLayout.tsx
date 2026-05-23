@@ -34,6 +34,7 @@ export default function AdminLayout() {
     { label: t("admin.layout.dashboard"), path: "/admin", icon: LayoutDashboard },
     { label: t("admin.layout.emergencyMonitor"), path: "/admin/emergencies", icon: AlertTriangle },
     { label: t("admin.layout.consultations"), path: "/admin/consultations", icon: MessageSquare },
+    { label: t("admin.layout.prescriptionTracking", { defaultValue: "Prescription Tracking" }), path: "/admin/prescriptions", icon: Stethoscope },
     { label: t("admin.layout.reports"), path: "/admin/reports", icon: FileWarning },
     { label: t("admin.layout.settings"), path: "/admin/settings", icon: Settings },
   ];

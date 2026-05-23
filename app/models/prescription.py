@@ -15,6 +15,7 @@ class Prescription(Base):
     # List of medications: [{"name": "Amoxicillin", "dosage": "3x1", "duration": "5 hari", "instructions": "Sesudah makan"}]
     medications = Column(JSON, nullable=False, default=list)
     notes = Column(Text, nullable=True)
+    status = Column(String, nullable=True, default="waiting_confirmation")
     
     created_at = Column(DateTime, default=datetime.utcnow)
     updated_at = Column(DateTime, default=datetime.utcnow, onupdate=datetime.utcnow)

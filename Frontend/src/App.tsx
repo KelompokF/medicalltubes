@@ -19,12 +19,15 @@ import HealthRecordPage from "@/pages/patient/HealthRecordPage";
 import ConsultationChatPage from "@/pages/patient/ConsultationChatPage";
 import ChatHistoryPage from "@/pages/patient/ChatHistoryPage";
 import HomeVisitBookingPage from "@/pages/patient/HomeVisitBookingPage";
+import HomeVisitPaymentPage from "@/pages/patient/HomeVisitPaymentPage";
 import HomeVisitTrackingPage from "@/pages/patient/HomeVisitTrackingPage";
+import HomeVisitHistoryPage from "@/pages/patient/HomeVisitHistoryPage";
 import ReportTrackingPage from "@/pages/patient/ReportTrackingPage";
 import EmergencyPage from "@/pages/patient/EmergencyPage";
 import UserProfilePage from "@/pages/patient/UserProfilePage";
 import AdminDashboard from "@/pages/admin/AdminDashboard";
 import AdminReportsPage from "@/pages/admin/AdminReportsPage";
+import AdminPrescriptionsPage from "@/pages/admin/AdminPrescriptionsPage";
 import DoctorDashboard from "@/pages/doctor/DoctorDashboard";
 import DoctorConsultationPage from "@/pages/doctor/DoctorConsultationPage";
 import DoctorSchedulePage from "@/pages/doctor/DoctorSchedulePage";
@@ -79,6 +82,8 @@ const App = () => (
             <Route path="/chat" element={<ConsultationChatPage />} />
             <Route path="/chat-history" element={<ChatHistoryPage />} />
             <Route path="/home-visit" element={<HomeVisitBookingPage />} />
+            <Route path="/home-visit/payment/:id" element={<HomeVisitPaymentPage />} />
+            <Route path="/home-visit-history" element={<HomeVisitHistoryPage />} />
             <Route path="/report-tracking" element={<ReportTrackingPage />} />
             <Route path="/tracking" element={<HomeVisitTrackingPage />} />
             <Route path="/emergency" element={<EmergencyPage />} />
@@ -90,6 +95,7 @@ const App = () => (
             <Route path="/admin" element={<AdminDashboard />} />
             <Route path="/admin/emergencies" element={<ComingSoon title="Emergency Monitor" />} />
             <Route path="/admin/consultations" element={<ComingSoon title="Consultations" />} />
+            <Route path="/admin/prescriptions" element={<AdminPrescriptionsPage />} />
             <Route path="/admin/reports" element={<AdminReportsPage />} />
             <Route path="/admin/settings" element={<ComingSoon title="Admin Settings" />} />
           </Route>
