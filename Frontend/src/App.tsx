@@ -24,6 +24,7 @@ import EmergencyPage from "@/pages/patient/EmergencyPage";
 import UserProfilePage from "@/pages/patient/UserProfilePage";
 import AdminDashboard from "@/pages/admin/AdminDashboard";
 import AdminReportsPage from "@/pages/admin/AdminReportsPage";
+import AdminUsersPage from "@/pages/admin/AdminUsersPage";
 import DoctorDashboard from "@/pages/doctor/DoctorDashboard";
 import DoctorConsultationPage from "@/pages/doctor/DoctorConsultationPage";
 import DoctorSchedulePage from "@/pages/doctor/DoctorSchedulePage";
@@ -84,6 +85,7 @@ const App = () => (
           {/* Admin Routes */}
           <Route element={<AdminLayout />}>
             <Route path="/admin" element={<AdminDashboard />} />
+            <Route path="/admin/users" element={<AdminUsersPage />} />
             <Route path="/admin/emergencies" element={<ComingSoon title="Emergency Monitor" />} />
             <Route path="/admin/consultations" element={<ComingSoon title="Consultations" />} />
             <Route path="/admin/reports" element={<AdminReportsPage />} />
