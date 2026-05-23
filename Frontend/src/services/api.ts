@@ -204,6 +204,8 @@ export const adminService = {
   getActiveEmergencies: () => api.get("/admin/emergencies"),
   updateUserStatus: (userId: string, status: string) =>
     api.patch(`/admin/users/${userId}`, { status }),
+  getUserReports: (userId: string) =>
+    api.get("/reports", { params: { user_id: userId } }),
 };
 
 // ============================================
