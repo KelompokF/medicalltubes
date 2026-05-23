@@ -89,4 +89,6 @@ class HomeVisitRequest(Base):
         nullable=False,
     )
 
+    payment_status = Column(String, nullable=True, default="unpaid")
+
     created_at = Column(DateTime, default=datetime.utcnow, nullable=False)

@@ -60,7 +60,7 @@ async def get_dashboard_summary(
 
     # Tabel 2: home_visit_requests_v3 (tampilkan data sesuai akun saat ini)
     result_hv_v3 = await db.execute(
-        text("SELECT count(*) FROM home_visit_requests_v3 WHERE user_id = :user_id OR LOWER(patient_name) = LOWER(:full_name)"),
+        text("SELECT count(*) FROM home_visit_requests_v3 WHERE (user_id = :user_id OR LOWER(patient_name) = LOWER(:full_name)) AND payment_status = 'paid_cash'"),
         {"user_id": current_user.id, "full_name": current_user.full_name}
     )
     total_hv_v3 = result_hv_v3.scalar() or 0
@@ -241,7 +241,7 @@ async def get_dashboard_summary(
             FROM home_visit_requests_v3 r
             LEFT JOIN doctor_profiles dp ON dp.id = r.doctor_id
             LEFT JOIN users u ON u.id = dp.user_id
-            WHERE r.user_id = :user_id OR LOWER(r.patient_name) = LOWER(:full_name)
+            WHERE (r.user_id = :user_id OR LOWER(r.patient_name) = LOWER(:full_name)) AND r.payment_status = 'paid_cash'
             ORDER BY r.created_at DESC
             LIMIT 5
         """),
@@ -258,7 +258,7 @@ async def get_dashboard_summary(
             specialization=row["specialization"] or "Kunjungan Rumah",
             date=row["created_at"].strftime("%d %b %Y") if row["created_at"] else "Baru saja",
             time=row["created_at"].strftime("%H:%M") if row["created_at"] else "",
-            status="pending",
+            status=row["status"] or "pending",
             type="home_visit",
             sort_key=row["created_at"] or datetime.datetime.utcnow()
         ))

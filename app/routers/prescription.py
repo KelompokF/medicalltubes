@@ -30,7 +30,8 @@ async def create_prescription(
         doctor_id=current_user.id,
         patient_id=body.patient_id,
         medications=[m.dict() for m in body.medications],
-        notes=body.notes
+        notes=body.notes,
+        status="waiting_confirmation"
     )
     
     db.add(prescription)
@@ -100,3 +101,98 @@ async def get_patient_prescriptions(
         select(Prescription).where(Prescription.patient_id == patient_id).order_by(Prescription.created_at.desc())
     )
     return result.scalars().all()
+
+
+# ============================================
+# ADMIN ENDPOINTS FOR PRESCRIPTION TRACKING
+# ============================================
+
+@router.get("/admin/list")
+async def get_admin_prescriptions_list(
+    current_user: User = Depends(get_current_user),
+    db: AsyncSession = Depends(get_db)
+):
+    from sqlalchemy import text
+    if current_user.role != "admin":
+        raise HTTPException(status_code=403, detail="Akses ditolak. Hanya untuk Admin.")
+        
+    try:
+        result = await db.execute(
+            text("""
+                SELECT 
+                    p.id,
+                    p.patient_id,
+                    p.doctor_id,
+                    p.medications,
+                    p.notes,
+                    p.status,
+                    p.created_at,
+                    p.updated_at,
+                    u_patient.full_name AS patient_name,
+                    u_doctor.full_name AS doctor_name,
+                    hv.address AS shipping_address,
+                    hv.phone_number AS patient_phone
+                FROM prescriptions p
+                LEFT JOIN users u_patient ON u_patient.id = p.patient_id
+                LEFT JOIN users u_doctor ON u_doctor.id = p.doctor_id
+                LEFT JOIN (
+                    SELECT DISTINCT ON (user_id) user_id, address, phone_number
+                    FROM home_visit_requests_v3
+                    ORDER BY user_id, created_at DESC
+                ) hv ON hv.user_id = p.patient_id
+                ORDER BY p.created_at DESC
+            """)
+        )
+        rows = result.mappings().all()
+        
+        return [
+            {
+                "id": str(row["id"]),
+                "patient_id": str(row["patient_id"]),
+                "doctor_id": str(row["doctor_id"]),
+                "medications": row["medications"],
+                "notes": row["notes"],
+                "status": row["status"] or "waiting_confirmation",
+                "created_at": str(row["created_at"]),
+                "updated_at": str(row["updated_at"]),
+                "patient_name": row["patient_name"] or "Pasien",
+                "doctor_name": row["doctor_name"] or "Dokter",
+                "shipping_address": row["shipping_address"] or "Alamat tidak tersedia",
+                "patient_phone": row["patient_phone"] or ""
+            }
+            for row in rows
+        ]
+    except Exception as e:
+        import traceback
+        tb = traceback.format_exc()
+        print(f"[ADMIN-PRESCRIPTIONS-LIST] ERROR:\n{tb}")
+        raise HTTPException(status_code=500, detail=f"Gagal mengambil resep: {str(e)}")
+
+
+@router.patch("/admin/{prescription_id}/status")
+async def update_prescription_status(
+    prescription_id: UUID,
+    payload: dict,
+    current_user: User = Depends(get_current_user),
+    db: AsyncSession = Depends(get_db)
+):
+    if current_user.role != "admin":
+        raise HTTPException(status_code=403, detail="Akses ditolak")
+        
+    status_val = payload.get("status")
+    allowed_statuses = ["waiting_confirmation", "processing", "packaging", "shipping", "completed"]
+    if status_val not in allowed_statuses:
+        raise HTTPException(status_code=400, detail=f"Status tidak valid. Harus salah satu dari {allowed_statuses}")
+        
+    result = await db.execute(
+        select(Prescription).where(Prescription.id == prescription_id)
+    )
+    prescription = result.scalar_one_or_none()
+    if not prescription:
+        raise HTTPException(status_code=404, detail="Resep tidak ditemukan")
+        
+    prescription.status = status_val
+    prescription.updated_at = datetime.utcnow()
+    await db.commit()
+    
+    return {"message": "Status resep berhasil diperbarui", "status": status_val}
