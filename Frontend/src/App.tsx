@@ -3,6 +3,7 @@ import { BrowserRouter, Route, Routes, Navigate } from "react-router-dom";
 import { Toaster as Sonner } from "@/components/ui/sonner";
 import { Toaster } from "@/components/ui/toaster";
 import { TooltipProvider } from "@/components/ui/tooltip";
+import { useTranslation } from "react-i18next";
 
 import PatientLayout from "@/layouts/PatientLayout";
 import AdminLayout from "@/layouts/AdminLayout";
@@ -44,15 +45,18 @@ const queryClient = new QueryClient({
   },
 });
 
-const ComingSoon = ({ title }: { title: string }) => (
-  <div className="flex flex-col items-center justify-center py-20 text-center animate-fade-in">
-    <div className="rounded-full bg-primary/10 p-6 mb-4">
-      <div className="h-8 w-8 text-primary">🚧</div>
+const ComingSoon = ({ title }: { title: string }) => {
+  const { t } = useTranslation();
+  return (
+    <div className="flex flex-col items-center justify-center py-20 text-center animate-fade-in">
+      <div className="rounded-full bg-primary/10 p-6 mb-4">
+        <div className="h-8 w-8 text-primary">🚧</div>
+      </div>
+      <h2 className="text-xl font-bold text-foreground">{title}</h2>
+      <p className="text-muted-foreground mt-2">{t("common.underDevelopment")}</p>
     </div>
-    <h2 className="text-xl font-bold text-foreground">{title}</h2>
-    <p className="text-muted-foreground mt-2">This page is under development.</p>
-  </div>
-);
+  );
+};
 
 const App = () => (
   <QueryClientProvider client={queryClient}>

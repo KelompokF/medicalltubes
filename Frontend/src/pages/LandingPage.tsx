@@ -1,29 +1,33 @@
 import { Link } from "react-router-dom";
+import { useTranslation } from "react-i18next";
 import { ArrowRight, Stethoscope, Ambulance, Home, MessageCircle, Shield, Clock, MapPin, Heart } from "lucide-react";
 import { Button } from "@/components/ui/button";
+import LanguageSwitcher from "@/components/LanguageSwitcher";
 import logo from "@/assets/medicall-logo.png";
 
-const features = [
-  { icon: MessageCircle, title: "Online Consultation", desc: "Chat with verified doctors anytime, anywhere from your device." },
-  { icon: Home, title: "Home Visit", desc: "Book a doctor to visit your home with just a few taps." },
-  { icon: Ambulance, title: "Emergency Response", desc: "Request the nearest ambulance instantly during emergencies." },
-  { icon: Stethoscope, title: "Find Specialists", desc: "Search and connect with specialists matching your needs." },
-];
-
-const stats = [
-  { value: "500+", label: "Verified Doctors" },
-  { value: "24/7", label: "Emergency Support" },
-  { value: "10k+", label: "Happy Patients" },
-  { value: "50+", label: "Cities Covered" },
-];
-
-const steps = [
-  { icon: Shield, title: "Create Account", desc: "Sign up as a patient in less than a minute." },
-  { icon: Stethoscope, title: "Choose a Service", desc: "Consult online, book a home visit, or call emergency." },
-  { icon: Heart, title: "Get Care", desc: "Receive professional healthcare wherever you are." },
-];
-
 export default function LandingPage() {
+  const { t } = useTranslation();
+
+  const features = [
+    { icon: MessageCircle, title: t("landing.features.onlineConsultation"), desc: t("landing.features.onlineConsultationDesc") },
+    { icon: Home, title: t("landing.features.homeVisit"), desc: t("landing.features.homeVisitDesc") },
+    { icon: Ambulance, title: t("landing.features.emergencyResponse"), desc: t("landing.features.emergencyResponseDesc") },
+    { icon: Stethoscope, title: t("landing.features.findSpecialists"), desc: t("landing.features.findSpecialistsDesc") },
+  ];
+
+  const stats = [
+    { value: "500+", label: t("landing.stats.verifiedDoctors") },
+    { value: "24/7", label: t("landing.stats.emergencySupport") },
+    { value: "10k+", label: t("landing.stats.happyPatients") },
+    { value: "50+", label: t("landing.stats.citiesCovered") },
+  ];
+
+  const steps = [
+    { icon: Shield, title: t("landing.howItWorks.step1Title"), desc: t("landing.howItWorks.step1Desc") },
+    { icon: Stethoscope, title: t("landing.howItWorks.step2Title"), desc: t("landing.howItWorks.step2Desc") },
+    { icon: Heart, title: t("landing.howItWorks.step3Title"), desc: t("landing.howItWorks.step3Desc") },
+  ];
+
   return (
     <div className="min-h-screen bg-background">
       {/* Header */}
@@ -33,16 +37,17 @@ export default function LandingPage() {
             <img src={logo} alt="Medicall logo" className="h-10 w-auto" />
           </Link>
           <nav className="hidden md:flex items-center gap-8 text-sm font-medium text-muted-foreground">
-            <a href="#features" className="hover:text-foreground transition-colors">Features</a>
-            <a href="#how" className="hover:text-foreground transition-colors">How it works</a>
-            <a href="#about" className="hover:text-foreground transition-colors">About</a>
+            <a href="#features" className="hover:text-foreground transition-colors">{t("landing.nav.features")}</a>
+            <a href="#how" className="hover:text-foreground transition-colors">{t("landing.nav.howItWorks")}</a>
+            <a href="#about" className="hover:text-foreground transition-colors">{t("landing.nav.about")}</a>
           </nav>
           <div className="flex items-center gap-3">
+            <LanguageSwitcher />
             <Link to="/login">
-              <Button variant="ghost" size="sm">Sign in</Button>
+              <Button variant="ghost" size="sm">{t("landing.nav.signIn")}</Button>
             </Link>
             <Link to="/login">
-              <Button size="sm" className="medical-gradient text-primary-foreground hover:opacity-90">Get Started</Button>
+              <Button size="sm" className="medical-gradient text-primary-foreground hover:opacity-90">{t("landing.nav.getStarted")}</Button>
             </Link>
           </div>
         </div>
@@ -54,22 +59,22 @@ export default function LandingPage() {
         <div className="relative max-w-7xl mx-auto px-6 py-20 lg:py-28 grid lg:grid-cols-2 gap-12 items-center">
           <div className="animate-fade-in">
             <span className="inline-flex items-center gap-2 rounded-full bg-primary/10 text-primary px-3 py-1 text-xs font-semibold mb-6">
-              <Heart className="h-3 w-3" /> SDG 3 — Good Health & Well-being
+              <Heart className="h-3 w-3" /> {t("landing.hero.badge")}
             </span>
             <h1 className="text-4xl sm:text-5xl lg:text-6xl font-bold text-foreground leading-tight mb-6">
-              Accessible Healthcare for <span className="text-primary">Everyone</span>, Anywhere.
+              {t("landing.hero.titleStart")}<span className="text-primary">{t("landing.hero.titleHighlight")}</span>{t("landing.hero.titleEnd")}
             </h1>
             <p className="text-lg text-muted-foreground mb-8 max-w-xl">
-              Medicall connects patients with trusted doctors, home visit services, and emergency response — all in one modern platform built for you.
+              {t("landing.hero.subtitle")}
             </p>
             <div className="flex flex-col sm:flex-row gap-3">
               <Link to="/login">
                 <Button size="lg" className="medical-gradient text-primary-foreground hover:opacity-90 w-full sm:w-auto">
-                  Get Started <ArrowRight className="ml-2 h-4 w-4" />
+                  {t("landing.nav.getStarted")} <ArrowRight className="ml-2 h-4 w-4" />
                 </Button>
               </Link>
               <a href="#features">
-                <Button size="lg" variant="outline" className="w-full sm:w-auto">Learn More</Button>
+                <Button size="lg" variant="outline" className="w-full sm:w-auto">{t("landing.hero.learnMore")}</Button>
               </a>
             </div>
 
@@ -96,8 +101,8 @@ export default function LandingPage() {
       <section id="features" className="py-20 bg-muted/30">
         <div className="max-w-7xl mx-auto px-6">
           <div className="text-center mb-14">
-            <h2 className="text-3xl sm:text-4xl font-bold text-foreground mb-3">Everything you need for your health</h2>
-            <p className="text-muted-foreground max-w-2xl mx-auto">A complete healthcare ecosystem designed around the patient experience.</p>
+            <h2 className="text-3xl sm:text-4xl font-bold text-foreground mb-3">{t("landing.features.heading")}</h2>
+            <p className="text-muted-foreground max-w-2xl mx-auto">{t("landing.features.subheading")}</p>
           </div>
           <div className="grid sm:grid-cols-2 lg:grid-cols-4 gap-6">
             {features.map((f) => (
@@ -117,8 +122,8 @@ export default function LandingPage() {
       <section id="how" className="py-20">
         <div className="max-w-6xl mx-auto px-6">
           <div className="text-center mb-14">
-            <h2 className="text-3xl sm:text-4xl font-bold text-foreground mb-3">How it works</h2>
-            <p className="text-muted-foreground">Three simple steps to better care.</p>
+            <h2 className="text-3xl sm:text-4xl font-bold text-foreground mb-3">{t("landing.howItWorks.heading")}</h2>
+            <p className="text-muted-foreground">{t("landing.howItWorks.subheading")}</p>
           </div>
           <div className="grid md:grid-cols-3 gap-6">
             {steps.map((s, i) => (
@@ -143,11 +148,11 @@ export default function LandingPage() {
           <div className="relative overflow-hidden rounded-3xl medical-gradient p-10 sm:p-14 text-center">
             <div className="absolute inset-0 bg-gradient-to-br from-primary/90 to-accent/80" />
             <div className="relative">
-              <h2 className="text-3xl sm:text-4xl font-bold text-primary-foreground mb-3">Ready to take care of your health?</h2>
-              <p className="text-primary-foreground/90 max-w-xl mx-auto mb-8">Join thousands of patients already trusting Medicall for their healthcare needs.</p>
+              <h2 className="text-3xl sm:text-4xl font-bold text-primary-foreground mb-3">{t("landing.cta.heading")}</h2>
+              <p className="text-primary-foreground/90 max-w-xl mx-auto mb-8">{t("landing.cta.subheading")}</p>
               <Link to="/login">
                 <Button size="lg" variant="secondary" className="font-semibold">
-                  Sign in as Patient <ArrowRight className="ml-2 h-4 w-4" />
+                  {t("landing.cta.button")} <ArrowRight className="ml-2 h-4 w-4" />
                 </Button>
               </Link>
             </div>
@@ -162,11 +167,11 @@ export default function LandingPage() {
             <img src={logo} alt="Medicall" className="h-8 w-auto" />
           </div>
           <p className="text-sm text-muted-foreground flex items-center gap-2">
-            <MapPin className="h-4 w-4" /> Serving patients worldwide
+            <MapPin className="h-4 w-4" /> {t("landing.footer.serving")}
             <span className="mx-2">•</span>
-            <Clock className="h-4 w-4" /> 24/7 support
+            <Clock className="h-4 w-4" /> {t("landing.footer.support")}
           </p>
-          <p className="text-xs text-muted-foreground">© 2026 Medicall. All rights reserved.</p>
+          <p className="text-xs text-muted-foreground">{t("landing.footer.copyright")}</p>
         </div>
       </footer>
     </div>

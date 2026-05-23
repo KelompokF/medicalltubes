@@ -1,5 +1,6 @@
 import { useState, useEffect, useRef } from "react";
 import { Link, useLocation, Outlet, useNavigate } from "react-router-dom";
+import { useTranslation } from "react-i18next";
 import {
   LayoutDashboard, Users, Calendar, Pill, MessageSquare,
   ClipboardList, Settings, Bell, ChevronDown, Menu, X, LogOut, Stethoscope, Home, FileWarning
@@ -10,18 +11,7 @@ import {
 } from "@/components/ui/dropdown-menu";
 import { toast } from "sonner";
 import api from "@/services/api";
-
-const doctorNav = [
-  { label: "Dashboard", path: "/doctor-dashboard", icon: LayoutDashboard },
-  { label: "My Patients", path: "/doctor-dashboard/patients", icon: Users },
-  { label: "Consultations", path: "/doctor-dashboard/consultations", icon: MessageSquare },
-  { label: "Home Visits", path: "/doctor-dashboard/home-visits", icon: Home },
-  { label: "Schedule", path: "/doctor-dashboard/schedule", icon: Calendar },
-  { label: "Prescriptions", path: "/doctor-dashboard/prescriptions", icon: Pill },
-  { label: "Medical Records", path: "/doctor-dashboard/records", icon: ClipboardList },
-  { label: "Report Tracking", path: "/doctor-dashboard/report-tracking", icon: FileWarning },
-  { label: "Settings", path: "/doctor-dashboard/settings", icon: Settings },
-];
+import LanguageSwitcher from "@/components/LanguageSwitcher";
 
 interface Notification {
   id: number;
@@ -33,11 +23,24 @@ interface Notification {
 }
 
 export default function DoctorLayout() {
+  const { t } = useTranslation();
   const [sidebarOpen, setSidebarOpen] = useState(false);
   const [notifications, setNotifications] = useState<Notification[]>([]);
   const location = useLocation();
   const navigate = useNavigate();
   const isActive = (path: string) => location.pathname === path;
+
+  const doctorNav = [
+    { label: t("doctor.layout.dashboard"), path: "/doctor-dashboard", icon: LayoutDashboard },
+    { label: t("doctor.layout.myPatients"), path: "/doctor-dashboard/patients", icon: Users },
+    { label: t("doctor.layout.consultations"), path: "/doctor-dashboard/consultations", icon: MessageSquare },
+    { label: t("doctor.layout.homeVisits"), path: "/doctor-dashboard/home-visits", icon: Home },
+    { label: t("doctor.layout.schedule"), path: "/doctor-dashboard/schedule", icon: Calendar },
+    { label: t("doctor.layout.prescriptions"), path: "/doctor-dashboard/prescriptions", icon: Pill },
+    { label: t("doctor.layout.medicalRecords"), path: "/doctor-dashboard/records", icon: ClipboardList },
+    { label: t("doctor.layout.reportTracking"), path: "/doctor-dashboard/report-tracking", icon: FileWarning },
+    { label: t("doctor.layout.settings"), path: "/doctor-dashboard/settings", icon: Settings },
+  ];
 
   // Get current user
   const user = typeof window !== "undefined" ? JSON.parse(localStorage.getItem("user") || "null") : null;
@@ -88,7 +91,7 @@ export default function DoctorLayout() {
             setNotifications(prev => [
               {
                 id: Date.now(),
-                title: "Pesan Baru",
+                title: t("doctor.layout.newMessage"),
                 description: data.content,
                 sender_id: data.sender_id,
                 room_id: data.room_id,
@@ -99,10 +102,10 @@ export default function DoctorLayout() {
 
             // Show toast if not on the specific consultation page
             if (!window.location.pathname.includes("/doctor-dashboard/consultations")) {
-              toast("Pesan Baru dari Pasien", {
+              toast(t("doctor.layout.newMessageFromPatient"), {
                 description: data.content,
                 action: {
-                  label: "Lihat Chat",
+                  label: t("doctor.layout.viewChat"),
                   onClick: () => navigate(`/doctor-dashboard/consultations?room_id=${data.room_id}`)
                 },
               });
@@ -128,7 +131,7 @@ export default function DoctorLayout() {
         wsRef.current.close();
       }
     };
-  }, [doctorId, navigate]);
+  }, [doctorId, navigate, t]);
 
   return (
     <div className="min-h-screen bg-background">
@@ -141,13 +144,13 @@ export default function DoctorLayout() {
           </div>
           <div>
             <span className="text-xl font-bold text-sidebar-foreground">Medicall</span>
-            <p className="text-[10px] uppercase tracking-widest text-sidebar-foreground/50">Doctor Portal</p>
+            <p className="text-[10px] uppercase tracking-widest text-sidebar-foreground/50">{t("doctor.layout.doctorPortal")}</p>
           </div>
           <button className="ml-auto lg:hidden text-sidebar-foreground" onClick={() => setSidebarOpen(false)}><X className="h-5 w-5" /></button>
         </div>
 
         <nav className="px-3 py-4 space-y-1 overflow-y-auto h-[calc(100%-140px)]">
-          <p className="px-3 text-xs font-semibold uppercase tracking-wider text-sidebar-foreground/50 mb-2">Doctor Menu</p>
+          <p className="px-3 text-xs font-semibold uppercase tracking-wider text-sidebar-foreground/50 mb-2">{t("doctor.layout.doctorMenu")}</p>
           {doctorNav.map((item) => (
             <Link key={item.path} to={item.path} onClick={() => setSidebarOpen(false)}
               className={`flex items-center gap-3 px-3 py-2.5 rounded-lg text-sm font-medium transition-all duration-200 ${
@@ -160,7 +163,7 @@ export default function DoctorLayout() {
 
         <div className="absolute bottom-0 left-0 right-0 p-4 border-t border-sidebar-border">
           <Link to="/login" className="flex items-center gap-3 px-3 py-2.5 rounded-lg text-sm font-medium text-sidebar-foreground/70 hover:bg-sidebar-accent transition-colors">
-            <LogOut className="h-4 w-4" />Logout
+            <LogOut className="h-4 w-4" />{t("common.logout")}
           </Link>
         </div>
       </aside>
@@ -173,10 +176,12 @@ export default function DoctorLayout() {
               <nav className="hidden sm:flex items-center text-sm text-muted-foreground">
                 <Link to="/doctor-dashboard" className="hover:text-foreground transition-colors">Doctor</Link>
                 <span className="mx-2">/</span>
-                <span className="text-foreground font-medium capitalize">{location.pathname.replace("/doctor-dashboard", "").slice(1).replace(/-/g, " ") || "Dashboard"}</span>
+                <span className="text-foreground font-medium capitalize">{location.pathname.replace("/doctor-dashboard", "").slice(1).replace(/-/g, " ") || t("common.dashboard")}</span>
               </nav>
             </div>
             <div className="flex items-center gap-2">
+              <LanguageSwitcher />
+
               <DropdownMenu>
                 <DropdownMenuTrigger asChild>
                   <Button variant="ghost" size="icon" className="relative">
@@ -190,15 +195,15 @@ export default function DoctorLayout() {
                 </DropdownMenuTrigger>
                 <DropdownMenuContent align="end" className="w-72">
                   <div className="px-3 py-2 font-semibold text-sm flex justify-between items-center">
-                    <span>Notifications</span>
+                    <span>{t("common.notifications")}</span>
                     {notifications.length > 0 && (
-                      <Button variant="ghost" size="sm" className="h-auto p-0 text-[10px] text-primary" onClick={() => setNotifications([])}>Clear all</Button>
+                      <Button variant="ghost" size="sm" className="h-auto p-0 text-[10px] text-primary" onClick={() => setNotifications([])}>{t("common.clearAll")}</Button>
                     )}
                   </div>
                   <DropdownMenuSeparator />
                   {notifications.length === 0 ? (
                     <div className="px-3 py-4 text-center text-xs text-muted-foreground">
-                      No new notifications
+                      {t("doctor.layout.noNotifications")}
                     </div>
                   ) : (
                     notifications.map((n) => (
@@ -213,8 +218,8 @@ export default function DoctorLayout() {
                   )}
                   {notifications.length === 0 && (
                     <>
-                      <DropdownMenuItem className="text-xs">5 pending consultation requests</DropdownMenuItem>
-                      <DropdownMenuItem className="text-xs">Home visit scheduled for 2:00 PM</DropdownMenuItem>
+                      <DropdownMenuItem className="text-xs">{t("doctor.layout.pendingRequests")}</DropdownMenuItem>
+                      <DropdownMenuItem className="text-xs">{t("doctor.layout.homeVisitScheduled")}</DropdownMenuItem>
                     </>
                   )}
                 </DropdownMenuContent>
@@ -236,16 +241,16 @@ export default function DoctorLayout() {
                   </Button>
                 </DropdownMenuTrigger>
                 <DropdownMenuContent align="end">
-                  <DropdownMenuItem><Settings className="h-4 w-4 mr-2" />Settings</DropdownMenuItem>
+                  <DropdownMenuItem><Settings className="h-4 w-4 mr-2" />{t("common.settings")}</DropdownMenuItem>
                   <DropdownMenuSeparator />
-                  <DropdownMenuItem asChild><Link to="/login">Logout</Link></DropdownMenuItem>
+                  <DropdownMenuItem asChild><Link to="/login">{t("common.logout")}</Link></DropdownMenuItem>
                 </DropdownMenuContent>
               </DropdownMenu>
             </div>
           </div>
         </header>
         <main className="p-4 sm:p-6 lg:p-8"><Outlet /></main>
-        <footer className="border-t px-6 py-4 text-center text-sm text-muted-foreground">© 2026 Medicall Doctor Portal — Professional Healthcare Platform</footer>
+        <footer className="border-t px-6 py-4 text-center text-sm text-muted-foreground">{t("doctor.layout.footer")}</footer>
       </div>
     </div>
   );
