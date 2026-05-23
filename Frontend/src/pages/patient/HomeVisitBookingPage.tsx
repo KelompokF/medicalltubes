@@ -1,4 +1,5 @@
 import { useState, useEffect, FormEvent } from "react";
+import { useNavigate } from "react-router-dom";
 import { Calendar, MapPin, Phone, User, Clock, Stethoscope } from "lucide-react";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
@@ -7,7 +8,6 @@ import { Label } from "@/components/ui/label";
 import { Textarea } from "@/components/ui/textarea";
 import { toast } from "sonner";
 import { homeVisitScheduleService } from "@/services/api";
-import { useNavigate } from "react-router-dom";
 
 const todayStr = new Date().toISOString().split("T")[0];
 
@@ -162,10 +162,11 @@ export default function HomeVisitBookingPage() {
       const response = await homeVisitScheduleService.submitRequest(payload);
       console.log("Success:", response.data);
 
-      toast.success("Permintaan kunjungan rumah berhasil dikirim!");
+      toast.success("Permintaan kunjungan rumah berhasil disimpan!");
 
-      // Pindah ke halaman tracking
-      navigate("/tracking");
+      // Pindah ke halaman pembayaran dummy
+      const requestId = response.data.id;
+      navigate(`/home-visit/payment/${requestId}`);
 
       // Reset form
       setPatientName("");
@@ -214,6 +215,7 @@ export default function HomeVisitBookingPage() {
           <p className="text-sm mt-1">{error}</p>
         </div>
       )}
+
 
       <form onSubmit={handleSubmit}>
         <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
@@ -367,7 +369,6 @@ export default function HomeVisitBookingPage() {
                 </div>
               </CardContent>
             </Card>
-
           </div>
 
           {/* SECTION 4: Ringkasan & Submit */}
@@ -416,6 +417,7 @@ export default function HomeVisitBookingPage() {
                 </div>
               </CardContent>
             </Card>
+
           </div>
 
         </div>

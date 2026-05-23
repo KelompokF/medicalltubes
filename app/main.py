@@ -86,6 +86,7 @@ app.include_router(report_router)
 
 
 
+
 @app.get("/", tags=["Root"])
 async def root():
     return {"message": "Medicall API is running 🚀", "docs": "/docs"}

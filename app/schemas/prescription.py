@@ -22,6 +22,7 @@ class PrescriptionResponse(BaseModel):
     patient_id: UUID
     medications: List[MedicationItem]
     notes: Optional[str]
+    status: Optional[str] = "waiting_confirmation"
     created_at: datetime
 
     class Config:

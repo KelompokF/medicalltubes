@@ -124,6 +124,7 @@ async def get_my_requests(
                 FROM home_visit_requests_v3 r
                 LEFT JOIN doctor_profiles dp ON dp.id = r.doctor_id
                 LEFT JOIN users u ON u.id = dp.user_id
+                WHERE r.payment_status = 'paid_cash'
                 ORDER BY r.created_at DESC
             """)
         )
@@ -193,6 +194,7 @@ async def get_doctor_requests(
                 JOIN doctor_profiles dp ON dp.id = r.doctor_id
                 JOIN users u ON u.id = dp.user_id
                 WHERE dp.user_id = :user_id
+                  AND r.payment_status = 'paid_cash'
                 ORDER BY r.created_at DESC
             """),
             {"user_id": current_user.id}
@@ -321,8 +323,8 @@ async def create_home_visit_request(
         await asyncpg_conn.execute(
             """
             INSERT INTO home_visit_requests_v3
-                (id, patient_name, doctor_id, address, phone_number, complaint, preferred_date, preferred_time, created_at)
-            VALUES ($1, $2, $3, $4, $5, $6, $7, $8, now())
+                (id, patient_name, doctor_id, address, phone_number, complaint, preferred_date, preferred_time, payment_status, created_at)
+            VALUES ($1, $2, $3, $4, $5, $6, $7, $8, 'unpaid', now())
             """,
             new_id,
             payload.patient_name,
@@ -441,3 +443,131 @@ async def track_home_visit(
         "status": visit.status.value,
         "steps": steps,
     }
+
+
+# ========================
+# GET REQUEST BY ID (untuk payment page)
+# ========================
+@router.get("/requests/{request_id}")
+async def get_request_by_id(
+    request_id: str,
+    db: AsyncSession = Depends(get_db),
+):
+    import traceback
+    import uuid
+    try:
+        try:
+            req_uuid = uuid.UUID(request_id)
+        except ValueError:
+            raise HTTPException(status_code=400, detail="Format ID tidak valid")
+            
+        result = await db.execute(
+            text("""
+                SELECT
+                    r.id,
+                    r.patient_name,
+                    r.doctor_id,
+                    r.address,
+                    r.phone_number,
+                    r.complaint,
+                    r.preferred_date,
+                    r.preferred_time,
+                    r.created_at,
+                    r.status,
+                    r.notes,
+                    r.payment_status,
+                    u.full_name AS doctor_full_name,
+                    dp.specialization
+                FROM home_visit_requests_v3 r
+                LEFT JOIN doctor_profiles dp ON dp.id = r.doctor_id
+                LEFT JOIN users u ON u.id = dp.user_id
+                WHERE r.id = :id
+            """),
+            {"id": str(req_uuid)}
+        )
+        row = result.mappings().fetchone()
+        if not row:
+            raise HTTPException(status_code=404, detail="Request tidak ditemukan")
+
+        def fmt_name(name: str | None) -> str:
+            if not name:
+                return "Dokter"
+            if name.lower().startswith("dr."):
+                return name
+            return f"Dr. {name}"
+
+        full_name = row["doctor_full_name"]
+        doctor_name = fmt_name(full_name)
+
+        return {
+            "id": str(row["id"]),
+            "patient_name": row["patient_name"] or "",
+            "doctor_id": str(row["doctor_id"]) if row["doctor_id"] else None,
+            "doctor_name": doctor_name,
+            "specialization": row["specialization"] or "",
+            "address": row["address"] or "",
+            "phone_number": row["phone_number"] or "",
+            "complaint": row["complaint"] or "",
+            "preferred_date": str(row["preferred_date"]) if row["preferred_date"] else "",
+            "preferred_time": str(row["preferred_time"])[:5] if row["preferred_time"] else "",
+            "status": row["status"] or "pending",
+            "notes": row["notes"] or "",
+            "payment_status": row["payment_status"] or "unpaid",
+            "created_at": str(row["created_at"]) if row["created_at"] else "",
+        }
+
+    except HTTPException:
+        raise
+    except Exception as e:
+        tb = traceback.format_exc()
+        print(f"[GET-REQUEST-BY-ID] ERROR:\n{tb}")
+        raise HTTPException(status_code=500, detail=f"Gagal mengambil data: {str(e)}")
+
+
+# ========================
+# UPDATE PAYMENT STATUS
+# ========================
+@router.patch("/requests/{request_id}/payment")
+async def update_request_payment_status(
+    request_id: str,
+    payload: dict,
+    db: AsyncSession = Depends(get_db),
+):
+    import traceback
+    import uuid
+    try:
+        try:
+            req_uuid = uuid.UUID(request_id)
+        except ValueError:
+            raise HTTPException(status_code=400, detail="Format ID tidak valid")
+            
+        payment_status = payload.get("payment_status")
+        if not payment_status:
+            raise HTTPException(status_code=400, detail="payment_status wajib diisi")
+
+        # Verify request exists
+        result = await db.execute(
+            text("SELECT id FROM home_visit_requests_v3 WHERE id = :id"),
+            {"id": str(req_uuid)}
+        )
+        row = result.fetchone()
+        if not row:
+            raise HTTPException(status_code=404, detail="Request tidak ditemukan")
+
+        await db.execute(
+            text("""
+            UPDATE home_visit_requests_v3
+            SET payment_status = :payment_status
+            WHERE id = :id
+            """),
+            {"payment_status": payment_status, "id": str(req_uuid)}
+        )
+        await db.commit()
+        return {"message": "Status pembayaran berhasil diupdate", "payment_status": payment_status}
+    except HTTPException:
+        raise
+    except Exception as e:
+        await db.rollback()
+        tb = traceback.format_exc()
+        print(f"[UPDATE-PAYMENT] ERROR:\n{tb}")
+        raise HTTPException(status_code=500, detail=f"Gagal update status pembayaran: {str(e)}")

@@ -14,6 +14,7 @@ const adminNav = [
   { label: "Dashboard", path: "/admin", icon: LayoutDashboard },
   { label: "Emergency Monitor", path: "/admin/emergencies", icon: AlertTriangle },
   { label: "Consultations", path: "/admin/consultations", icon: MessageSquare },
+  { label: "Prescription Tracking", path: "/admin/prescriptions", icon: Stethoscope },
   { label: "Reports", path: "/admin/reports", icon: FileWarning },
   { label: "Settings", path: "/admin/settings", icon: Settings },
 ];
