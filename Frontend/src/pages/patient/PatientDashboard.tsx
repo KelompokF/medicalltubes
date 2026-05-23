@@ -229,7 +229,7 @@ export default function PatientDashboard() {
                     {t("patient.dashboard.bookingHistory")}
                   </TabsTrigger>
                   <TabsTrigger value="prescription" className="rounded-lg data-[state=active]:bg-background data-[state=active]:shadow-sm">
-                    Resep Obat
+                    {t("patient.dashboard.prescriptions", "Resep Obat")}
                   </TabsTrigger>
                 </TabsList>
 
@@ -246,7 +246,7 @@ export default function PatientDashboard() {
                     <div className="flex items-center justify-between mb-4">
                       <div className="flex items-center gap-2 text-primary">
                         <Pill className="h-5 w-5" />
-                        <h3 className="font-semibold text-foreground">Daftar Resep Obat</h3>
+                        <h3 className="font-semibold text-foreground">{t("patient.dashboard.prescriptionList", "Daftar Resep Obat")}</h3>
                       </div>
                     </div>
 
@@ -274,10 +274,10 @@ export default function PatientDashboard() {
                                       <p className="font-bold text-sm text-foreground">{med.name}</p>
                                       <div className="flex flex-wrap gap-x-4 gap-y-1 mt-1">
                                         <p className="text-xs text-muted-foreground flex items-center gap-1">
-                                          <span className="font-semibold text-foreground/70">Dosis:</span> {med.dosage}
+                                          <span className="font-semibold text-foreground/70">{t("patient.dashboard.dosage", "Dosis:")}</span> {med.dosage}
                                         </p>
                                         <p className="text-xs text-muted-foreground flex items-center gap-1">
-                                          <span className="font-semibold text-foreground/70">Durasi:</span> {med.duration}
+                                          <span className="font-semibold text-foreground/70">{t("patient.dashboard.duration", "Durasi:")}</span> {med.duration}
                                         </p>
                                       </div>
                                       <p className="text-xs text-primary font-medium mt-1.5 flex items-center gap-1">
@@ -290,7 +290,7 @@ export default function PatientDashboard() {
                               {pres.notes && (
                                 <div className="p-3 rounded-lg bg-accent/5 border border-accent/20">
                                   <p className="text-[10px] uppercase font-bold text-accent tracking-widest mb-1 flex items-center gap-1">
-                                    <FileText className="h-3 w-3" /> Catatan Dokter
+                                    <FileText className="h-3 w-3" /> {t("patient.dashboard.doctorNotes", "Catatan Dokter")}
                                   </p>
                                   <p className="text-xs text-muted-foreground italic leading-relaxed">"{pres.notes}"</p>
                                 </div>
@@ -302,7 +302,7 @@ export default function PatientDashboard() {
                     ) : (
                       <div className="text-center py-10 flex flex-col items-center border rounded-xl bg-muted/30">
                         <Pill className="h-10 w-10 text-muted-foreground/30 mb-3" />
-                        <p className="text-muted-foreground text-sm font-medium">Belum ada resep obat</p>
+                        <p className="text-muted-foreground text-sm font-medium">{t("patient.dashboard.noPrescriptions", "Belum ada resep obat")}</p>
                       </div>
                     )}
                   </div>
