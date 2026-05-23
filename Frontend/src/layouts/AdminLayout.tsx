@@ -12,6 +12,7 @@ import { toast } from "sonner";
 
 const adminNav = [
   { label: "Dashboard", path: "/admin", icon: LayoutDashboard },
+  { label: "User Accounts", path: "/admin/users", icon: Users },
   { label: "Emergency Monitor", path: "/admin/emergencies", icon: AlertTriangle },
   { label: "Consultations", path: "/admin/consultations", icon: MessageSquare },
   { label: "Reports", path: "/admin/reports", icon: FileWarning },
