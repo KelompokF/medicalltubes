@@ -2,6 +2,7 @@ from pydantic import BaseModel
 from typing import List, Optional
 from datetime import datetime
 import uuid
+from app.schemas.prescription import MedicationItem
 
 class DashboardStats(BaseModel):
     totalConsultations: int
@@ -31,9 +32,17 @@ class HistoryItem(BaseModel):
     status: str
     type: str
 
+class PrescriptionDashboardItem(BaseModel):
+    id: uuid.UUID
+    doctor: str
+    date: str
+    medications: List[MedicationItem]
+    notes: Optional[str] = None
+
 class DashboardResponse(BaseModel):
     stats: DashboardStats
     recentActivities: List[ActivityItem]
     consultationHistory: List[HistoryItem] = []
     bookingHistory: List[HistoryItem] = []
     upcomingAppointment: Optional[UpcomingAppointment] = None
+    prescriptions: List[PrescriptionDashboardItem] = []

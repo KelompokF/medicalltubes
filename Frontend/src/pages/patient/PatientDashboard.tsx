@@ -2,7 +2,7 @@ import { useState } from "react";
 import { Link } from "react-router-dom";
 import { useQuery } from "@tanstack/react-query";
 import { authService, patientService } from "@/services/api";
-import { Activity, Home, AlertTriangle, Pill, Search, Phone, Calendar, MessageSquare, ArrowRight, RefreshCcw, Stethoscope, Filter } from "lucide-react";
+import { Activity, Home, AlertTriangle, Pill, Search, Phone, Calendar, MessageSquare, ArrowRight, RefreshCcw, Stethoscope, Filter, FileText, ChevronRight } from "lucide-react";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
@@ -219,12 +219,15 @@ export default function PatientDashboard() {
           <Card className="shadow-card border-none hover:shadow-card-hover transition-shadow duration-300 h-full">
             <CardContent className="p-6">
               <Tabs defaultValue="consultation" className="w-full">
-                <TabsList className="grid w-full grid-cols-2 mb-6 bg-muted/50 p-1 rounded-xl">
+                <TabsList className="grid w-full grid-cols-3 mb-6 bg-muted/50 p-1 rounded-xl">
                   <TabsTrigger value="consultation" className="rounded-lg data-[state=active]:bg-background data-[state=active]:shadow-sm">
                     Riwayat Konsultasi
                   </TabsTrigger>
                   <TabsTrigger value="booking" className="rounded-lg data-[state=active]:bg-background data-[state=active]:shadow-sm">
                     Riwayat Booking
+                  </TabsTrigger>
+                  <TabsTrigger value="prescription" className="rounded-lg data-[state=active]:bg-background data-[state=active]:shadow-sm">
+                    Resep Obat
                   </TabsTrigger>
                 </TabsList>
 
@@ -234,6 +237,73 @@ export default function PatientDashboard() {
 
                 <TabsContent value="booking" className="mt-0 animate-fade-in border-none outline-none">
                   <HistoryList items={bookingHistory} icon={Home} title="Riwayat Booking Home Visit" isChat={false} />
+                </TabsContent>
+
+                <TabsContent value="prescription" className="mt-0 animate-fade-in border-none outline-none">
+                  <div className="space-y-4">
+                    <div className="flex items-center justify-between mb-4">
+                      <div className="flex items-center gap-2 text-primary">
+                        <Pill className="h-5 w-5" />
+                        <h3 className="font-semibold text-foreground">Daftar Resep Obat</h3>
+                      </div>
+                    </div>
+
+                    {(dashboardData?.prescriptions || []).length > 0 ? (
+                      <div className="space-y-4 max-h-[400px] overflow-y-auto pr-1">
+                        {(dashboardData.prescriptions).map((pres: any) => (
+                          <div key={pres.id} className="border border-border/80 rounded-xl overflow-hidden bg-card shadow-sm hover:shadow-md hover:border-primary/20 transition-all duration-300">
+                            <div className="bg-primary/5 px-4 py-3 border-b flex justify-between items-center">
+                              <div className="flex items-center gap-2">
+                                <div className="h-8 w-8 rounded-full bg-primary/10 flex items-center justify-center text-primary font-bold text-xs">
+                                  {getInitials(pres.doctor)}
+                                </div>
+                                <span className="font-bold text-sm text-foreground">{pres.doctor}</span>
+                              </div>
+                              <span className="text-[11px] text-muted-foreground bg-muted/70 px-2 py-0.5 rounded-md font-medium">{pres.date}</span>
+                            </div>
+                            <div className="p-4 space-y-3">
+                              <div className="space-y-2">
+                                {pres.medications.map((med: any, midx: number) => (
+                                  <div key={midx} className="flex items-start gap-3 p-3 rounded-lg bg-muted/20 border border-border/30 hover:bg-muted/40 transition-colors">
+                                    <div className="h-7 w-7 rounded-full bg-primary/10 flex items-center justify-center shrink-0">
+                                      <span className="text-xs font-bold text-primary">{midx + 1}</span>
+                                    </div>
+                                    <div className="flex-1 min-w-0">
+                                      <p className="font-bold text-sm text-foreground">{med.name}</p>
+                                      <div className="flex flex-wrap gap-x-4 gap-y-1 mt-1">
+                                        <p className="text-xs text-muted-foreground flex items-center gap-1">
+                                          <span className="font-semibold text-foreground/70">Dosis:</span> {med.dosage}
+                                        </p>
+                                        <p className="text-xs text-muted-foreground flex items-center gap-1">
+                                          <span className="font-semibold text-foreground/70">Durasi:</span> {med.duration}
+                                        </p>
+                                      </div>
+                                      <p className="text-xs text-primary font-medium mt-1.5 flex items-center gap-1">
+                                        <ChevronRight className="h-3.5 w-3.5 animate-pulse" /> {med.instructions}
+                                      </p>
+                                    </div>
+                                  </div>
+                                ))}
+                              </div>
+                              {pres.notes && (
+                                <div className="p-3 rounded-lg bg-accent/5 border border-accent/20">
+                                  <p className="text-[10px] uppercase font-bold text-accent tracking-widest mb-1 flex items-center gap-1">
+                                    <FileText className="h-3 w-3" /> Catatan Dokter
+                                  </p>
+                                  <p className="text-xs text-muted-foreground italic leading-relaxed">"{pres.notes}"</p>
+                                </div>
+                              )}
+                            </div>
+                          </div>
+                        ))}
+                      </div>
+                    ) : (
+                      <div className="text-center py-10 flex flex-col items-center border rounded-xl bg-muted/30">
+                        <Pill className="h-10 w-10 text-muted-foreground/30 mb-3" />
+                        <p className="text-muted-foreground text-sm font-medium">Belum ada resep obat</p>
+                      </div>
+                    )}
+                  </div>
                 </TabsContent>
               </Tabs>
             </CardContent>
