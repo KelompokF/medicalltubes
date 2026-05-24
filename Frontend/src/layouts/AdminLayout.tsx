@@ -43,6 +43,7 @@ export default function AdminLayout() {
 
   const adminNav = [
     { label: t("admin.layout.dashboard"), path: "/admin", icon: LayoutDashboard },
+    { label: t("admin.layout.userAccounts", { defaultValue: "User Accounts" }), path: "/admin/users", icon: Users },
     { label: t("admin.layout.emergencyMonitor"), path: "/admin/emergencies", icon: AlertTriangle },
     { label: t("admin.layout.consultations"), path: "/admin/consultations", icon: MessageSquare },
     { label: t("admin.layout.prescriptionTracking", { defaultValue: "Prescription Tracking" }), path: "/admin/prescriptions", icon: Stethoscope },
