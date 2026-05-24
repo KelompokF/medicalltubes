@@ -1,4 +1,5 @@
 import { useState } from "react";
+import { useTranslation } from "react-i18next";
 import { 
   Activity, 
   Scale, 
@@ -25,6 +26,7 @@ import { format } from "date-fns";
 import ConfirmModal from "@/components/ConfirmModal";
 
 export default function HealthRecordPage() {
+  const { t } = useTranslation();
   const [isAdding, setIsAdding] = useState(false);
   const [deleteId, setDeleteId] = useState<string | null>(null);
   const queryClient = useQueryClient();
@@ -38,7 +40,7 @@ export default function HealthRecordPage() {
     mutationFn: (data: any) => healthRecordService.createRecord(data),
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ["healthRecords"] });
-      toast.success("Catatan kesehatan berhasil disimpan!");
+      toast.success(t("patient.healthRecord.savedSuccess"));
       setIsAdding(false);
       setForm({
         weight: "",
@@ -49,17 +51,17 @@ export default function HealthRecordPage() {
         notes: "",
       });
     },
-    onError: () => toast.error("Gagal menyimpan catatan."),
+    onError: () => toast.error(t("patient.healthRecord.saveFailed")),
   });
 
   const deleteMutation = useMutation({
     mutationFn: (id: string) => healthRecordService.deleteRecord(id),
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ["healthRecords"] });
-      toast.success("Catatan berhasil dihapus.");
+      toast.success(t("patient.healthRecord.deleteSuccess"));
       setDeleteId(null);
     },
-    onError: () => toast.error("Gagal menghapus catatan."),
+    onError: () => toast.error(t("patient.healthRecord.deleteFailed")),
   });
 
   const [form, setForm] = useState({
@@ -86,15 +88,15 @@ export default function HealthRecordPage() {
     <div className="space-y-6 animate-fade-in pb-10">
       <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-4">
         <div>
-          <h1 className="text-2xl font-bold text-foreground">Health Records</h1>
-          <p className="text-muted-foreground">Pantau riwayat kesehatan dan kondisi medis Anda.</p>
+          <h1 className="text-2xl font-bold text-foreground">{t("patient.healthRecord.title")}</h1>
+          <p className="text-muted-foreground">{t("patient.healthRecord.subtitle")}</p>
         </div>
         <Button 
           onClick={() => setIsAdding(!isAdding)} 
           className="medical-gradient text-white"
         >
           {isAdding ? <ClipboardList className="h-4 w-4 mr-2" /> : <Plus className="h-4 w-4 mr-2" />}
-          {isAdding ? "Lihat Riwayat" : "Tambah Catatan Baru"}
+          {isAdding ? t("patient.healthRecord.viewHistory") : t("patient.healthRecord.addNewRecord")}
         </Button>
       </div>
 
@@ -104,7 +106,7 @@ export default function HealthRecordPage() {
             <CardContent className="p-4 flex items-center gap-4">
               <div className="p-2 bg-success/10 rounded-lg text-success"><Scale className="h-5 w-5" /></div>
               <div>
-                <p className="text-xs text-muted-foreground">Berat Badan</p>
+                <p className="text-xs text-muted-foreground">{t("patient.healthRecord.weight")}</p>
                 <p className="font-bold text-lg">{lastRecord.weight ? `${lastRecord.weight} kg` : "-"}</p>
               </div>
             </CardContent>
@@ -113,7 +115,7 @@ export default function HealthRecordPage() {
             <CardContent className="p-4 flex items-center gap-4">
               <div className="p-2 bg-accent/10 rounded-lg text-accent"><Ruler className="h-5 w-5" /></div>
               <div>
-                <p className="text-xs text-muted-foreground">Tinggi Badan</p>
+                <p className="text-xs text-muted-foreground">{t("patient.healthRecord.height")}</p>
                 <p className="font-bold text-lg">{lastRecord.height ? `${lastRecord.height} cm` : "-"}</p>
               </div>
             </CardContent>
@@ -124,41 +126,41 @@ export default function HealthRecordPage() {
       {isAdding ? (
         <Card className="shadow-card overflow-hidden">
           <CardHeader className="bg-muted/30 border-b">
-            <CardTitle className="text-lg">Form Riwayat Kesehatan</CardTitle>
-            <CardDescription>Lengkapi data kesehatan Anda untuk membantu dokter dalam diagnosa.</CardDescription>
+            <CardTitle className="text-lg">{t("patient.healthRecord.formTitle")}</CardTitle>
+            <CardDescription>{t("patient.healthRecord.formDesc")}</CardDescription>
           </CardHeader>
           <CardContent className="p-6">
             <form onSubmit={handleSubmit} className="space-y-8">
               {/* Section 1: Vitals */}
               <div className="space-y-4">
                 <h3 className="text-sm font-semibold text-primary flex items-center gap-2 uppercase tracking-wider">
-                  <Activity className="h-4 w-4" /> Tanda-tanda Vital
+                  <Activity className="h-4 w-4" /> {t("patient.healthRecord.vitals")}
                 </h3>
                 <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
                   <div className="space-y-2">
-                    <Label htmlFor="weight">Berat Badan (kg)</Label>
-                    <Input id="weight" type="number" step="0.1" placeholder="Contoh: 65.5" value={form.weight} onChange={(e) => setForm({...form, weight: e.target.value})} />
+                    <Label htmlFor="weight">{t("patient.healthRecord.weightKg")}</Label>
+                    <Input id="weight" type="number" step="0.1" placeholder={t("patient.healthRecord.weightPlaceholder")} value={form.weight} onChange={(e) => setForm({...form, weight: e.target.value})} />
                   </div>
                   <div className="space-y-2">
-                    <Label htmlFor="height">Tinggi Badan (cm)</Label>
-                    <Input id="height" type="number" placeholder="Contoh: 170" value={form.height} onChange={(e) => setForm({...form, height: e.target.value})} />
+                    <Label htmlFor="height">{t("patient.healthRecord.heightCm")}</Label>
+                    <Input id="height" type="number" placeholder={t("patient.healthRecord.heightPlaceholder")} value={form.height} onChange={(e) => setForm({...form, height: e.target.value})} />
                   </div>
                 </div>
               </div>
 
-              {/* Section 2: Medical History (The PM's request) */}
+              {/* Section 2: Medical History */}
               <div className="space-y-4 pt-4 border-t">
                 <h3 className="text-sm font-semibold text-primary flex items-center gap-2 uppercase tracking-wider">
-                  <ClipboardList className="h-4 w-4" /> Kondisi Medis & Penyakit
+                  <ClipboardList className="h-4 w-4" /> {t("patient.healthRecord.medicalConditions")}
                 </h3>
                 <div className="space-y-4">
                   <div className="space-y-2">
                     <Label htmlFor="conditions" className="flex items-center gap-2">
-                      <AlertCircle className="h-4 w-4 text-warning" /> Penyakit yang Diderita
+                      <AlertCircle className="h-4 w-4 text-warning" /> {t("patient.healthRecord.diagnosedConditions")}
                     </Label>
                     <Textarea 
                       id="conditions" 
-                      placeholder="Sebutkan penyakit kronis atau yang sedang diderita (misal: Diabetes, Hipertensi, Asma)" 
+                      placeholder={t("patient.healthRecord.diagnosedPlaceholder")} 
                       value={form.diagnosed_conditions} 
                       onChange={(e) => setForm({...form, diagnosed_conditions: e.target.value})}
                       className="min-h-[100px]"
@@ -167,15 +169,15 @@ export default function HealthRecordPage() {
                   <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
                     <div className="space-y-2">
                       <Label htmlFor="allergies" className="flex items-center gap-2">
-                        <AlertCircle className="h-4 w-4 text-destructive" /> Riwayat Alergi
+                        <AlertCircle className="h-4 w-4 text-destructive" /> {t("patient.healthRecord.allergies")}
                       </Label>
-                      <Input id="allergies" placeholder="Alergi obat, makanan, dll" value={form.allergies} onChange={(e) => setForm({...form, allergies: e.target.value})} />
+                      <Input id="allergies" placeholder={t("patient.healthRecord.allergiesPlaceholder")} value={form.allergies} onChange={(e) => setForm({...form, allergies: e.target.value})} />
                     </div>
                     <div className="space-y-2">
                       <Label htmlFor="meds" className="flex items-center gap-2">
-                        <Pill className="h-4 w-4 text-accent" /> Obat yang Dikonsumsi
+                        <Pill className="h-4 w-4 text-accent" /> {t("patient.healthRecord.currentMedications")}
                       </Label>
-                      <Input id="meds" placeholder="Daftar obat saat ini" value={form.current_medications} onChange={(e) => setForm({...form, current_medications: e.target.value})} />
+                      <Input id="meds" placeholder={t("patient.healthRecord.currentMedsPlaceholder")} value={form.current_medications} onChange={(e) => setForm({...form, current_medications: e.target.value})} />
                     </div>
                   </div>
                 </div>
@@ -183,20 +185,20 @@ export default function HealthRecordPage() {
 
               {/* Section 3: Notes */}
               <div className="space-y-4 pt-4 border-t">
-                <Label htmlFor="notes">Catatan Tambahan / Keluhan</Label>
+                <Label htmlFor="notes">{t("patient.healthRecord.additionalNotes")}</Label>
                 <Textarea 
                   id="notes" 
-                  placeholder="Ceritakan lebih detail mengenai kondisi Anda..." 
+                  placeholder={t("patient.healthRecord.notesPlaceholder")} 
                   value={form.notes} 
                   onChange={(e) => setForm({...form, notes: e.target.value})}
                 />
               </div>
 
               <div className="flex justify-end gap-3 pt-4">
-                <Button type="button" variant="outline" onClick={() => setIsAdding(false)}>Batal</Button>
+                <Button type="button" variant="outline" onClick={() => setIsAdding(false)}>{t("common.cancel")}</Button>
                 <Button type="submit" className="medical-gradient text-white px-8" disabled={createMutation.isPending}>
                   {createMutation.isPending && <Loader2 className="mr-2 h-4 w-4 animate-spin" />}
-                  {createMutation.isPending ? "Menyimpan..." : "Simpan Catatan Kesehatan"}
+                  {createMutation.isPending ? t("patient.healthRecord.saving") : t("patient.healthRecord.saveRecord")}
                 </Button>
               </div>
             </form>
@@ -206,22 +208,22 @@ export default function HealthRecordPage() {
         <div className="space-y-4">
           <div className="flex items-center gap-2 text-foreground font-semibold">
             <History className="h-5 w-5 text-primary" />
-            <span>Riwayat Aktivitas</span>
+            <span>{t("patient.healthRecord.activityHistory")}</span>
           </div>
           
           {isLoading ? (
             <div className="text-center py-20">
               <Loader2 className="animate-spin h-8 w-8 text-primary mx-auto" />
-              <p className="mt-4 text-muted-foreground text-sm">Memuat riwayat...</p>
+              <p className="mt-4 text-muted-foreground text-sm">{t("patient.healthRecord.loadingHistory")}</p>
             </div>
           ) : records?.length === 0 ? (
             <Card className="p-12 text-center border-dashed">
               <div className="bg-muted/50 w-16 h-16 rounded-full flex items-center justify-center mx-auto mb-4">
                 <ClipboardList className="h-8 w-8 text-muted-foreground" />
               </div>
-              <h3 className="font-semibold text-lg">Belum Ada Catatan</h3>
-              <p className="text-muted-foreground max-w-xs mx-auto mt-2">Catat kondisi kesehatan Anda secara berkala untuk memantau perkembangan kesehatan.</p>
-              <Button variant="outline" className="mt-6" onClick={() => setIsAdding(true)}>Buat Catatan Pertama</Button>
+              <h3 className="font-semibold text-lg">{t("patient.healthRecord.noRecords")}</h3>
+              <p className="text-muted-foreground max-w-xs mx-auto mt-2">{t("patient.healthRecord.noRecordsDesc")}</p>
+              <Button variant="outline" className="mt-6" onClick={() => setIsAdding(true)}>{t("patient.healthRecord.createFirst")}</Button>
             </Card>
           ) : (
             <div className="space-y-4">
@@ -240,13 +242,13 @@ export default function HealthRecordPage() {
                         <div className="grid grid-cols-2 gap-4">
                           {record.weight && (
                             <div>
-                              <p className="text-[10px] uppercase text-muted-foreground font-semibold">Berat</p>
+                              <p className="text-[10px] uppercase text-muted-foreground font-semibold">{t("patient.healthRecord.weight")}</p>
                               <p className="text-sm font-medium">{record.weight} kg</p>
                             </div>
                           )}
                           {record.height && (
                             <div>
-                              <p className="text-[10px] uppercase text-muted-foreground font-semibold">Tinggi</p>
+                              <p className="text-[10px] uppercase text-muted-foreground font-semibold">{t("patient.healthRecord.height")}</p>
                               <p className="text-sm font-medium">{record.height} cm</p>
                             </div>
                           )}
@@ -261,7 +263,7 @@ export default function HealthRecordPage() {
                             )}
                             {record.allergies && (
                               <Badge variant="outline" className="bg-destructive/5 text-destructive border-destructive/20 gap-1">
-                                <AlertCircle className="h-3 w-3" /> Alergi: {record.allergies}
+                                <AlertCircle className="h-3 w-3" /> {t("patient.healthRecord.allergyLabel", { value: record.allergies })}
                               </Badge>
                             )}
                             {record.current_medications && (
@@ -300,10 +302,10 @@ export default function HealthRecordPage() {
       <ConfirmModal 
         open={!!deleteId} 
         onOpenChange={(open) => !open && setDeleteId(null)} 
-        title="Hapus Catatan" 
-        description="Apakah Anda yakin ingin menghapus catatan kesehatan ini? Data yang dihapus tidak dapat dikembalikan." 
+        title={t("patient.healthRecord.deleteRecord")} 
+        description={t("patient.healthRecord.deleteConfirmDesc")} 
         onConfirm={() => deleteId && deleteMutation.mutate(deleteId)} 
-        confirmText={deleteMutation.isPending ? "Menghapus..." : "Hapus"} 
+        confirmText={deleteMutation.isPending ? t("patient.healthRecord.deleting") : t("common.delete")} 
         variant="destructive" 
       />
     </div>

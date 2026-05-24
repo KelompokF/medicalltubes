@@ -1,8 +1,9 @@
 import { useState, useEffect, useRef } from "react";
 import { Link, useLocation, Outlet, useNavigate } from "react-router-dom";
+import { useTranslation } from "react-i18next";
 import {
   LayoutDashboard, AlertTriangle, MapPin, History, Truck,
-  Settings, Bell, ChevronDown, Menu, X, LogOut, Ambulance
+  Settings, Bell, ChevronDown, Menu, X, LogOut, Ambulance, FileWarning
 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import {
@@ -10,23 +11,26 @@ import {
 } from "@/components/ui/dropdown-menu";
 import { toast } from "sonner";
 import api from "@/services/api";
-
-const ambulanceNav = [
-  { label: "Dashboard", path: "/ambulance-dashboard", icon: LayoutDashboard },
-  { label: "Active Emergencies", path: "/ambulance-dashboard/active", icon: AlertTriangle },
-  { label: "Live Tracking", path: "/ambulance-dashboard/tracking", icon: MapPin },
-  { label: "Fleet Status", path: "/ambulance-dashboard/fleet", icon: Truck },
-  { label: "Emergency History", path: "/ambulance-dashboard/history", icon: History },
-  { label: "Settings", path: "/ambulance-dashboard/settings", icon: Settings },
-];
+import LanguageSwitcher from "@/components/LanguageSwitcher";
 
 export default function AmbulanceLayout() {
+  const { t } = useTranslation();
   const [sidebarOpen, setSidebarOpen] = useState(false);
   const [notifications, setNotifications] = useState<any[]>([]);
   const [notificationOpen, setNotificationOpen] = useState(false);
   const notificationRef = useRef<HTMLDivElement>(null);
   const [userName, setUserName] = useState("Unit 1");
   const [userInitials, setUserInitials] = useState("U1");
+
+  const ambulanceNav = [
+    { label: t("ambulance.layout.dashboard"), path: "/ambulance-dashboard", icon: LayoutDashboard },
+    { label: t("ambulance.layout.activeEmergencies"), path: "/ambulance-dashboard/active", icon: AlertTriangle },
+    { label: t("ambulance.layout.liveTracking"), path: "/ambulance-dashboard/tracking", icon: MapPin },
+    { label: t("ambulance.layout.fleetStatus"), path: "/ambulance-dashboard/fleet", icon: Truck },
+    { label: t("ambulance.layout.emergencyHistory"), path: "/ambulance-dashboard/history", icon: History },
+    { label: t("ambulance.layout.reportTracking"), path: "/ambulance-dashboard/report-tracking", icon: FileWarning },
+    { label: t("ambulance.layout.settings"), path: "/ambulance-dashboard/settings", icon: Settings },
+  ];
 
   useEffect(() => {
     try {
@@ -150,13 +154,13 @@ export default function AmbulanceLayout() {
           </div>
           <div>
             <span className="text-xl font-bold text-sidebar-foreground">Medicall</span>
-            <p className="text-[10px] uppercase tracking-widest text-sidebar-foreground/50">Ambulance Unit</p>
+            <p className="text-[10px] uppercase tracking-widest text-sidebar-foreground/50">{t("ambulance.layout.ambulanceUnit")}</p>
           </div>
           <button className="ml-auto lg:hidden text-sidebar-foreground" onClick={() => setSidebarOpen(false)}><X className="h-5 w-5" /></button>
         </div>
 
         <nav className="px-3 py-4 space-y-1 overflow-y-auto h-[calc(100%-140px)]">
-          <p className="px-3 text-xs font-semibold uppercase tracking-wider text-sidebar-foreground/50 mb-2">Ambulance Menu</p>
+          <p className="px-3 text-xs font-semibold uppercase tracking-wider text-sidebar-foreground/50 mb-2">{t("ambulance.layout.ambulanceMenu")}</p>
           {ambulanceNav.map((item) => (
             <Link key={item.path} to={item.path} onClick={() => setSidebarOpen(false)}
               className={`flex items-center gap-3 px-3 py-2.5 rounded-lg text-sm font-medium transition-all duration-200 ${isActive(item.path) ? "bg-sidebar-primary text-sidebar-primary-foreground" : "text-sidebar-foreground/70 hover:bg-sidebar-accent hover:text-sidebar-accent-foreground"
@@ -168,7 +172,7 @@ export default function AmbulanceLayout() {
 
         <div className="absolute bottom-0 left-0 right-0 p-4 border-t border-sidebar-border">
           <Link to="/login" className="flex items-center gap-3 px-3 py-2.5 rounded-lg text-sm font-medium text-sidebar-foreground/70 hover:bg-sidebar-accent transition-colors">
-            <LogOut className="h-4 w-4" />Logout
+            <LogOut className="h-4 w-4" />{t("common.logout")}
           </Link>
         </div>
       </aside>
@@ -181,10 +185,12 @@ export default function AmbulanceLayout() {
               <nav className="hidden sm:flex items-center text-sm text-muted-foreground">
                 <Link to="/ambulance-dashboard" className="hover:text-foreground transition-colors">Ambulance</Link>
                 <span className="mx-2">/</span>
-                <span className="text-foreground font-medium capitalize">{location.pathname.replace("/ambulance-dashboard", "").slice(1).replace(/-/g, " ") || "Dashboard"}</span>
+                <span className="text-foreground font-medium capitalize">{location.pathname.replace("/ambulance-dashboard", "").slice(1).replace(/-/g, " ") || t("common.dashboard")}</span>
               </nav>
             </div>
             <div className="flex items-center gap-2">
+              <LanguageSwitcher />
+
               <div className="relative" ref={notificationRef}>
                 <Button 
                   id="btn-notification-bell" 
@@ -206,16 +212,16 @@ export default function AmbulanceLayout() {
                 {notificationOpen && (
                   <div className="absolute right-0 mt-2 w-72 rounded-md border bg-popover text-popover-foreground shadow-md outline-none z-50 animate-in fade-in-0 zoom-in-95" data-testid="notification-dropdown-content">
                     <div className="px-3 py-2 font-semibold text-sm flex justify-between items-center border-b">
-                      <span>Emergency Alerts</span>
+                      <span>{t("ambulance.layout.emergencyAlerts")}</span>
                       {notifications.length > 0 && (
-                        <Button name="btn-clear-notifications" variant="ghost" size="sm" className="h-auto p-0 text-[10px] text-primary" onClick={() => setNotifications([])} data-testid="notification-clear-all">Clear all</Button>
+                        <Button name="btn-clear-notifications" variant="ghost" size="sm" className="h-auto p-0 text-[10px] text-primary" onClick={() => setNotifications([])} data-testid="notification-clear-all">{t("common.clearAll")}</Button>
                       )}
                     </div>
                     
                     <div className="max-h-[300px] overflow-y-auto">
                       {notifications.length === 0 ? (
                         <div className="px-3 py-4 text-center text-xs text-muted-foreground">
-                          No active emergency alerts
+                          {t("ambulance.layout.noActiveAlerts")}
                         </div>
                       ) : (
                         notifications.map((n, index) => (
@@ -251,16 +257,16 @@ export default function AmbulanceLayout() {
                   </Button>
                 </DropdownMenuTrigger>
                 <DropdownMenuContent align="end">
-                  <DropdownMenuItem><Settings className="h-4 w-4 mr-2" />Settings</DropdownMenuItem>
+                  <DropdownMenuItem><Settings className="h-4 w-4 mr-2" />{t("common.settings")}</DropdownMenuItem>
                   <DropdownMenuSeparator />
-                  <DropdownMenuItem asChild><Link to="/login">Logout</Link></DropdownMenuItem>
+                  <DropdownMenuItem asChild><Link to="/login">{t("common.logout")}</Link></DropdownMenuItem>
                 </DropdownMenuContent>
               </DropdownMenu>
             </div>
           </div>
         </header>
         <main className="p-4 sm:p-6 lg:p-8"><Outlet /></main>
-        <footer className="border-t px-6 py-4 text-center text-sm text-muted-foreground">© 2026 Medicall Emergency Services — Rapid Response Unit</footer>
+        <footer className="border-t px-6 py-4 text-center text-sm text-muted-foreground">{t("ambulance.layout.footer")}</footer>
       </div>
     </div>
   );

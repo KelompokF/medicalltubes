@@ -1,4 +1,5 @@
 import { useState, useEffect } from "react";
+import { useTranslation } from "react-i18next";
 import { 
   Calendar, 
   Clock, 
@@ -41,6 +42,17 @@ const QUICK_SLOTS = [
 ];
 
 export default function DoctorSchedulePage() {
+  const { t } = useTranslation();
+
+  const DAYS_MAPPING: Record<string, string> = {
+    "Senin": t("doctor.schedule.monday", "Senin"),
+    "Selasa": t("doctor.schedule.tuesday", "Selasa"),
+    "Rabu": t("doctor.schedule.wednesday", "Rabu"),
+    "Kamis": t("doctor.schedule.thursday", "Kamis"),
+    "Jumat": t("doctor.schedule.friday", "Jumat"),
+    "Sabtu": t("doctor.schedule.saturday", "Sabtu"),
+    "Minggu": t("doctor.schedule.sunday", "Minggu")
+  };
   const [schedule, setSchedule] = useState<DaySchedule[]>(
     DAYS.map(hari => ({ hari, slots: [] }))
   );
@@ -68,7 +80,7 @@ export default function DoctorSchedulePage() {
       setSchedule(fullSchedule);
     } catch (error) {
       console.error("Error fetching schedule:", error);
-      toast.error("Gagal memuat jadwal praktik.");
+      toast.error(t("doctor.schedule.fetchError", "Gagal memuat jadwal praktik."));
     } finally {
       setIsLoading(false);
     }
@@ -92,12 +104,12 @@ export default function DoctorSchedulePage() {
     
     // Simple HH:MM validation
     if (!/^([0-1]?[0-9]|2[0-3]):[0-5][0-9]$/.test(customTime)) {
-      toast.error("Format waktu tidak valid (Gunakan HH:MM)");
+      toast.error(t("doctor.schedule.invalidFormat", "Format waktu tidak valid (Gunakan HH:MM)"));
       return;
     }
 
     if (schedule.find(d => d.hari === hari)?.slots.includes(customTime)) {
-      toast.error("Waktu sudah ada di jadwal.");
+      toast.error(t("doctor.schedule.duplicateTime", "Waktu sudah ada di jadwal."));
       return;
     }
 
@@ -108,7 +120,7 @@ export default function DoctorSchedulePage() {
   const handleCopySchedule = (fromDay: string) => {
     const slotsToCopy = schedule.find(d => d.hari === fromDay)?.slots || [];
     if (slotsToCopy.length === 0) {
-      toast.error("Pilih setidaknya satu slot waktu untuk disalin.");
+      toast.error(t("doctor.schedule.copyError", "Pilih setidaknya satu slot waktu untuk disalin."));
       return;
     }
 
@@ -117,7 +129,7 @@ export default function DoctorSchedulePage() {
       return { ...day, slots: [...slotsToCopy] };
     }));
     
-    toast.success(`Jadwal ${fromDay} disalin ke semua hari.`);
+    toast.success(t("doctor.schedule.copySuccess", { day: DAYS_MAPPING[fromDay] || fromDay }));
   };
 
   const handleClearDay = (hari: string) => {
@@ -131,10 +143,10 @@ export default function DoctorSchedulePage() {
     setIsSaving(true);
     try {
       await doctorScheduleService.updateMySchedule(schedule);
-      toast.success("Jadwal praktik berhasil disimpan!");
+      toast.success(t("doctor.schedule.saveSuccess", "Jadwal praktik berhasil disimpan!"));
     } catch (error) {
       console.error("Error saving schedule:", error);
-      toast.error("Gagal menyimpan jadwal praktik.");
+      toast.error(t("doctor.schedule.saveError", "Gagal menyimpan jadwal praktik."));
     } finally {
       setIsSaving(false);
     }
@@ -147,7 +159,7 @@ export default function DoctorSchedulePage() {
           <div className="h-16 w-16 rounded-full border-4 border-primary/20 border-t-primary animate-spin"></div>
           <Calendar className="h-6 w-6 text-primary absolute top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2" />
         </div>
-        <p className="text-muted-foreground mt-4 font-medium">Memuat pengaturan jadwal...</p>
+        <p className="text-muted-foreground mt-4 font-medium">{t("doctor.schedule.loading", "Memuat pengaturan jadwal...")}</p>
       </div>
     );
   }
@@ -163,11 +175,11 @@ export default function DoctorSchedulePage() {
             <div className="p-2 bg-primary/10 rounded-xl">
               <Calendar className="h-5 w-5" />
             </div>
-            <span className="font-bold tracking-wider uppercase text-xs">Pengaturan Layanan</span>
+            <span className="font-bold tracking-wider uppercase text-xs">{t("doctor.schedule.settingsLabel", "Pengaturan Layanan")}</span>
           </div>
-          <h1 className="text-3xl font-black text-slate-900 tracking-tight">Jadwal Praktik</h1>
+          <h1 className="text-3xl font-black text-slate-900 tracking-tight">{t("doctor.schedule.title", "Jadwal Praktik")}</h1>
           <p className="text-slate-500 font-medium max-w-xl leading-relaxed">
-            Atur ketersediaan waktu Anda untuk layanan <span className="text-primary font-bold">Kunjungan Rumah (Home Visit)</span>. Pasien hanya dapat memilih waktu yang Anda aktifkan di sini.
+            {t("doctor.schedule.subtitle", "Atur ketersediaan waktu Anda untuk layanan Kunjungan Rumah (Home Visit). Pasien hanya dapat memilih waktu yang Anda aktifkan di sini.")}
           </p>
         </div>
         <Button 
@@ -236,9 +248,7 @@ export default function DoctorSchedulePage() {
                 </div>
                 <div className="space-y-1">
                   <p className="text-xs font-bold text-amber-800 uppercase">Tips</p>
-                  <p className="text-xs text-amber-700/80 leading-relaxed">
-                    Gunakan fitur <b>Salin ke Semua</b> jika jadwal praktik Anda sama setiap harinya.
-                  </p>
+                  <p className="text-xs text-amber-700/80 leading-relaxed" dangerouslySetInnerHTML={{ __html: t("doctor.schedule.tipsDesc", "Gunakan fitur <b>Salin ke Semua</b> jika jadwal praktik Anda sama setiap harinya.") }} />
                 </div>
               </div>
             </CardContent>
@@ -255,9 +265,9 @@ export default function DoctorSchedulePage() {
                     <Clock className="h-7 w-7" />
                   </div>
                   <div>
-                    <CardTitle className="text-2xl font-black text-slate-900">Hari {activeTab}</CardTitle>
+                    <CardTitle className="text-2xl font-black text-slate-900">{t("common.day", "Hari")} {DAYS_MAPPING[activeTab] || activeTab}</CardTitle>
                     <CardDescription className="font-medium text-slate-500">
-                      Aktifkan jam kerja Anda untuk hari ini
+                      {t("doctor.schedule.activateHours", "Aktifkan jam kerja Anda untuk hari ini")}
                     </CardDescription>
                   </div>
                 </div>
@@ -269,7 +279,7 @@ export default function DoctorSchedulePage() {
                     onClick={() => handleCopySchedule(activeTab)}
                   >
                     <Copy className="h-4 w-4 mr-2" />
-                    Salin ke Semua Hari
+                    {t("doctor.schedule.copyToAll", "Salin ke Semua Hari")}
                   </Button>
                   <Button 
                     variant="ghost" 
@@ -278,7 +288,7 @@ export default function DoctorSchedulePage() {
                     onClick={() => handleClearDay(activeTab)}
                   >
                     <Trash2 className="h-4 w-4 mr-2" />
-                    Reset
+                    {t("common.reset", "Reset")}
                   </Button>
                 </div>
               </div>
@@ -289,7 +299,7 @@ export default function DoctorSchedulePage() {
                 {/* Custom Time Input */}
                 <div className="flex flex-col sm:flex-row items-end gap-4 max-w-md bg-slate-50 p-6 rounded-3xl border border-slate-100">
                   <div className="flex-1 space-y-2">
-                    <label className="text-xs font-black uppercase text-slate-400 ml-1">Tambah Jam Kustom</label>
+                    <label className="text-xs font-black uppercase text-slate-400 ml-1">{t("doctor.schedule.addCustomTime", "Tambah Jam Kustom")}</label>
                     <input
                       type="time"
                       value={customTime}
@@ -302,14 +312,14 @@ export default function DoctorSchedulePage() {
                     className="h-12 rounded-xl px-6 bg-slate-900 hover:bg-slate-800 text-white font-bold"
                   >
                     <Plus className="h-5 w-5 mr-2" />
-                    Tambah
+                    {t("common.add", "Tambah")}
                   </Button>
                 </div>
 
                 {/* Quick Selection Grid */}
                 <div className="space-y-4">
                   <h3 className="text-sm font-black text-slate-400 uppercase tracking-widest flex items-center gap-2">
-                    Slot Waktu Tersedia
+                    {t("doctor.schedule.availableSlots", "Slot Waktu Tersedia")}
                     <div className="h-px flex-1 bg-slate-100" />
                   </h3>
                   
@@ -329,7 +339,7 @@ export default function DoctorSchedulePage() {
                         >
                           <span className="font-bold text-lg">{slot}</span>
                           <span className="text-[10px] uppercase font-black tracking-tighter mt-1 opacity-50 group-hover:opacity-100 transition-opacity">
-                            {isSelected ? "Aktif" : "Nonaktif"}
+                            {isSelected ? t("common.active", "Aktif") : t("common.inactive", "Nonaktif")}
                           </span>
                           
                           {isSelected && (

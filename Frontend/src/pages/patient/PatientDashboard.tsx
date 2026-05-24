@@ -1,14 +1,16 @@
 import { useState } from "react";
 import { Link } from "react-router-dom";
 import { useQuery } from "@tanstack/react-query";
+import { useTranslation } from "react-i18next";
 import { authService, patientService } from "@/services/api";
-import { Activity, Home, AlertTriangle, Pill, Search, Phone, Calendar, MessageSquare, ArrowRight, RefreshCcw, Stethoscope, Filter } from "lucide-react";
+import { Activity, Home, AlertTriangle, Pill, Search, Phone, Calendar, MessageSquare, ArrowRight, RefreshCcw, Stethoscope, Filter, FileText, ChevronRight } from "lucide-react";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import StatCard from "@/components/StatCard";
 
 export default function PatientDashboard() {
+  const { t } = useTranslation();
   const { data: meData } = useQuery({
     queryKey: ["me"],
     queryFn: () => authService.getMe().then((res) => res.data),
@@ -59,7 +61,7 @@ export default function PatientDashboard() {
         </div>
         <Button variant="ghost" size="sm" className="h-8 gap-1 text-primary hover:bg-primary/10" asChild>
           <Link to={isChat ? "/chat-history" : "/tracking"}>
-            <span className="text-xs font-semibold">Lihat Semua</span> <ArrowRight className="h-3 w-3 ml-1" />
+            <span className="text-xs font-semibold">{t("common.viewAll")}</span> <ArrowRight className="h-3 w-3 ml-1" />
           </Link>
         </Button>
       </div>
@@ -90,7 +92,7 @@ export default function PatientDashboard() {
       ) : (
         <div className="text-center py-10 flex flex-col items-center border rounded-xl bg-muted/30">
           <Activity className="h-10 w-10 text-muted-foreground/30 mb-3" />
-          <p className="text-muted-foreground text-sm font-medium">Belum ada riwayat</p>
+          <p className="text-muted-foreground text-sm font-medium">{t("patient.dashboard.noHistory")}</p>
         </div>
       )}
     </div>
@@ -100,7 +102,7 @@ export default function PatientDashboard() {
     return (
       <div className="flex flex-col items-center justify-center h-full min-h-[60vh] space-y-4">
         <div className="h-12 w-12 rounded-full border-4 border-primary border-t-transparent animate-spin"></div>
-        <p className="text-muted-foreground font-medium animate-pulse">Memuat dashboard...</p>
+        <p className="text-muted-foreground font-medium animate-pulse">{t("patient.dashboard.loadingDashboard")}</p>
       </div>
     );
   }
@@ -109,10 +111,10 @@ export default function PatientDashboard() {
     return (
       <div className="flex flex-col items-center justify-center h-full min-h-[60vh] space-y-4 text-center">
         <AlertTriangle className="h-16 w-16 text-destructive opacity-80" />
-        <h3 className="text-xl font-bold text-foreground">Ups, terjadi kesalahan</h3>
-        <p className="text-muted-foreground">Gagal memuat data dashboard Anda.</p>
+        <h3 className="text-xl font-bold text-foreground">{t("patient.dashboard.errorOccurred")}</h3>
+        <p className="text-muted-foreground">{t("patient.dashboard.failedLoadDashboard")}</p>
         <Button onClick={() => refetch()} className="mt-4 gap-2">
-          <RefreshCcw className="h-4 w-4" /> Coba Lagi
+          <RefreshCcw className="h-4 w-4" /> {t("patient.dashboard.tryAgain")}
         </Button>
       </div>
     );
@@ -123,9 +125,9 @@ export default function PatientDashboard() {
       {/* Welcome Banner */}
       <div className="relative overflow-hidden rounded-2xl medical-gradient p-6 sm:p-8 text-primary-foreground shadow-lg">
         <div className="relative z-10">
-          <h1 className="text-2xl sm:text-3xl font-bold mb-2 tracking-tight">Selamat datang kembali, {firstName}! 👋</h1>
+          <h1 className="text-2xl sm:text-3xl font-bold mb-2 tracking-tight">{t("patient.dashboard.welcomeBack", { name: firstName })}</h1>
           <p className="text-primary-foreground/90 text-sm sm:text-base font-medium max-w-xl">
-            Bagaimana perasaan Anda hari ini? Cek jadwal mendatang Anda atau jelajahi layanan kami untuk tetap sehat.
+            {t("patient.dashboard.howAreYou")}
           </p>
         </div>
         <div className="absolute right-0 top-0 opacity-10 pointer-events-none">
@@ -135,23 +137,23 @@ export default function PatientDashboard() {
 
       {/* Stats */}
       <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
-        <StatCard title="Total Konsultasi" value={patientStats.totalConsultations} icon={Activity} variant="primary" />
-        <StatCard title="Booking Home Visit" value={patientStats.homeVisitBookings} icon={Home} variant="success" />
-        <StatCard title="Permintaan Darurat" value={patientStats.emergencyRequests} icon={AlertTriangle} variant="emergency" />
-        <StatCard title="Resep Aktif" value={patientStats.activePrescriptions} icon={Pill} variant="warning" />
+        <StatCard title={t("patient.dashboard.totalConsultations")} value={patientStats.totalConsultations} icon={Activity} variant="primary" />
+        <StatCard title={t("patient.dashboard.homeVisitBookings")} value={patientStats.homeVisitBookings} icon={Home} variant="success" />
+        <StatCard title={t("patient.dashboard.emergencyRequests")} value={patientStats.emergencyRequests} icon={AlertTriangle} variant="emergency" />
+        <StatCard title={t("patient.dashboard.activePrescriptions")} value={patientStats.activePrescriptions} icon={Pill} variant="warning" />
       </div>
 
       <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
         <div className="lg:col-span-1 space-y-6">
           {/* Quick Actions */}
           <Card className="shadow-card border-none hover:shadow-card-hover transition-shadow duration-300">
-            <CardHeader className="pb-3"><CardTitle className="text-lg">Aksi Cepat</CardTitle></CardHeader>
+            <CardHeader className="pb-3"><CardTitle className="text-lg">{t("patient.dashboard.quickActions")}</CardTitle></CardHeader>
             <CardContent className="grid grid-cols-2 gap-3">
               {[
-                { label: "Cari Dokter", icon: Search, path: "/search-doctor", color: "bg-primary/10 text-primary hover:bg-primary hover:text-primary-foreground" },
-                { label: "Darurat", icon: Phone, path: "/emergency", color: "bg-emergency/10 text-emergency hover:bg-emergency hover:text-emergency-foreground" },
-                { label: "Home Visit", icon: Home, path: "/home-visit", color: "bg-success/10 text-success hover:bg-success hover:text-success-foreground" },
-                { label: "Mulai Konsultasi", icon: MessageSquare, path: "/chat", color: "bg-accent/10 text-accent hover:bg-accent hover:text-accent-foreground" },
+                { label: t("patient.dashboard.searchDoctor"), icon: Search, path: "/search-doctor", color: "bg-primary/10 text-primary hover:bg-primary hover:text-primary-foreground" },
+                { label: t("patient.dashboard.emergency"), icon: Phone, path: "/emergency", color: "bg-emergency/10 text-emergency hover:bg-emergency hover:text-emergency-foreground" },
+                { label: t("patient.dashboard.homeVisit"), icon: Home, path: "/home-visit", color: "bg-success/10 text-success hover:bg-success hover:text-success-foreground" },
+                { label: t("patient.dashboard.startConsultation"), icon: MessageSquare, path: "/chat", color: "bg-accent/10 text-accent hover:bg-accent hover:text-accent-foreground" },
               ].map((action) => (
                 <Link key={action.label} to={action.path} className="group">
                   <div className={`flex flex-col items-center justify-center gap-3 p-4 rounded-xl ${action.color} transition-all duration-300 ease-in-out cursor-pointer h-full border border-transparent min-h-[100px]`}>
@@ -165,7 +167,7 @@ export default function PatientDashboard() {
 
           {/* Upcoming Appointment */}
           <Card className="shadow-card border-none hover:shadow-card-hover transition-shadow duration-300">
-            <CardHeader className="pb-3"><CardTitle className="text-lg">Jadwal Mendatang</CardTitle></CardHeader>
+            <CardHeader className="pb-3"><CardTitle className="text-lg">{t("patient.dashboard.upcomingSchedule")}</CardTitle></CardHeader>
             <CardContent>
               {upcomingAppointment ? (
                 <div className="flex flex-col h-full justify-between">
@@ -195,7 +197,7 @@ export default function PatientDashboard() {
                     </div>
                   </div>
                   <Button className="w-full mt-6 shadow-sm hover:shadow-md transition-all" size="default" asChild>
-                    <Link to="/chat">Gabung Konsultasi</Link>
+                    <Link to="/chat">{t("patient.dashboard.joinConsultation")}</Link>
                   </Button>
                 </div>
               ) : (
@@ -203,10 +205,10 @@ export default function PatientDashboard() {
                   <div className="h-16 w-16 bg-muted/50 rounded-full flex items-center justify-center mb-4">
                     <Calendar className="h-8 w-8 text-muted-foreground/70" />
                   </div>
-                  <p className="text-muted-foreground text-sm font-medium mb-1">Tidak ada jadwal mendatang</p>
-                  <p className="text-xs text-muted-foreground/70 mb-6">Anda sudah menyelesaikan semua jadwal!</p>
+                  <p className="text-muted-foreground text-sm font-medium mb-1">{t("patient.dashboard.noUpcomingSchedule")}</p>
+                  <p className="text-xs text-muted-foreground/70 mb-6">{t("patient.dashboard.allScheduleCompleted")}</p>
                   <Button className="w-full" size="sm" variant="outline" asChild>
-                    <Link to="/search-doctor">Buat Janji Temu</Link>
+                    <Link to="/search-doctor">{t("patient.dashboard.makeAppointment")}</Link>
                   </Button>
                 </div>
               )}
@@ -219,21 +221,91 @@ export default function PatientDashboard() {
           <Card className="shadow-card border-none hover:shadow-card-hover transition-shadow duration-300 h-full">
             <CardContent className="p-6">
               <Tabs defaultValue="consultation" className="w-full">
-                <TabsList className="grid w-full grid-cols-2 mb-6 bg-muted/50 p-1 rounded-xl">
+                <TabsList className="grid w-full grid-cols-3 mb-6 bg-muted/50 p-1 rounded-xl">
                   <TabsTrigger value="consultation" className="rounded-lg data-[state=active]:bg-background data-[state=active]:shadow-sm">
-                    Riwayat Konsultasi
+                    {t("patient.dashboard.consultationHistory")}
                   </TabsTrigger>
                   <TabsTrigger value="booking" className="rounded-lg data-[state=active]:bg-background data-[state=active]:shadow-sm">
-                    Riwayat Booking
+                    {t("patient.dashboard.bookingHistory")}
+                  </TabsTrigger>
+                  <TabsTrigger value="prescription" className="rounded-lg data-[state=active]:bg-background data-[state=active]:shadow-sm">
+                    {t("patient.dashboard.prescriptions", "Resep Obat")}
                   </TabsTrigger>
                 </TabsList>
 
                 <TabsContent value="consultation" className="mt-0 animate-fade-in border-none outline-none">
-                  <HistoryList items={consultationHistory} icon={MessageSquare} title="Riwayat Konsultasi Chat" isChat={true} />
+                  <HistoryList items={consultationHistory} icon={MessageSquare} title={t("patient.dashboard.chatHistory")} isChat={true} />
                 </TabsContent>
 
                 <TabsContent value="booking" className="mt-0 animate-fade-in border-none outline-none">
-                  <HistoryList items={bookingHistory} icon={Home} title="Riwayat Booking Home Visit" isChat={false} />
+                  <HistoryList items={bookingHistory} icon={Home} title={t("patient.dashboard.homeVisitHistory")} isChat={false} />
+                </TabsContent>
+
+                <TabsContent value="prescription" className="mt-0 animate-fade-in border-none outline-none">
+                  <div className="space-y-4">
+                    <div className="flex items-center justify-between mb-4">
+                      <div className="flex items-center gap-2 text-primary">
+                        <Pill className="h-5 w-5" />
+                        <h3 className="font-semibold text-foreground">{t("patient.dashboard.prescriptionList", "Daftar Resep Obat")}</h3>
+                      </div>
+                    </div>
+
+                    {(dashboardData?.prescriptions || []).length > 0 ? (
+                      <div className="space-y-4 max-h-[400px] overflow-y-auto pr-1">
+                        {(dashboardData.prescriptions).map((pres: any) => (
+                          <div key={pres.id} className="border border-border/80 rounded-xl overflow-hidden bg-card shadow-sm hover:shadow-md hover:border-primary/20 transition-all duration-300">
+                            <div className="bg-primary/5 px-4 py-3 border-b flex justify-between items-center">
+                              <div className="flex items-center gap-2">
+                                <div className="h-8 w-8 rounded-full bg-primary/10 flex items-center justify-center text-primary font-bold text-xs">
+                                  {getInitials(pres.doctor)}
+                                </div>
+                                <span className="font-bold text-sm text-foreground">{pres.doctor}</span>
+                              </div>
+                              <span className="text-[11px] text-muted-foreground bg-muted/70 px-2 py-0.5 rounded-md font-medium">{pres.date}</span>
+                            </div>
+                            <div className="p-4 space-y-3">
+                              <div className="space-y-2">
+                                {pres.medications.map((med: any, midx: number) => (
+                                  <div key={midx} className="flex items-start gap-3 p-3 rounded-lg bg-muted/20 border border-border/30 hover:bg-muted/40 transition-colors">
+                                    <div className="h-7 w-7 rounded-full bg-primary/10 flex items-center justify-center shrink-0">
+                                      <span className="text-xs font-bold text-primary">{midx + 1}</span>
+                                    </div>
+                                    <div className="flex-1 min-w-0">
+                                      <p className="font-bold text-sm text-foreground">{med.name}</p>
+                                      <div className="flex flex-wrap gap-x-4 gap-y-1 mt-1">
+                                        <p className="text-xs text-muted-foreground flex items-center gap-1">
+                                          <span className="font-semibold text-foreground/70">{t("patient.dashboard.dosage", "Dosis:")}</span> {med.dosage}
+                                        </p>
+                                        <p className="text-xs text-muted-foreground flex items-center gap-1">
+                                          <span className="font-semibold text-foreground/70">{t("patient.dashboard.duration", "Durasi:")}</span> {med.duration}
+                                        </p>
+                                      </div>
+                                      <p className="text-xs text-primary font-medium mt-1.5 flex items-center gap-1">
+                                        <ChevronRight className="h-3.5 w-3.5 animate-pulse" /> {med.instructions}
+                                      </p>
+                                    </div>
+                                  </div>
+                                ))}
+                              </div>
+                              {pres.notes && (
+                                <div className="p-3 rounded-lg bg-accent/5 border border-accent/20">
+                                  <p className="text-[10px] uppercase font-bold text-accent tracking-widest mb-1 flex items-center gap-1">
+                                    <FileText className="h-3 w-3" /> {t("patient.dashboard.doctorNotes", "Catatan Dokter")}
+                                  </p>
+                                  <p className="text-xs text-muted-foreground italic leading-relaxed">"{pres.notes}"</p>
+                                </div>
+                              )}
+                            </div>
+                          </div>
+                        ))}
+                      </div>
+                    ) : (
+                      <div className="text-center py-10 flex flex-col items-center border rounded-xl bg-muted/30">
+                        <Pill className="h-10 w-10 text-muted-foreground/30 mb-3" />
+                        <p className="text-muted-foreground text-sm font-medium">{t("patient.dashboard.noPrescriptions", "Belum ada resep obat")}</p>
+                      </div>
+                    )}
+                  </div>
                 </TabsContent>
               </Tabs>
             </CardContent>

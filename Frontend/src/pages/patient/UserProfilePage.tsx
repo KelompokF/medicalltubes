@@ -1,4 +1,5 @@
 import { useState, useEffect } from "react";
+import { useTranslation } from "react-i18next";
 import { User, Shield, Trash2, Camera, MapPin } from "lucide-react";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { patientService, authService } from "@/services/api";
@@ -13,6 +14,7 @@ import { Switch } from "@/components/ui/switch";
 import { toast } from "sonner";
 
 export default function UserProfilePage() {
+  const { t } = useTranslation();
   const [showDelete, setShowDelete] = useState(false);
   const [isLoaded, setIsLoaded] = useState(false);
   const [passwords, setPasswords] = useState({ current: "", new: "" });
@@ -49,11 +51,11 @@ export default function UserProfilePage() {
     },
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ["locationSharing"] });
-      toast.success("Pengaturan lokasi berhasil diperbarui!");
+      toast.success(t("patient.userProfile.locationUpdated"));
     },
     onError: (_err, _enabled, context: any) => {
       queryClient.setQueryData(["locationSharing"], context?.previous);
-      toast.error("Gagal memperbarui pengaturan lokasi. Silakan coba lagi.");
+      toast.error(t("patient.userProfile.locationUpdateFailed"));
     },
   });
 
@@ -65,7 +67,7 @@ export default function UserProfilePage() {
       window.location.href = "/login";
     },
     onError: () => {
-      toast.error("Gagal menghapus akun. Silakan coba lagi.");
+      toast.error(t("patient.userProfile.deleteAccountFailed"));
     }
   });
 
@@ -95,13 +97,13 @@ export default function UserProfilePage() {
 
   return (
     <div className="space-y-6 animate-fade-in">
-      <h1 className="text-2xl font-bold text-foreground">My Profile</h1>
+      <h1 className="text-2xl font-bold text-foreground">{t("patient.userProfile.title")}</h1>
 
       <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
         <div className="lg:col-span-2 space-y-6">
           {/* Personal Info */}
           <Card className="shadow-card">
-            <CardHeader><CardTitle className="flex items-center gap-2"><User className="h-5 w-5 text-primary" />Personal Information</CardTitle></CardHeader>
+            <CardHeader><CardTitle className="flex items-center gap-2"><User className="h-5 w-5 text-primary" />{t("patient.userProfile.personalInfo")}</CardTitle></CardHeader>
             <CardContent className="space-y-4">
               <div className="flex items-center gap-4 mb-4">
                 <div className="relative">
@@ -114,19 +116,19 @@ export default function UserProfilePage() {
               </div>
               <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
                 <div>
-                  <Label>Full Name</Label>
+                  <Label>{t("patient.userProfile.fullName")}</Label>
                   <Input value={form.full_name} onChange={(e) => setForm({ ...form, full_name: e.target.value })} className="mt-1" />
                 </div>
                 <div>
-                  <Label>Email</Label>
+                  <Label>{t("patient.userProfile.email")}</Label>
                   <Input value={form.email} disabled className="mt-1" />
                 </div>
                 <div>
-                  <Label>Place of Birth</Label>
+                  <Label>{t("patient.userProfile.placeOfBirth")}</Label>
                   <Input value={form.place_of_birth} onChange={(e) => setForm({ ...form, place_of_birth: e.target.value })} className="mt-1" />
                 </div>
                 <div>
-                  <Label>Date of Birth</Label>
+                  <Label>{t("patient.userProfile.dateOfBirth")}</Label>
                   <Input type="date" value={form.date_of_birth || ""} onChange={(e) => setForm({ ...form, date_of_birth: e.target.value })} className="mt-1" />
                 </div>
               </div>
@@ -135,18 +137,18 @@ export default function UserProfilePage() {
 
           {/* Medical Data */}
           <Card className="shadow-card">
-            <CardHeader><CardTitle>Medical Information</CardTitle></CardHeader>
+            <CardHeader><CardTitle>{t("patient.userProfile.medicalInfo")}</CardTitle></CardHeader>
             <CardContent className="space-y-4">
               <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
                 <div>
-                  <Label>Blood Type</Label>
+                  <Label>{t("patient.userProfile.bloodType")}</Label>
                   <Select value={form.blood_type} onValueChange={(v) => setForm({ ...form, blood_type: v })}>
                     <SelectTrigger className="mt-1"><SelectValue>{form.blood_type}</SelectValue></SelectTrigger>
                     <SelectContent>{["A+", "A-", "B+", "B-", "AB+", "AB-", "O+", "O-"].map((bt) => <SelectItem key={bt} value={bt}>{bt}</SelectItem>)}</SelectContent>
                   </Select>
                 </div>
               </div>
-              <div><Label>Allergies (optional)</Label><Textarea value={form.allergies} onChange={(e) => setForm({ ...form, allergies: e.target.value })} className="mt-1" /></div>
+              <div><Label>{t("patient.userProfile.allergies")}</Label><Textarea value={form.allergies} onChange={(e) => setForm({ ...form, allergies: e.target.value })} className="mt-1" /></div>
             </CardContent>
           </Card>
 
@@ -155,15 +157,15 @@ export default function UserProfilePage() {
             <CardHeader>
               <CardTitle className="flex items-center gap-2">
                 <MapPin className="h-5 w-5 text-primary" />
-                Privacy & Location
+                {t("patient.userProfile.privacyLocation")}
               </CardTitle>
             </CardHeader>
             <CardContent className="space-y-4">
               <div className="flex items-center justify-between">
                 <div className="space-y-0.5">
-                  <Label className="text-base">Bagikan Lokasi Secara Otomatis</Label>
+                  <Label className="text-base">{t("patient.userProfile.autoShareLocation")}</Label>
                   <p className="text-sm text-muted-foreground">
-                    Izinkan aplikasi mengirim lokasi terkinimu secara otomatis saat dalam kondisi darurat.
+                    {t("patient.userProfile.autoShareLocationDesc")}
                   </p>
                 </div>
                 <Switch 
@@ -179,28 +181,28 @@ export default function UserProfilePage() {
         <div className="space-y-6">
           {/* Security */}
           <Card className="shadow-card">
-            <CardHeader><CardTitle className="flex items-center gap-2"><Shield className="h-5 w-5 text-primary" />Security</CardTitle></CardHeader>
+            <CardHeader><CardTitle className="flex items-center gap-2"><Shield className="h-5 w-5 text-primary" />{t("patient.userProfile.security")}</CardTitle></CardHeader>
             <CardContent className="space-y-4">
               <div>
-                <Label>Current Password</Label>
+                <Label>{t("patient.userProfile.currentPassword")}</Label>
                 <Input type="password" value={passwords.current} onChange={(e) => setPasswords(p => ({ ...p, current: e.target.value }))} className="mt-1" />
               </div>
               <div>
-                <Label>New Password</Label>
+                <Label>{t("patient.userProfile.newPassword")}</Label>
                 <Input type="password" value={passwords.new} onChange={(e) => setPasswords(p => ({ ...p, new: e.target.value }))} className="mt-1" />
               </div>
               <Button variant="outline" className="w-full" onClick={() => {
                 if (!passwords.current || !passwords.new) {
-                  toast.error("Please fill both password fields");
+                  toast.error(t("patient.userProfile.fillBothPasswords"));
                   return;
                 }
                 authService.changePassword({ current_password: passwords.current, new_password: passwords.new })
                   .then(() => {
-                    toast.success("Password changed successfully");
+                    toast.success(t("patient.userProfile.passwordChanged"));
                     setPasswords({ current: "", new: "" });
                   })
-                  .catch((err) => toast.error(err.response?.data?.detail || "Failed to change password"));
-              }}>Change Password</Button>
+                  .catch((err) => toast.error(err.response?.data?.detail || t("patient.userProfile.passwordChangeFailed")));
+              }}>{t("patient.userProfile.changePassword")}</Button>
             </CardContent>
           </Card>
 
@@ -208,20 +210,20 @@ export default function UserProfilePage() {
           <div className="space-y-3">
             <Button className="w-full medical-gradient text-primary-foreground" onClick={() => {
               if (!form.full_name || form.full_name.trim() === "") {
-                toast.error("Full name cannot be empty");
+                toast.error(t("patient.userProfile.nameEmpty"));
                 return;
               }
               if (form.place_of_birth && !/^[a-zA-Z0-9\s]+$/.test(form.place_of_birth)) {
-                toast.error("Place of birth cannot contain symbols");
+                toast.error(t("patient.userProfile.birthPlaceSymbols"));
                 return;
               }
               mutation.mutate(form, {
-                onSuccess: () => toast.success("Profile saved!"),
-                onError: () => toast.error("Failed to save profile")
+                onSuccess: () => toast.success(t("patient.userProfile.profileSaved")),
+                onError: () => toast.error(t("patient.userProfile.profileSaveFailed"))
               });
-            }}>Save Changes</Button>
+            }}>{t("patient.userProfile.saveChanges")}</Button>
             <Button variant="outline" className="w-full text-destructive border-destructive/20 hover:bg-destructive/5" onClick={() => setShowDelete(true)}>
-              <Trash2 className="h-4 w-4 mr-2" />Delete Account
+              <Trash2 className="h-4 w-4 mr-2" />{t("patient.userProfile.deleteAccount")}
             </Button>
           </div>
         </div>
@@ -230,13 +232,13 @@ export default function UserProfilePage() {
       <ConfirmModal 
         open={showDelete} 
         onOpenChange={setShowDelete} 
-        title="Delete Account" 
-        description="This action cannot be undone. All your data will be permanently deleted." 
+        title={t("patient.userProfile.deleteAccountTitle")} 
+        description={t("patient.userProfile.deleteAccountDesc")} 
         onConfirm={() => { 
           setShowDelete(false); 
           deleteMutation.mutate(); 
         }} 
-        confirmText={deleteMutation.isPending ? "Deleting..." : "Delete"} 
+        confirmText={deleteMutation.isPending ? t("patient.userProfile.deleting") : t("common.delete")} 
         variant="destructive" 
       />
     </div>

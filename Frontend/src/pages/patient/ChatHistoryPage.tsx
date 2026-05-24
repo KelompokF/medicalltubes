@@ -1,6 +1,7 @@
 import { useState } from "react";
 import { Link } from "react-router-dom";
 import { useQuery } from "@tanstack/react-query";
+import { useTranslation } from "react-i18next";
 import { Search, Filter, MessageSquare, Loader2 } from "lucide-react";
 import { Input } from "@/components/ui/input";
 import { Card, CardContent } from "@/components/ui/card";
@@ -20,6 +21,7 @@ interface ChatHistoryItem {
 }
 
 export default function ChatHistoryPage() {
+  const { t } = useTranslation();
   const [search, setSearch] = useState("");
   const [dateFilter, setDateFilter] = useState("all");
 
@@ -63,29 +65,29 @@ export default function ChatHistoryPage() {
   return (
     <div className="space-y-6 animate-fade-in">
       <div>
-        <h1 className="text-2xl font-bold text-foreground">Chat History</h1>
-        <p className="text-muted-foreground mt-1">View your past consultations.</p>
+        <h1 className="text-2xl font-bold text-foreground">{t("patient.chatHistory.title")}</h1>
+        <p className="text-muted-foreground mt-1">{t("patient.chatHistory.subtitle")}</p>
       </div>
 
       <div className="flex flex-col sm:flex-row gap-3">
         <div className="relative flex-1">
           <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
-          <Input placeholder="Search by name..." value={search} onChange={(e) => setSearch(e.target.value)} className="pl-10" />
+          <Input placeholder={t("patient.chatHistory.searchPlaceholder")} value={search} onChange={(e) => setSearch(e.target.value)} className="pl-10" />
         </div>
         <Select value={dateFilter} onValueChange={setDateFilter}>
           <SelectTrigger className="w-full sm:w-48"><Filter className="h-4 w-4 mr-2" /><SelectValue /></SelectTrigger>
           <SelectContent>
-            <SelectItem value="all">All Dates</SelectItem>
-            <SelectItem value="week">This Week</SelectItem>
-            <SelectItem value="month">This Month</SelectItem>
+            <SelectItem value="all">{t("patient.chatHistory.allDates")}</SelectItem>
+            <SelectItem value="week">{t("patient.chatHistory.thisWeek")}</SelectItem>
+            <SelectItem value="month">{t("patient.chatHistory.thisMonth")}</SelectItem>
           </SelectContent>
         </Select>
       </div>
 
       {filtered.length === 0 ? (
         <EmptyState
-          title="No chat history"
-          description={history.length === 0 ? "You haven't had any conversations yet. Start a consultation to begin chatting." : "No conversations match your search."}
+          title={t("patient.chatHistory.noHistory")}
+          description={history.length === 0 ? t("patient.chatHistory.emptyDesc") : t("patient.chatHistory.noMatch")}
           icon={<MessageSquare className="h-8 w-8 text-muted-foreground" />}
         />
       ) : (
@@ -107,11 +109,11 @@ export default function ChatHistoryPage() {
                   <p className="text-sm text-muted-foreground truncate mt-1">{chat.last_message}</p>
                 </div>
                 <div className="flex flex-col items-end gap-2">
-                  <span className="text-xs text-muted-foreground">{chat.message_count} messages</span>
+                  <span className="text-xs text-muted-foreground">{chat.message_count} {t("common.messages")}</span>
                   <Button size="sm" variant="outline" asChild>
                     <Link to={`/chat?room_id=${chat.room_id}`}>
                       <MessageSquare className="h-3 w-3 mr-1" />
-                      View Chat
+                      {t("patient.chatHistory.viewChat")}
                     </Link>
                   </Button>
                 </div>
