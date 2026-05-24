@@ -1,5 +1,6 @@
 import { useState } from "react";
 import { useQuery } from "@tanstack/react-query";
+import { useTranslation } from "react-i18next";
 import { Clock3, MapPin, Route, FileText, ChevronLeft, ChevronRight, Loader2 } from "lucide-react";
 
 import { Badge } from "@/components/ui/badge";
@@ -44,32 +45,7 @@ interface EmergencyHistoryResponse {
   pagination: EmergencyHistoryPagination;
 }
 
-const filterOptions: Array<{ value: HistoryFilter; label: string }> = [
-  { value: "all", label: "Semua" },
-  { value: "today", label: "Hari Ini" },
-  { value: "yesterday", label: "Kemarin" },
-  { value: "last_7_days", label: "7 Hari Terakhir" },
-  { value: "this_month", label: "Bulan Ini" },
-];
-
-const statusConfig: Record<string, { label: string; className: string }> = {
-  dispatched: {
-    label: "Dispatched",
-    className: "bg-warning/10 text-warning border-warning/20",
-  },
-  arrived: {
-    label: "Arrived",
-    className: "bg-primary/10 text-primary border-primary/20",
-  },
-  completed: {
-    label: "Completed",
-    className: "bg-success/10 text-success border-success/20",
-  },
-  cancelled: {
-    label: "Cancelled",
-    className: "bg-muted text-muted-foreground border-border",
-  },
-};
+// Labels are resolved via t() inside component
 
 function formatDateTime(value: string) {
   return new Date(value).toLocaleString("id-ID", {
@@ -82,9 +58,37 @@ function formatDateTime(value: string) {
 }
 
 export default function AmbulanceHistoryPage() {
+  const { t } = useTranslation();
   const [filter, setFilter] = useState<HistoryFilter>("all");
   const [page, setPage] = useState(1);
   const limit = 10;
+
+  const filterOptions: Array<{ value: HistoryFilter; label: string }> = [
+    { value: "all", label: t("ambulance.history.filterAll") },
+    { value: "today", label: t("ambulance.history.filterToday") },
+    { value: "yesterday", label: t("ambulance.history.filterYesterday") },
+    { value: "last_7_days", label: t("ambulance.history.filterLast7Days") },
+    { value: "this_month", label: t("ambulance.history.filterThisMonth") },
+  ];
+
+  const statusConfig: Record<string, { label: string; className: string }> = {
+    dispatched: {
+      label: t("ambulance.history.statusDispatched"),
+      className: "bg-warning/10 text-warning border-warning/20",
+    },
+    arrived: {
+      label: t("ambulance.history.statusArrived"),
+      className: "bg-primary/10 text-primary border-primary/20",
+    },
+    completed: {
+      label: t("ambulance.history.statusCompleted"),
+      className: "bg-success/10 text-success border-success/20",
+    },
+    cancelled: {
+      label: t("ambulance.history.statusCancelled"),
+      className: "bg-muted text-muted-foreground border-border",
+    },
+  };
 
   const { data, isLoading, isError, isFetching } = useQuery<EmergencyHistoryResponse>({
     queryKey: ["ambulanceEmergencyHistory", filter, page, limit],
@@ -104,13 +108,13 @@ export default function AmbulanceHistoryPage() {
     <div className="space-y-6 animate-fade-in">
       <div className="flex flex-col gap-2 sm:flex-row sm:items-end sm:justify-between">
         <div>
-          <h1 className="text-2xl font-bold text-foreground">Riwayat Emergency</h1>
+          <h1 className="text-2xl font-bold text-foreground">{t("ambulance.history.title")}</h1>
           <p className="text-sm text-muted-foreground">
-            Dokumentasi layanan darurat yang pernah ditangani
+            {t("ambulance.history.subtitle")}
           </p>
         </div>
         <Badge variant="secondary" className="w-fit text-sm">
-          {totalItems} record
+          {totalItems} {t("ambulance.history.record")}
         </Badge>
       </div>
 
@@ -143,26 +147,26 @@ export default function AmbulanceHistoryPage() {
             </div>
           ) : isError ? (
             <EmptyState
-              title="Gagal memuat riwayat"
-              description="Silakan coba lagi beberapa saat lagi."
+              title={t("ambulance.history.loadFailed")}
+              description={t("ambulance.history.loadFailedDesc")}
             />
           ) : history.length === 0 ? (
             <EmptyState
-              title="Riwayat belum tersedia"
-              description="Belum ada permintaan emergency pada rentang waktu ini."
+              title={t("ambulance.history.noHistory")}
+              description={t("ambulance.history.noHistoryDesc")}
             />
           ) : (
             <div className="overflow-x-auto">
               <Table className="min-w-[980px]">
                 <TableHeader>
                   <TableRow>
-                    <TableHead>Pasien</TableHead>
-                    <TableHead>Waktu</TableHead>
-                    <TableHead>Lokasi</TableHead>
-                    <TableHead>Jenis</TableHead>
-                    <TableHead>Jarak</TableHead>
-                    <TableHead>Status</TableHead>
-                    <TableHead>Catatan</TableHead>
+                    <TableHead>{t("ambulance.history.tablePatient")}</TableHead>
+                    <TableHead>{t("ambulance.history.tableTime")}</TableHead>
+                    <TableHead>{t("ambulance.history.tableLocation")}</TableHead>
+                    <TableHead>{t("ambulance.history.tableType")}</TableHead>
+                    <TableHead>{t("ambulance.history.tableDistance")}</TableHead>
+                    <TableHead>{t("ambulance.history.tableStatus")}</TableHead>
+                    <TableHead>{t("ambulance.history.tableNotes")}</TableHead>
                   </TableRow>
                 </TableHeader>
                 <TableBody>
@@ -176,7 +180,7 @@ export default function AmbulanceHistoryPage() {
                         <TableCell className="font-medium">
                           <div className="space-y-1">
                             <p className="text-sm font-semibold text-foreground">
-                              {item.user_name || "Pasien tidak diketahui"}
+                              {item.user_name || t("ambulance.history.unknownPatient")}
                             </p>
                             {item.user_id && (
                               <p className="text-xs text-muted-foreground">
@@ -230,7 +234,7 @@ export default function AmbulanceHistoryPage() {
       {totalPages > 0 && (
         <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
           <p className="text-sm text-muted-foreground">
-            Halaman {page} dari {totalPages}
+            {t("ambulance.history.page", { current: page, total: totalPages })}
           </p>
           <div className="flex items-center gap-2">
             <Button
@@ -240,7 +244,7 @@ export default function AmbulanceHistoryPage() {
               disabled={page <= 1 || isFetching}
             >
               <ChevronLeft className="h-4 w-4" />
-              Sebelumnya
+              {t("common.previous")}
             </Button>
             <Button
               variant="outline"
@@ -248,7 +252,7 @@ export default function AmbulanceHistoryPage() {
               onClick={() => setPage((prev) => Math.min(totalPages, prev + 1))}
               disabled={page >= totalPages || isFetching}
             >
-              Berikutnya
+              {t("common.next")}
               <ChevronRight className="h-4 w-4" />
             </Button>
           </div>

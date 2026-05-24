@@ -1,4 +1,5 @@
 import { useState, useEffect } from "react";
+import { useTranslation } from "react-i18next";
 import {
   Calendar, Clock, MapPin, Phone, User, Stethoscope,
   FileText, CheckCircle2, XCircle, AlertCircle, Loader2,
@@ -9,7 +10,6 @@ import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
 import { useNavigate } from "react-router-dom";
 import api from "@/services/api";
-
 
 interface HomeVisitRequest {
   id: string;
@@ -27,27 +27,18 @@ interface HomeVisitRequest {
   created_at: string;
 }
 
-
-const statusLabel: Record<string, string> = {
-  pending: "Menunggu Konfirmasi",
-  approved: "Diterima Dokter",
-  rejected: "Ditolak",
-  completed: "Selesai",
-  cancelled: "Dibatalkan",
-};
-
 const statusVariant: Record<string, string> = {
-  pending: "bg-yellow-100 text-yellow-800 border-yellow-200",
-  approved: "bg-green-100  text-green-800  border-green-200",
-  rejected: "bg-red-100    text-red-800    border-red-200",
+  pending:   "bg-yellow-100 text-yellow-800 border-yellow-200",
+  approved:  "bg-green-100  text-green-800  border-green-200",
+  rejected:  "bg-red-100    text-red-800    border-red-200",
   completed: "bg-blue-100   text-blue-800   border-blue-200",
   cancelled: "bg-gray-100   text-gray-600   border-gray-200",
 };
 
 const StatusIcon: Record<string, any> = {
-  pending: AlertCircle,
-  approved: CheckCircle2,
-  rejected: XCircle,
+  pending:   AlertCircle,
+  approved:  CheckCircle2,
+  rejected:  XCircle,
   completed: CheckCircle2,
   cancelled: XCircle,
 };
@@ -72,66 +63,6 @@ const formatDateTime = (dtStr: string): string => {
   }
 };
 
-
-function DetailModal({ request, onClose }: { request: HomeVisitRequest; onClose: () => void }) {
-  const status = request.status || "pending";
-  const SIcon = StatusIcon[status] || AlertCircle;
-
-  return (
-    <div
-      className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/50 backdrop-blur-sm"
-      onClick={onClose}
-    >
-      <div
-        className="bg-background rounded-2xl shadow-2xl w-full max-w-lg max-h-[90vh] overflow-y-auto"
-        onClick={(e) => e.stopPropagation()}
-      >
-        {/* Modal Header */}
-        <div className="flex items-center justify-between p-6 border-b">
-          <div>
-            <h2 className="text-xl font-bold text-foreground">Detail Pengajuan</h2>
-            <p className="text-sm text-muted-foreground mt-0.5">
-              Diajukan: {formatDateTime(request.created_at)}
-            </p>
-          </div>
-          <button
-            onClick={onClose}
-            className="rounded-full p-2 hover:bg-muted transition-colors"
-          >
-            <X className="h-5 w-5" />
-          </button>
-        </div>
-
-        {/* Status Banner */}
-        <div className={`mx-6 mt-4 flex items-center gap-2 rounded-xl border px-4 py-3 ${statusVariant[status] || statusVariant.pending}`}>
-          <SIcon className="h-5 w-5 shrink-0" />
-          <span className="font-semibold">{statusLabel[status] || status}</span>
-        </div>
-
-        {/* Detail Fields */}
-        <div className="p-6 space-y-4">
-          <DetailRow icon={<User className="h-4 w-4" />} label="Nama Pasien" value={request.patient_name} />
-          <DetailRow icon={<Phone className="h-4 w-4" />} label="Nomor Telepon" value={request.phone_number} />
-          <DetailRow icon={<Stethoscope className="h-4 w-4" />} label="Dokter"
-            value={`${request.doctor_name}${request.specialization ? `, ${request.specialization}` : ""}`} />
-          <DetailRow icon={<Calendar className="h-4 w-4" />} label="Tanggal Kunjungan"
-            value={formatDate(request.preferred_date)} />
-          <DetailRow icon={<Clock className="h-4 w-4" />} label="Jam Kunjungan" value={request.preferred_time || "-"} />
-          <DetailRow icon={<MapPin className="h-4 w-4" />} label="Alamat" value={request.address} multiline />
-          <DetailRow icon={<FileText className="h-4 w-4" />} label="Keluhan" value={request.complaint} multiline />
-          {request.notes && (
-            <DetailRow icon={<FileText className="h-4 w-4" />} label="Catatan Dokter / Admin" value={request.notes} multiline />
-          )}
-        </div>
-
-        <div className="p-6 pt-0">
-          <Button className="w-full" onClick={onClose}>Tutup</Button>
-        </div>
-      </div>
-    </div>
-  );
-}
-
 function DetailRow({
   icon, label, value, multiline = false,
 }: { icon: React.ReactNode; label: string; value: string; multiline?: boolean }) {
@@ -148,13 +79,82 @@ function DetailRow({
   );
 }
 
-// ─── Main Page ───────────────────────────────────────────────────────────────
+function DetailModal({ request, onClose, t }: { request: HomeVisitRequest; onClose: () => void; t: any }) {
+  const status = request.status || "pending";
+  const SIcon = StatusIcon[status] || AlertCircle;
+
+  const statusLabel: Record<string, string> = {
+    pending:   t("patient.homeVisitTracking.statusPending"),
+    approved:  t("patient.homeVisitTracking.statusApproved"),
+    rejected:  t("patient.homeVisitTracking.statusRejected"),
+    completed: t("patient.homeVisitTracking.statusCompleted"),
+    cancelled: t("patient.homeVisitTracking.statusCancelled"),
+  };
+
+  return (
+    <div
+      className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/50 backdrop-blur-sm"
+      onClick={onClose}
+    >
+      <div
+        className="bg-background rounded-2xl shadow-2xl w-full max-w-lg max-h-[90vh] overflow-y-auto"
+        onClick={(e) => e.stopPropagation()}
+      >
+        <div className="flex items-center justify-between p-6 border-b">
+          <div>
+            <h2 className="text-xl font-bold text-foreground">{t("patient.homeVisitTracking.detailTitle")}</h2>
+            <p className="text-sm text-muted-foreground mt-0.5">
+              {t("patient.homeVisitTracking.submittedAt", { date: formatDateTime(request.created_at) })}
+            </p>
+          </div>
+          <button onClick={onClose} className="rounded-full p-2 hover:bg-muted transition-colors">
+            <X className="h-5 w-5" />
+          </button>
+        </div>
+
+        <div className={`mx-6 mt-4 flex items-center gap-2 rounded-xl border px-4 py-3 ${statusVariant[status] || statusVariant.pending}`}>
+          <SIcon className="h-5 w-5 shrink-0" />
+          <span className="font-semibold">{statusLabel[status] || status}</span>
+        </div>
+
+        <div className="p-6 space-y-4">
+          <DetailRow icon={<User className="h-4 w-4" />} label={t("patient.homeVisitTracking.patientName")} value={request.patient_name} />
+          <DetailRow icon={<Phone className="h-4 w-4" />} label={t("patient.homeVisitTracking.phoneNumber")} value={request.phone_number} />
+          <DetailRow icon={<Stethoscope className="h-4 w-4" />} label={t("patient.homeVisitTracking.doctorLabel")}
+            value={`${request.doctor_name}${request.specialization ? `, ${request.specialization}` : ""}`} />
+          <DetailRow icon={<Calendar className="h-4 w-4" />} label={t("patient.homeVisitTracking.visitDate")}
+            value={formatDate(request.preferred_date)} />
+          <DetailRow icon={<Clock className="h-4 w-4" />} label={t("patient.homeVisitTracking.visitTime")} value={request.preferred_time || "-"} />
+          <DetailRow icon={<MapPin className="h-4 w-4" />} label={t("patient.homeVisitTracking.addressLabel")} value={request.address} multiline />
+          <DetailRow icon={<FileText className="h-4 w-4" />} label={t("patient.homeVisitTracking.complaintLabel")} value={request.complaint} multiline />
+          {request.notes && (
+            <DetailRow icon={<FileText className="h-4 w-4" />} label={t("patient.homeVisitTracking.doctorAdminNotes")} value={request.notes} multiline />
+          )}
+        </div>
+
+        <div className="p-6 pt-0">
+          <Button className="w-full" onClick={onClose}>{t("common.close")}</Button>
+        </div>
+      </div>
+    </div>
+  );
+}
+
 export default function HomeVisitTrackingPage() {
+  const { t } = useTranslation();
   const navigate = useNavigate();
   const [requests, setRequests] = useState<HomeVisitRequest[]>([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
   const [selectedRequest, setSelectedRequest] = useState<HomeVisitRequest | null>(null);
+
+  const statusLabel: Record<string, string> = {
+    pending:   t("patient.homeVisitTracking.statusPending"),
+    approved:  t("patient.homeVisitTracking.statusApproved"),
+    rejected:  t("patient.homeVisitTracking.statusRejected"),
+    completed: t("patient.homeVisitTracking.statusCompleted"),
+    cancelled: t("patient.homeVisitTracking.statusCancelled"),
+  };
 
   const loadRequests = async () => {
     setLoading(true);
@@ -164,7 +164,7 @@ export default function HomeVisitTrackingPage() {
       setRequests(res.data || []);
     } catch (err: any) {
       console.error(err);
-      setError("Gagal memuat data. Pastikan Anda sudah login.");
+      setError(t("patient.homeVisitTracking.loadFailed"));
     } finally {
       setLoading(false);
     }
@@ -176,19 +176,17 @@ export default function HomeVisitTrackingPage() {
 
   return (
     <div className="space-y-6 animate-fade-in">
-      {/* Header */}
       <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4">
         <div>
-          <h1 className="text-2xl font-bold text-foreground">Tracking Home Visit</h1>
-          <p className="text-muted-foreground mt-1">Pantau status pengajuan kunjungan rumah Anda</p>
+          <h1 className="text-2xl font-bold text-foreground">{t("patient.homeVisitTracking.title")}</h1>
+          <p className="text-muted-foreground mt-1">{t("patient.homeVisitTracking.subtitle")}</p>
         </div>
         <Button variant="outline" size="sm" onClick={loadRequests} className="flex items-center gap-2 w-fit">
           <RefreshCw className="h-4 w-4" />
-          Refresh
+          {t("common.refresh")}
         </Button>
       </div>
 
-      {/* Error State */}
       {error && (
         <div className="rounded-xl border border-destructive/20 bg-destructive/10 p-4 text-destructive flex items-center gap-2">
           <AlertCircle className="h-4 w-4 shrink-0" />
@@ -196,14 +194,12 @@ export default function HomeVisitTrackingPage() {
         </div>
       )}
 
-      {/* Loading State */}
       {loading && (
         <div className="flex items-center justify-center py-20">
           <Loader2 className="h-8 w-8 animate-spin text-primary" />
         </div>
       )}
 
-      {/* Empty State */}
       {!loading && !error && requests.length === 0 && (
         <Card className="shadow-card">
           <CardContent className="flex flex-col items-center justify-center py-16 gap-4">
@@ -211,20 +207,16 @@ export default function HomeVisitTrackingPage() {
               <Home className="h-8 w-8 text-muted-foreground" />
             </div>
             <div className="text-center">
-              <h3 className="font-semibold text-foreground">Belum ada pengajuan Home Visit</h3>
-              <p className="text-sm text-muted-foreground mt-1">Anda belum pernah mengajukan permintaan kunjungan rumah.</p>
+              <h3 className="font-semibold text-foreground">{t("patient.homeVisitTracking.noRequests")}</h3>
+              <p className="text-sm text-muted-foreground mt-1">{t("patient.homeVisitTracking.noRequestsDesc")}</p>
             </div>
-            <Button
-              className="medical-gradient text-primary-foreground"
-              onClick={() => navigate("/home-visit")}
-            >
-              Ajukan Sekarang
+            <Button className="medical-gradient text-primary-foreground" onClick={() => navigate("/home-visit")}>
+              {t("patient.homeVisitTracking.submitNow")}
             </Button>
           </CardContent>
         </Card>
       )}
 
-      {/* Request List */}
       {!loading && requests.length > 0 && (
         <div className="space-y-4">
           {requests.map((item) => {
@@ -235,9 +227,7 @@ export default function HomeVisitTrackingPage() {
                 style={{ borderLeftColor: status === "approved" ? "#16a34a" : status === "rejected" ? "#dc2626" : status === "completed" ? "#2563eb" : status === "cancelled" ? "#9ca3af" : "#ca8a04" }}>
                 <CardContent className="p-5">
                   <div className="flex items-start justify-between gap-4">
-                    {/* Left info */}
                     <div className="flex-1 min-w-0 space-y-2">
-                      {/* Doctor name */}
                       <div className="flex items-center gap-2">
                         <div className="h-8 w-8 rounded-full medical-gradient flex items-center justify-center text-primary-foreground text-xs font-bold shrink-0">
                           {item.doctor_name?.replace("Dr. ", "").split(" ").map((n: string) => n[0]).join("").slice(0, 2).toUpperCase() || "DR"}
@@ -250,7 +240,6 @@ export default function HomeVisitTrackingPage() {
                         </div>
                       </div>
 
-                      {/* Date & Time */}
                       <div className="flex items-center gap-4 text-sm text-muted-foreground">
                         <span className="flex items-center gap-1">
                           <Calendar className="h-3.5 w-3.5" />
@@ -262,14 +251,12 @@ export default function HomeVisitTrackingPage() {
                         </span>
                       </div>
 
-                      {/* Patient & Complaint */}
                       <div className="text-xs text-muted-foreground space-y-0.5">
-                        <p><span className="font-medium">Pasien:</span> {item.patient_name}</p>
-                        <p className="truncate"><span className="font-medium">Keluhan:</span> {item.complaint}</p>
+                        <p><span className="font-medium">{t("patient.homeVisitTracking.patientLabel")}</span> {item.patient_name}</p>
+                        <p className="truncate"><span className="font-medium">{t("patient.homeVisitTracking.complaintColon")}</span> {item.complaint}</p>
                       </div>
                     </div>
 
-                    {/* Right: Badge + Button */}
                     <div className="flex flex-col items-end gap-3 shrink-0">
                       <span className={`inline-flex items-center gap-1 text-xs font-medium px-2.5 py-1 rounded-full border ${statusVariant[status] || statusVariant.pending}`}>
                         <SIcon className="h-3 w-3" />
@@ -281,7 +268,7 @@ export default function HomeVisitTrackingPage() {
                         onClick={() => setSelectedRequest(item)}
                         className="flex items-center gap-1 text-xs"
                       >
-                        Lihat Detail
+                        {t("common.viewDetail")}
                         <ChevronRight className="h-3.5 w-3.5" />
                       </Button>
                     </div>
@@ -293,11 +280,11 @@ export default function HomeVisitTrackingPage() {
         </div>
       )}
 
-      {/* Detail Modal */}
       {selectedRequest && (
         <DetailModal
           request={selectedRequest}
           onClose={() => setSelectedRequest(null)}
+          t={t}
         />
       )}
     </div>

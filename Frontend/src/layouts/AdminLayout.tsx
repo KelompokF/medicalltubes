@@ -1,5 +1,6 @@
 import { useState, useEffect, useRef } from "react";
 import { Link, useLocation, Outlet, useNavigate } from "react-router-dom";
+import { useTranslation } from "react-i18next";
 import {
   LayoutDashboard, Users, Stethoscope, AlertTriangle, MessageSquare,
   BarChart3, Settings, Bell, ChevronDown, Menu, X, LogOut, Shield, Heart, FileWarning
@@ -19,6 +20,9 @@ const adminNav = [
   { label: "Settings", path: "/admin/settings", icon: Settings },
 ];
 
+import LanguageSwitcher from "@/components/LanguageSwitcher";
+
+
 interface AdminNotification {
   id: number;
   title: string;
@@ -29,12 +33,22 @@ interface AdminNotification {
 }
 
 export default function AdminLayout() {
+  const { t } = useTranslation();
   const [sidebarOpen, setSidebarOpen] = useState(false);
   const [notifications, setNotifications] = useState<AdminNotification[]>([]);
   const location = useLocation();
   const navigate = useNavigate();
   const wsRef = useRef<WebSocket | null>(null);
   const isActive = (path: string) => location.pathname === path;
+
+  const adminNav = [
+    { label: t("admin.layout.dashboard"), path: "/admin", icon: LayoutDashboard },
+    { label: t("admin.layout.emergencyMonitor"), path: "/admin/emergencies", icon: AlertTriangle },
+    { label: t("admin.layout.consultations"), path: "/admin/consultations", icon: MessageSquare },
+    { label: t("admin.layout.prescriptionTracking", { defaultValue: "Prescription Tracking" }), path: "/admin/prescriptions", icon: Stethoscope },
+    { label: t("admin.layout.reports"), path: "/admin/reports", icon: FileWarning },
+    { label: t("admin.layout.settings"), path: "/admin/settings", icon: Settings },
+  ];
 
   const user =
     typeof window !== "undefined"
@@ -57,9 +71,8 @@ export default function AdminLayout() {
         window.location.hostname === "localhost"
           ? "8001"
           : window.location.port;
-      const wsUrl = `${
-        window.location.protocol === "https:" ? "wss" : "ws"
-      }://${window.location.hostname}:${port}/ws/chat/${adminId}`;
+      const wsUrl = `${window.location.protocol === "https:" ? "wss" : "ws"
+        }://${window.location.hostname}:${port}/ws/chat/${adminId}`;
 
       const ws = new WebSocket(wsUrl);
       wsRef.current = ws;
@@ -151,18 +164,17 @@ export default function AdminLayout() {
           </div>
           <div>
             <span className="text-xl font-bold text-sidebar-foreground">Medicall</span>
-            <p className="text-[10px] uppercase tracking-widest text-sidebar-foreground/50">Admin Panel</p>
+            <p className="text-[10px] uppercase tracking-widest text-sidebar-foreground/50">{t("admin.layout.adminPanel")}</p>
           </div>
           <button className="ml-auto lg:hidden text-sidebar-foreground" onClick={() => setSidebarOpen(false)}><X className="h-5 w-5" /></button>
         </div>
 
         <nav className="px-3 py-4 space-y-1 overflow-y-auto h-[calc(100%-140px)]">
-          <p className="px-3 text-xs font-semibold uppercase tracking-wider text-sidebar-foreground/50 mb-2">Administration</p>
+          <p className="px-3 text-xs font-semibold uppercase tracking-wider text-sidebar-foreground/50 mb-2">{t("admin.layout.administration")}</p>
           {adminNav.map((item) => (
             <Link key={item.path} to={item.path} onClick={() => setSidebarOpen(false)}
-              className={`flex items-center gap-3 px-3 py-2.5 rounded-lg text-sm font-medium transition-all duration-200 ${
-                isActive(item.path) ? "bg-sidebar-primary text-sidebar-primary-foreground" : "text-sidebar-foreground/70 hover:bg-sidebar-accent hover:text-sidebar-accent-foreground"
-              }`}>
+              className={`flex items-center gap-3 px-3 py-2.5 rounded-lg text-sm font-medium transition-all duration-200 ${isActive(item.path) ? "bg-sidebar-primary text-sidebar-primary-foreground" : "text-sidebar-foreground/70 hover:bg-sidebar-accent hover:text-sidebar-accent-foreground"
+                }`}>
               <item.icon className="h-4 w-4" />{item.label}
             </Link>
           ))}
@@ -170,7 +182,7 @@ export default function AdminLayout() {
 
         <div className="absolute bottom-0 left-0 right-0 p-4 border-t border-sidebar-border">
           <button onClick={handleLogout} className="flex w-full items-center gap-3 px-3 py-2.5 rounded-lg text-sm font-medium text-sidebar-foreground/70 hover:bg-sidebar-accent transition-colors">
-            <LogOut className="h-4 w-4" />Logout
+            <LogOut className="h-4 w-4" />{t("common.logout")}
           </button>
         </div>
       </aside>
@@ -183,10 +195,12 @@ export default function AdminLayout() {
               <nav className="hidden sm:flex items-center text-sm text-muted-foreground">
                 <Link to="/admin" className="hover:text-foreground transition-colors">Admin</Link>
                 <span className="mx-2">/</span>
-                <span className="text-foreground font-medium capitalize">{location.pathname.replace("/admin", "").slice(1).replace(/-/g, " ") || "Dashboard"}</span>
+                <span className="text-foreground font-medium capitalize">{location.pathname.replace("/admin", "").slice(1).replace(/-/g, " ") || t("common.dashboard")}</span>
               </nav>
             </div>
             <div className="flex items-center gap-2">
+              <LanguageSwitcher />
+
               {/* Notification Bell — real-time */}
               <DropdownMenu>
                 <DropdownMenuTrigger asChild>
@@ -201,13 +215,13 @@ export default function AdminLayout() {
                 </DropdownMenuTrigger>
                 <DropdownMenuContent align="end" className="w-80">
                   <div className="flex items-center justify-between px-3 py-2">
-                    <span className="font-semibold text-sm">Notifications</span>
+                    <span className="font-semibold text-sm">{t("common.notifications")}</span>
                     {notifications.length > 0 && (
                       <button
                         onClick={clearNotifications}
                         className="text-xs text-primary hover:underline"
                       >
-                        Clear all
+                        {t("common.clearAll")}
                       </button>
                     )}
                   </div>
@@ -216,7 +230,7 @@ export default function AdminLayout() {
                     <div className="px-3 py-6 text-center">
                       <Bell className="h-8 w-8 text-muted-foreground/30 mx-auto mb-2" />
                       <p className="text-xs text-muted-foreground">
-                        Tidak ada notifikasi baru
+                        {t("admin.layout.noNotifications")}
                       </p>
                     </div>
                   ) : (
@@ -228,9 +242,8 @@ export default function AdminLayout() {
                           onClick={() => navigate("/admin/reports")}
                         >
                           <div className="flex items-center gap-2 w-full">
-                            <span className={`h-2 w-2 rounded-full shrink-0 ${
-                              n.type === "new_report" ? "bg-amber-500" : "bg-blue-500"
-                            }`} />
+                            <span className={`h-2 w-2 rounded-full shrink-0 ${n.type === "new_report" ? "bg-amber-500" : "bg-blue-500"
+                              }`} />
                             <span className="font-medium text-xs text-foreground flex-1 truncate">
                               {n.title}
                             </span>
@@ -258,16 +271,16 @@ export default function AdminLayout() {
                   </Button>
                 </DropdownMenuTrigger>
                 <DropdownMenuContent align="end">
-                  <DropdownMenuItem><Settings className="h-4 w-4 mr-2" />Settings</DropdownMenuItem>
+                  <DropdownMenuItem><Settings className="h-4 w-4 mr-2" />{t("common.settings")}</DropdownMenuItem>
                   <DropdownMenuSeparator />
-                  <DropdownMenuItem onClick={handleLogout}>Logout</DropdownMenuItem>
+                  <DropdownMenuItem onClick={handleLogout}>{t("common.logout")}</DropdownMenuItem>
                 </DropdownMenuContent>
               </DropdownMenu>
             </div>
           </div>
         </header>
         <main className="p-4 sm:p-6 lg:p-8"><Outlet /></main>
-        <footer className="border-t px-6 py-4 text-center text-sm text-muted-foreground">© 2026 Medicall Admin Panel — Healthcare Management System</footer>
+        <footer className="border-t px-6 py-4 text-center text-sm text-muted-foreground">{t("admin.layout.footer")}</footer>
       </div>
     </div>
   );

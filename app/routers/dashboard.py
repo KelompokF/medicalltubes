@@ -12,7 +12,8 @@ from app.models.home_visit import HomeVisit
 from app.models.chat_room import ChatRoom
 from app.models.emergency_request import EmergencyRequest
 from app.models.prescription import Prescription
-from app.schemas.dashboard import DashboardResponse, DashboardStats, ActivityItem, UpcomingAppointment, HistoryItem
+from app.schemas.dashboard import DashboardResponse, DashboardStats, ActivityItem, UpcomingAppointment, HistoryItem, PrescriptionDashboardItem
+from app.schemas.prescription import MedicationItem
 from sqlalchemy import text
 from app.models.doctor_profile import DoctorProfile
 from pydantic import BaseModel
@@ -72,9 +73,10 @@ async def get_dashboard_summary(
     )
     total_hv_model = result_hv_model.scalar() or 0
 
-    # Tabel 2: home_visit_requests_v3 (tampilkan semua data yang ada sesuai permintaan)
+    # Tabel 2: home_visit_requests_v3 (tampilkan data sesuai akun saat ini)
     result_hv_v3 = await db.execute(
-        text("SELECT count(*) FROM home_visit_requests_v3")
+        text("SELECT count(*) FROM home_visit_requests_v3 WHERE (user_id = :user_id OR LOWER(patient_name) = LOWER(:full_name)) AND payment_status = 'paid_cash'"),
+        {"user_id": current_user.id, "full_name": current_user.full_name}
     )
     total_hv_v3 = result_hv_v3.scalar() or 0
     
@@ -247,16 +249,18 @@ async def get_dashboard_summary(
             sort_key=h.created_at
         ))
 
-    # Dari home_visit_requests_v3 (tampilkan semua data yang ada)
+    # Dari home_visit_requests_v3 (tampilkan data sesuai akun saat ini)
     res_v3 = await db.execute(
         text("""
             SELECT r.*, u.full_name AS doctor_full_name, dp.specialization
             FROM home_visit_requests_v3 r
             LEFT JOIN doctor_profiles dp ON dp.id = r.doctor_id
             LEFT JOIN users u ON u.id = dp.user_id
+            WHERE (r.user_id = :user_id OR LOWER(r.patient_name) = LOWER(:full_name)) AND r.payment_status = 'paid_cash'
             ORDER BY r.created_at DESC
             LIMIT 5
-        """)
+        """),
+        {"user_id": current_user.id, "full_name": current_user.full_name}
     )
     for row in res_v3.mappings().all():
         # Avoid duplicates if ID somehow matches (unlikely but safe)
@@ -269,7 +273,7 @@ async def get_dashboard_summary(
             specialization=row["specialization"] or "Kunjungan Rumah",
             date=row["created_at"].strftime("%d %b %Y") if row["created_at"] else "Baru saja",
             time=row["created_at"].strftime("%H:%M") if row["created_at"] else "",
-            status="pending",
+            status=row["status"] or "pending",
             type="home_visit",
             sort_key=row["created_at"] or datetime.datetime.utcnow()
         ))
@@ -279,12 +283,41 @@ async def get_dashboard_summary(
     # Limit 5
     booking_history = booking_history[:5]
 
+    # 7. Ambil resep obat pasien
+    prescriptions = []
+    pres_result = await db.execute(
+        select(Prescription, User)
+        .join(User, Prescription.doctor_id == User.id)
+        .where(Prescription.patient_id == current_user.id)
+        .order_by(Prescription.created_at.desc())
+    )
+    
+    for pres, doctor in pres_result:
+        meds = []
+        if isinstance(pres.medications, list):
+            for m in pres.medications:
+                meds.append(MedicationItem(
+                    name=m.get("name", ""),
+                    dosage=m.get("dosage", ""),
+                    duration=m.get("duration", ""),
+                    instructions=m.get("instructions", "")
+                ))
+        
+        prescriptions.append(PrescriptionDashboardItem(
+            id=pres.id,
+            doctor=doctor.full_name,
+            date=pres.created_at.strftime("%d %b %Y, %H:%M"),
+            medications=meds,
+            notes=pres.notes
+        ))
+
     return DashboardResponse(
         stats=stats,
         recentActivities=activity_items,
         consultationHistory=consultation_history,
         bookingHistory=booking_history,
-        upcomingAppointment=upcoming_appointment
+        upcomingAppointment=upcoming_appointment,
+        prescriptions=prescriptions
     )
 
 

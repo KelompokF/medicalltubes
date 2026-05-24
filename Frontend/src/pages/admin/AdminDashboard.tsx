@@ -8,8 +8,10 @@ import { BarChart, Bar, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContaine
 import { useQuery } from "@tanstack/react-query";
 import { adminService } from "@/services/api";
 import { Skeleton } from "@/components/ui/skeleton";
+import { useTranslation } from "react-i18next";
 
 export default function AdminDashboard() {
+  const { t } = useTranslation();
   const { data, isLoading, error } = useQuery({
     queryKey: ["adminDashboard"],
     queryFn: async () => {
@@ -35,7 +37,7 @@ export default function AdminDashboard() {
   }
 
   if (error) {
-    return <div className="text-red-500">Failed to load admin dashboard data.</div>;
+    return <div className="text-red-500">{t("admin.dashboard.failedToLoad")}</div>;
   }
 
   const { stats, recentUsers = [], analyticsData = [] } = data || {};
@@ -49,18 +51,18 @@ export default function AdminDashboard() {
 
   return (
     <div className="space-y-6 animate-fade-in">
-      <h1 className="text-2xl font-bold text-foreground">Admin Dashboard</h1>
+      <h1 className="text-2xl font-bold text-foreground">{t("admin.dashboard.title")}</h1>
 
       <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
-        <StatCard title="Total Users" value={adminStats.totalUsers.toLocaleString()} icon={Users} variant="primary" />
-        <StatCard title="Total Doctors" value={adminStats.totalDoctors} icon={Stethoscope} variant="success" />
-        <StatCard title="Active Emergencies" value={adminStats.activeEmergencies} icon={AlertTriangle} variant="emergency" />
-        <StatCard title="Total Consultations" value={adminStats.totalConsultations.toLocaleString()} icon={MessageSquare} variant="warning" />
+        <StatCard title={t("admin.dashboard.totalUsers")} value={adminStats.totalUsers.toLocaleString()} icon={Users} variant="primary" />
+        <StatCard title={t("admin.dashboard.totalDoctors")} value={adminStats.totalDoctors} icon={Stethoscope} variant="success" />
+        <StatCard title={t("admin.dashboard.activeEmergencies")} value={adminStats.activeEmergencies} icon={AlertTriangle} variant="emergency" />
+        <StatCard title={t("admin.dashboard.totalConsultations")} value={adminStats.totalConsultations.toLocaleString()} icon={MessageSquare} variant="warning" />
       </div>
 
       {/* Charts */}
       <Card className="shadow-card">
-        <CardHeader><CardTitle>Analytics Overview</CardTitle></CardHeader>
+        <CardHeader><CardTitle>{t("admin.dashboard.analyticsOverview")}</CardTitle></CardHeader>
         <CardContent>
           <ResponsiveContainer width="100%" height={300}>
             <BarChart data={analyticsData}>
@@ -79,16 +81,16 @@ export default function AdminDashboard() {
 
       {/* User Table */}
       <Card className="shadow-card">
-        <CardHeader><CardTitle>Recent Users</CardTitle></CardHeader>
+        <CardHeader><CardTitle>{t("admin.dashboard.recentUsers")}</CardTitle></CardHeader>
         <CardContent>
           <Table>
             <TableHeader>
               <TableRow>
-                <TableHead>Name</TableHead>
-                <TableHead>Email</TableHead>
-                <TableHead>Role</TableHead>
-                <TableHead>Status</TableHead>
-                <TableHead>Joined</TableHead>
+                <TableHead>{t("admin.dashboard.name")}</TableHead>
+                <TableHead>{t("admin.dashboard.email")}</TableHead>
+                <TableHead>{t("admin.dashboard.role")}</TableHead>
+                <TableHead>{t("admin.dashboard.status")}</TableHead>
+                <TableHead>{t("admin.dashboard.joined")}</TableHead>
                 <TableHead></TableHead>
               </TableRow>
             </TableHeader>

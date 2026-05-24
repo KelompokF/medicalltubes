@@ -1,5 +1,6 @@
-import { useState, useEffect } from "react";
+import { useState } from "react";
 import { Link } from "react-router-dom";
+import { useTranslation } from "react-i18next";
 import {
   Home, Calendar, MapPin, Search, Filter, Eye,
   CheckCircle, XCircle, Loader2, Clock, Phone, FileText, Stethoscope
@@ -15,6 +16,7 @@ import { Badge } from "@/components/ui/badge";
 import EmptyState from "@/components/EmptyState";
 import { toast } from "sonner";
 import api from "@/services/api";
+import { useState as useStateReact, useEffect } from "react";
 
 /* =========================
    TYPE GABUNGAN (AMAN)
@@ -48,55 +50,6 @@ interface HomeVisitItem {
 }
 
 /* =========================
-   STATUS CONFIG GABUNGAN
-========================= */
-const statusConfig: Record<
-  HomeVisitItem["status"],
-  { label: string; color: string; icon: React.ElementType }
-> = {
-  pending: {
-    label: "Menunggu",
-    color: "bg-warning/10 text-warning border-warning/20",
-    icon: Loader2,
-  },
-  approved: {
-    label: "Disetujui",
-    color: "bg-primary/10 text-primary border-primary/20",
-    icon: Clock,
-  },
-  rejected: {
-    label: "Ditolak",
-    color: "bg-destructive/10 text-destructive border-destructive/20",
-    icon: XCircle,
-  },
-  completed: {
-    label: "Selesai",
-    color: "bg-success/10 text-success border-success/20",
-    icon: CheckCircle,
-  },
-  confirmed: {
-    label: "Confirmed",
-    color: "bg-primary/10 text-primary border-primary/20",
-    icon: Clock,
-  },
-  on_the_way: {
-    label: "On The Way",
-    color: "bg-primary/10 text-primary border-primary/20",
-    icon: Clock,
-  },
-  arrived: {
-    label: "Arrived",
-    color: "bg-success/10 text-success border-success/20",
-    icon: CheckCircle,
-  },
-  cancelled: {
-    label: "Cancelled",
-    color: "bg-destructive/10 text-destructive border-destructive/20",
-    icon: XCircle,
-  },
-};
-
-/* =========================
    FORMAT DATE
 ========================= */
 function formatDate(dateStr?: string) {
@@ -109,10 +62,60 @@ function formatDate(dateStr?: string) {
 }
 
 export default function HomeVisitHistoryPage() {
+  const { t } = useTranslation();
   const [visits, setVisits] = useState<HomeVisitItem[]>([]);
   const [isLoading, setIsLoading] = useState(true);
   const [search, setSearch] = useState("");
   const [statusFilter, setStatusFilter] = useState("all");
+
+  /* =========================
+     STATUS CONFIG GABUNGAN
+  ========================= */
+  const statusConfig: Record<
+    HomeVisitItem["status"],
+    { label: string; color: string; icon: React.ElementType }
+  > = {
+    pending: {
+      label: t("patient.homeVisitHistory.statusPending"),
+      color: "bg-warning/10 text-warning border-warning/20",
+      icon: Loader2,
+    },
+    approved: {
+      label: t("patient.homeVisitHistory.statusApproved"),
+      color: "bg-primary/10 text-primary border-primary/20",
+      icon: Clock,
+    },
+    rejected: {
+      label: t("patient.homeVisitHistory.statusRejected"),
+      color: "bg-destructive/10 text-destructive border-destructive/20",
+      icon: XCircle,
+    },
+    completed: {
+      label: t("patient.homeVisitHistory.statusCompleted"),
+      color: "bg-success/10 text-success border-success/20",
+      icon: CheckCircle,
+    },
+    confirmed: {
+      label: t("patient.homeVisitHistory.statusConfirmed"),
+      color: "bg-primary/10 text-primary border-primary/20",
+      icon: Clock,
+    },
+    on_the_way: {
+      label: t("patient.homeVisitHistory.statusOnTheWay"),
+      color: "bg-primary/10 text-primary border-primary/20",
+      icon: Clock,
+    },
+    arrived: {
+      label: t("patient.homeVisitHistory.statusArrived"),
+      color: "bg-success/10 text-success border-success/20",
+      icon: CheckCircle,
+    },
+    cancelled: {
+      label: t("patient.homeVisitHistory.statusCancelled"),
+      color: "bg-destructive/10 text-destructive border-destructive/20",
+      icon: XCircle,
+    },
+  };
 
   /* =========================
      FETCH DATA (PAKAI PUNYA LU)
@@ -125,7 +128,7 @@ export default function HomeVisitHistoryPage() {
         const completedVisits = res.data.filter((v: HomeVisitItem) => v.status === "completed");
         setVisits(completedVisits);
       } catch (err) {
-        toast.error("Gagal memuat data");
+        toast.error(t("patient.homeVisitHistory.loadFailed"));
       } finally {
         setIsLoading(false);
       }
@@ -158,12 +161,12 @@ export default function HomeVisitHistoryPage() {
 
   return (
     <div className="space-y-6">
-      <h1 className="text-2xl font-bold">Riwayat Kunjungan Rumah</h1>
+      <h1 className="text-2xl font-bold">{t("patient.homeVisitHistory.title")}</h1>
 
       {/* SEARCH */}
       <div className="flex gap-3">
         <Input
-          placeholder="Cari..."
+          placeholder={t("patient.homeVisitHistory.searchPlaceholder")}
           value={search}
           onChange={(e) => setSearch(e.target.value)}
         />
@@ -174,7 +177,7 @@ export default function HomeVisitHistoryPage() {
             <SelectValue />
           </SelectTrigger>
           <SelectContent>
-            <SelectItem value="all">Semua</SelectItem>
+            <SelectItem value="all">{t("patient.homeVisitHistory.allFilter")}</SelectItem>
             {Object.keys(statusConfig).map((s) => (
               <SelectItem key={s} value={s}>
                 {statusConfig[s as keyof typeof statusConfig].label}
@@ -186,7 +189,7 @@ export default function HomeVisitHistoryPage() {
 
       {/* LIST */}
       {filtered.length === 0 ? (
-        <EmptyState title="Tidak ada data" />
+        <EmptyState title={t("patient.homeVisitHistory.noData")} />
       ) : (
         filtered.map((visit) => {
           const config = statusConfig[visit.status] || statusConfig.pending;
@@ -218,7 +221,7 @@ export default function HomeVisitHistoryPage() {
                 <div className="mt-3 flex gap-2">
                   <Button size="sm" asChild>
                     <Link to={`/home-visit-detail/${visit.id}`}>
-                      <Eye className="h-4 w-4 mr-1" /> Detail
+                      <Eye className="h-4 w-4 mr-1" /> {t("common.detail")}
                     </Link>
                   </Button>
                 </div>

@@ -1,4 +1,5 @@
 import { useState, useEffect } from "react";
+import { useTranslation } from "react-i18next";
 import {
   AlertTriangle,
   Loader2,
@@ -50,48 +51,10 @@ interface Report {
   updated_at?: string;
 }
 
-const STATUS_CONFIG: Record<
-  string,
-  { label: string; className: string; icon: React.ElementType }
-> = {
-  pending: {
-    label: "Pending",
-    className: "bg-amber-100 text-amber-800 border-amber-200 dark:bg-amber-900/30 dark:text-amber-300 dark:border-amber-800",
-    icon: Clock,
-  },
-  reviewed: {
-    label: "Reviewed",
-    className: "bg-blue-100 text-blue-800 border-blue-200 dark:bg-blue-900/30 dark:text-blue-300 dark:border-blue-800",
-    icon: Eye,
-  },
-  resolved: {
-    label: "Resolved",
-    className: "bg-green-100 text-green-800 border-green-200 dark:bg-green-900/30 dark:text-green-300 dark:border-green-800",
-    icon: CheckCircle,
-  },
-  dismissed: {
-    label: "Dismissed",
-    className: "bg-gray-100 text-gray-600 border-gray-200 dark:bg-gray-800/30 dark:text-gray-400 dark:border-gray-700",
-    icon: XCircle,
-  },
-};
 
-const REASON_LABELS: Record<string, string> = {
-  inappropriate_behavior: "Perilaku Tidak Pantas",
-  unprofessional: "Tidak Profesional",
-  harassment: "Pelecehan / Harassment",
-  fraud: "Penipuan / Fraud",
-  other: "Lainnya",
-};
-
-const ROLE_LABELS: Record<string, string> = {
-  patient: "Pasien",
-  doctor: "Dokter",
-  ambulance: "Ambulance",
-  admin: "Admin",
-};
 
 export default function AdminReportsPage() {
+  const { t } = useTranslation();
   const [reports, setReports] = useState<Report[]>([]);
   const [total, setTotal] = useState(0);
   const [isLoading, setIsLoading] = useState(true);
@@ -101,6 +64,47 @@ export default function AdminReportsPage() {
   const [newStatus, setNewStatus] = useState("");
   const [isUpdating, setIsUpdating] = useState(false);
 
+  const STATUS_CONFIG: Record<
+    string,
+    { label: string; className: string; icon: React.ElementType }
+  > = {
+    pending: {
+      label: t("admin.reports.status.pending", "Pending"),
+      className: "bg-amber-100 text-amber-800 border-amber-200 dark:bg-amber-900/30 dark:text-amber-300 dark:border-amber-800",
+      icon: Clock,
+    },
+    reviewed: {
+      label: t("admin.reports.status.reviewed", "Reviewed"),
+      className: "bg-blue-100 text-blue-800 border-blue-200 dark:bg-blue-900/30 dark:text-blue-300 dark:border-blue-800",
+      icon: Eye,
+    },
+    resolved: {
+      label: t("admin.reports.status.resolved", "Resolved"),
+      className: "bg-green-100 text-green-800 border-green-200 dark:bg-green-900/30 dark:text-green-300 dark:border-green-800",
+      icon: CheckCircle,
+    },
+    dismissed: {
+      label: t("admin.reports.status.dismissed", "Dismissed"),
+      className: "bg-gray-100 text-gray-600 border-gray-200 dark:bg-gray-800/30 dark:text-gray-400 dark:border-gray-700",
+      icon: XCircle,
+    },
+  };
+
+  const REASON_LABELS: Record<string, string> = {
+    inappropriate_behavior: t("admin.reports.reason.inappropriate_behavior", "Perilaku Tidak Pantas"),
+    unprofessional: t("admin.reports.reason.unprofessional", "Tidak Profesional"),
+    harassment: t("admin.reports.reason.harassment", "Pelecehan / Harassment"),
+    fraud: t("admin.reports.reason.fraud", "Penipuan / Fraud"),
+    other: t("admin.reports.reason.other", "Lainnya"),
+  };
+
+  const ROLE_LABELS: Record<string, string> = {
+    patient: t("common.roles.patient", "Pasien"),
+    doctor: t("common.roles.doctor", "Dokter"),
+    ambulance: t("common.roles.ambulance", "Ambulance"),
+    admin: t("common.roles.admin", "Admin"),
+  };
+
   const fetchReports = async (status?: string) => {
     setIsLoading(true);
     try {
@@ -109,7 +113,7 @@ export default function AdminReportsPage() {
       setReports(res.data.reports);
       setTotal(res.data.total);
     } catch (err: any) {
-      toast.error("Gagal memuat data laporan");
+      toast.error(t("admin.reports.loadError", "Gagal memuat data laporan"));
     } finally {
       setIsLoading(false);
     }
@@ -151,11 +155,11 @@ export default function AdminReportsPage() {
         status: newStatus,
         admin_notes: adminNotes || undefined,
       });
-      toast.success("Status laporan berhasil diperbarui");
+      toast.success(t("admin.reports.updateSuccess", "Status laporan berhasil diperbarui"));
       setSelectedReport(null);
       fetchReports(statusFilter);
     } catch (err: any) {
-      toast.error(err?.response?.data?.detail || "Gagal memperbarui status");
+      toast.error(err?.response?.data?.detail || t("admin.reports.updateError", "Gagal memperbarui status"));
     } finally {
       setIsUpdating(false);
     }
@@ -179,21 +183,21 @@ export default function AdminReportsPage() {
         <div>
           <h1 className="text-2xl font-bold text-foreground flex items-center gap-2">
             <Shield className="h-6 w-6 text-primary" />
-            Manajemen Laporan
+            {t("admin.reports.title", "Manajemen Laporan")}
           </h1>
           <p className="text-muted-foreground mt-1">
-            Kelola dan tindak lanjuti laporan dari pengguna
+            {t("admin.reports.desc", "Kelola dan tindak lanjuti laporan dari pengguna")}
           </p>
         </div>
         <div className="flex items-center gap-3">
           {pendingCount > 0 && (
             <Badge className="bg-amber-100 text-amber-800 border-amber-200 dark:bg-amber-900/30 dark:text-amber-300 px-3 py-1">
               <AlertTriangle className="h-3.5 w-3.5 mr-1" />
-              {pendingCount} Pending
+              {pendingCount} {t("admin.reports.pendingCount", "Pending")}
             </Badge>
           )}
           <Badge variant="secondary" className="px-3 py-1">
-            Total: {total}
+            {t("admin.reports.totalReports", "Total:")} {total}
           </Badge>
         </div>
       </div>
@@ -201,14 +205,14 @@ export default function AdminReportsPage() {
       {/* Filter */}
       <div className="flex items-center gap-3">
         <Search className="h-4 w-4 text-muted-foreground" />
-        <span className="text-sm text-muted-foreground">Filter Status:</span>
+        <span className="text-sm text-muted-foreground">{t("admin.reports.filterStatus", "Filter Status:")}</span>
         <div className="flex flex-wrap gap-2">
           {[
-            { value: "all", label: "Semua" },
-            { value: "pending", label: "Pending" },
-            { value: "reviewed", label: "Reviewed" },
-            { value: "resolved", label: "Resolved" },
-            { value: "dismissed", label: "Dismissed" },
+            { value: "all", label: t("common.all", "Semua") },
+            { value: "pending", label: t("admin.reports.status.pending", "Pending") },
+            { value: "reviewed", label: t("admin.reports.status.reviewed", "Reviewed") },
+            { value: "resolved", label: t("admin.reports.status.resolved", "Resolved") },
+            { value: "dismissed", label: t("admin.reports.status.dismissed", "Dismissed") },
           ].map((filter) => (
             <Button
               key={filter.value}
@@ -233,7 +237,7 @@ export default function AdminReportsPage() {
           <CardContent className="flex flex-col items-center justify-center py-16">
             <FileWarning className="h-12 w-12 text-muted-foreground/30 mb-3" />
             <p className="text-muted-foreground font-medium">
-              Tidak ada laporan{statusFilter !== "all" ? ` dengan status "${statusFilter}"` : ""}
+              {t("admin.reports.noData", "Tidak ada laporan")}{statusFilter !== "all" ? ` ${t("admin.reports.withStatus", "dengan status")} "${statusFilter}"` : ""}
             </p>
           </CardContent>
         </Card>
@@ -257,7 +261,7 @@ export default function AdminReportsPage() {
                           {statusMeta.label}
                         </Badge>
                         <Badge variant="outline" className="text-xs">
-                          {report.context_type === "consultation" ? "Konsultasi" : "Emergency"}
+                          {report.context_type === "consultation" ? t("admin.reports.consultation", "Konsultasi") : t("admin.reports.emergency", "Emergency")}
                         </Badge>
                         <span className="text-xs text-muted-foreground">
                           {formatDate(report.created_at)}
@@ -304,7 +308,7 @@ export default function AdminReportsPage() {
                       }}
                     >
                       <Eye className="h-4 w-4" />
-                      Detail
+                      {t("common.detail", "Detail")}
                     </Button>
                   </div>
                 </CardContent>
@@ -327,10 +331,10 @@ export default function AdminReportsPage() {
               <DialogHeader>
                 <DialogTitle className="flex items-center gap-2">
                   <AlertTriangle className="h-5 w-5 text-destructive" />
-                  Detail Laporan
+                  {t("admin.reports.detailTitle", "Detail Laporan")}
                 </DialogTitle>
                 <DialogDescription>
-                  ID: {selectedReport.id.slice(0, 8)}... •{" "}
+                  {t("common.id", "ID:")} {selectedReport.id.slice(0, 8)}... •{" "}
                   {formatDate(selectedReport.created_at)}
                 </DialogDescription>
               </DialogHeader>
@@ -340,7 +344,7 @@ export default function AdminReportsPage() {
                 <div className="grid grid-cols-2 gap-3">
                   <div className="p-3 rounded-lg bg-blue-50 dark:bg-blue-950/20 border border-blue-200 dark:border-blue-800">
                     <p className="text-[10px] uppercase font-bold text-blue-600 tracking-wider mb-1">
-                      Pelapor
+                      {t("admin.reports.reporter", "Pelapor")}
                     </p>
                     <p className="font-semibold text-sm text-foreground">
                       {selectedReport.reporter_name}
@@ -351,7 +355,7 @@ export default function AdminReportsPage() {
                   </div>
                   <div className="p-3 rounded-lg bg-red-50 dark:bg-red-950/20 border border-red-200 dark:border-red-800">
                     <p className="text-[10px] uppercase font-bold text-red-600 tracking-wider mb-1">
-                      Dilaporkan
+                      {t("admin.reports.reported", "Dilaporkan")}
                     </p>
                     <p className="font-semibold text-sm text-foreground">
                       {selectedReport.reported_name}
@@ -366,7 +370,7 @@ export default function AdminReportsPage() {
                 <div className="grid grid-cols-2 gap-3">
                   <div className="p-3 rounded-lg bg-muted/30 border">
                     <p className="text-[10px] uppercase text-muted-foreground font-bold tracking-wider mb-1">
-                      Alasan
+                      {t("admin.reports.reasonLabel", "Alasan")}
                     </p>
                     <p className="font-medium text-sm">
                       {REASON_LABELS[selectedReport.reason] || selectedReport.reason}
@@ -374,7 +378,7 @@ export default function AdminReportsPage() {
                   </div>
                   <div className="p-3 rounded-lg bg-muted/30 border">
                     <p className="text-[10px] uppercase text-muted-foreground font-bold tracking-wider mb-1">
-                      Konteks
+                      {t("admin.reports.context", "Konteks")}
                     </p>
                     <p className="font-medium text-sm capitalize">
                       {selectedReport.context_type}
@@ -385,7 +389,7 @@ export default function AdminReportsPage() {
                 {/* Description */}
                 <div className="p-3 rounded-lg bg-muted/30 border">
                   <p className="text-[10px] uppercase text-muted-foreground font-bold tracking-wider mb-1">
-                    Deskripsi
+                    {t("admin.reports.description", "Deskripsi")}
                   </p>
                   <p className="text-sm text-foreground leading-relaxed">
                     {selectedReport.description}
@@ -395,30 +399,30 @@ export default function AdminReportsPage() {
                 {/* Admin Actions */}
                 <div className="border-t pt-4 space-y-3">
                   <p className="text-sm font-semibold text-foreground">
-                    Tindakan Admin
+                    {t("admin.reports.adminActions", "Tindakan Admin")}
                   </p>
 
                   <div className="space-y-2">
-                    <label className="text-sm font-medium">Update Status</label>
+                    <label className="text-sm font-medium">{t("admin.reports.updateStatusTitle", "Update Status")}</label>
                     <Select value={newStatus} onValueChange={setNewStatus}>
                       <SelectTrigger>
-                        <SelectValue placeholder="Pilih status baru..." />
+                        <SelectValue placeholder={t("admin.reports.selectStatus", "Pilih status baru...")} />
                       </SelectTrigger>
                       <SelectContent>
-                        <SelectItem value="pending">Pending</SelectItem>
-                        <SelectItem value="reviewed">Reviewed</SelectItem>
-                        <SelectItem value="resolved">Resolved</SelectItem>
-                        <SelectItem value="dismissed">Dismissed</SelectItem>
+                        <SelectItem value="pending">{t("admin.reports.status.pending", "Pending")}</SelectItem>
+                        <SelectItem value="reviewed">{t("admin.reports.status.reviewed", "Reviewed")}</SelectItem>
+                        <SelectItem value="resolved">{t("admin.reports.status.resolved", "Resolved")}</SelectItem>
+                        <SelectItem value="dismissed">{t("admin.reports.status.dismissed", "Dismissed")}</SelectItem>
                       </SelectContent>
                     </Select>
                   </div>
 
                   <div className="space-y-2">
                     <label className="text-sm font-medium">
-                      Catatan Admin (opsional)
+                      {t("admin.reports.adminNotes", "Catatan Admin (opsional)")}
                     </label>
                     <Textarea
-                      placeholder="Tambahkan catatan tindak lanjut..."
+                      placeholder={t("admin.reports.adminNotesPlaceholder", "Tambahkan catatan tindak lanjut...")}
                       value={adminNotes}
                       onChange={(e) => setAdminNotes(e.target.value)}
                       rows={3}
@@ -434,7 +438,7 @@ export default function AdminReportsPage() {
                   onClick={() => setSelectedReport(null)}
                   disabled={isUpdating}
                 >
-                  Batal
+                  {t("common.cancel", "Batal")}
                 </Button>
                 <Button
                   onClick={handleUpdateStatus}
@@ -444,12 +448,12 @@ export default function AdminReportsPage() {
                   {isUpdating ? (
                     <>
                       <Loader2 className="h-4 w-4 animate-spin" />
-                      Menyimpan...
+                      {t("common.saving", "Menyimpan...")}
                     </>
                   ) : (
                     <>
                       <CheckCircle className="h-4 w-4" />
-                      Simpan Perubahan
+                      {t("common.saveChanges", "Simpan Perubahan")}
                     </>
                   )}
                 </Button>

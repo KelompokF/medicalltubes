@@ -88,6 +88,10 @@ export const doctorService = {
   getDoctorById: (id: string) => api.get(`/doctors/${id}`),
   startConsultation: (doctorId: string) =>
     api.post("/doctors/start-consultation", { doctor_id: doctorId }),
+  // Get doctors with schedules
+  getDoctorSchedules: () => api.get("/doctors/schedules/available"),
+  getDoctorScheduleById: (doctorId: string) =>
+    api.get(`/doctors/${doctorId}/schedules`),
   // Doctor dashboard
   getDashboard: () => api.get("/doctor/dashboard"),
   getPatientRequests: () => api.get("/doctor/requests"),
@@ -160,9 +164,17 @@ export const homeVisitScheduleService = {
     preferred_date: string;
     preferred_time: string;
   }) => api.post("/home-visits/request", data),
+
+  /** Ambil detail satu permintaan berdasarkan ID (GET /home-visits/requests/{id}) */
+  getRequestById: (id: string) => api.get(`/home-visits/requests/${id}`),
+
+  /** Update status pembayaran (PATCH /home-visits/requests/{id}/payment) */
+  updatePaymentStatus: (id: string, payment_status: string) =>
+    api.patch(`/home-visits/requests/${id}/payment`, { payment_status }),
 };
 
 // ============================================
+
 // EMERGENCY ENDPOINTS
 // ============================================
 export const emergencyService = {
@@ -227,6 +239,11 @@ export const prescriptionService = {
   create: (data: any) => api.post("/prescriptions", data),
   getRoomPrescriptions: (roomId: string) => api.get(`/prescriptions/room/${roomId}`),
   getPatientPrescriptions: (patientId: string) => api.get(`/prescriptions/patient/${patientId}`),
+
+  // Admin prescription tracking
+  getAdminPrescriptionsList: () => api.get("/prescriptions/admin/list"),
+  updatePrescriptionStatus: (id: string, status: string) =>
+    api.patch(`/prescriptions/admin/${id}/status`, { status }),
 };
 
 // ============================================
@@ -300,3 +317,4 @@ export const reportService = {
   sendReportMessage: (reportId: string, content: string) =>
     api.post(`/reports/${reportId}/messages`, { content }),
 };
+

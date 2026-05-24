@@ -1,5 +1,6 @@
 import { useEffect, useRef, useState } from "react";
 import { useSearchParams, Link } from "react-router-dom";
+import { useTranslation } from "react-i18next";
 import { Send, Loader2, MessageCircle, Lock, FileText, ChevronRight, Check, CheckCheck, AlertTriangle } from "lucide-react";
 import { Input } from "@/components/ui/input";
 import { Button } from "@/components/ui/button";
@@ -49,6 +50,7 @@ interface Room {
 }
 
 export default function ConsultationChatPage() {
+  const { t } = useTranslation();
   const [searchParams] = useSearchParams();
   const doctorIdFromUrl = searchParams.get("doctor_id");
   const doctorNameFromUrl = searchParams.get("doctor_name");
@@ -105,7 +107,7 @@ export default function ConsultationChatPage() {
         });
       } catch (err) {
         console.error("Failed to create room:", err);
-        toast.error("Gagal memulai sesi chat. Silakan coba lagi.");
+        toast.error(t("patient.consultationChat.failedStartChat", "Gagal memulai sesi chat. Silakan coba lagi."));
       }
     };
     createRoom();
@@ -194,7 +196,7 @@ export default function ConsultationChatPage() {
 
         if (data.type === "end_session") {
           setSessionEnded(true);
-          toast.info("Sesi konsultasi telah diakhiri oleh dokter.");
+          toast.info(t("patient.consultationChat.sessionEndedByDoctor", "Sesi konsultasi telah diakhiri oleh dokter."));
           return;
         }
 
@@ -206,10 +208,10 @@ export default function ConsultationChatPage() {
         }
 
         if (data.type === "new_prescription") {
-          toast.success("Dokter telah mengirimkan resep obat baru!", {
-            description: "Klik untuk melihat detail resep.",
+          toast.success(t("patient.consultationChat.newPrescriptionTitle", "Dokter telah mengirimkan resep obat baru!"), {
+            description: t("patient.consultationChat.newPrescriptionDesc", "Klik untuk melihat detail resep."),
             action: {
-              label: "Lihat",
+              label: t("patient.consultationChat.viewPrescription", "Lihat"),
               onClick: () => setIsPrescriptionModalOpen(true)
             }
           });
@@ -293,10 +295,10 @@ export default function ConsultationChatPage() {
       <div className="flex flex-col items-center justify-center py-20 animate-fade-in">
         <MessageCircle className="h-8 w-8 text-muted-foreground mb-3" />
         <p className="text-muted-foreground mb-4">
-          Silakan login untuk menggunakan fitur konsultasi.
+          {t("patient.consultationChat.loginRequired", "Silakan login untuk menggunakan fitur konsultasi.")}
         </p>
         <Button asChild>
-          <Link to="/login">Login</Link>
+          <Link to="/login">{t("common.login", "Login")}</Link>
         </Button>
       </div>
     );
@@ -312,12 +314,12 @@ export default function ConsultationChatPage() {
       >
         <div className="p-4 border-b">
           <h2 className="font-semibold text-sm text-foreground mb-2">
-            Konsultasi
+            {t("patient.consultationChat.consultation", "Konsultasi")}
           </h2>
           <Button size="sm" variant="outline" className="w-full" asChild>
             <Link to="/search-doctor">
               <MessageCircle className="h-3.5 w-3.5 mr-1" />
-              Cari Dokter Baru
+              {t("patient.consultationChat.searchNewDoctor", "Cari Dokter Baru")}
             </Link>
           </Button>
         </div>
@@ -325,9 +327,9 @@ export default function ConsultationChatPage() {
           {rooms.length === 0 && (
             <div className="p-6 text-center text-sm text-muted-foreground">
               <MessageCircle className="h-6 w-6 mx-auto mb-2 text-muted-foreground/50" />
-              <p>Belum ada percakapan.</p>
+              <p>{t("patient.consultationChat.noConversations", "Belum ada percakapan.")}</p>
               <p className="mt-1">
-                Cari dokter untuk memulai konsultasi.
+                {t("patient.consultationChat.searchDoctorPrompt", "Cari dokter untuk memulai konsultasi.")}
               </p>
             </div>
           )}
@@ -358,7 +360,7 @@ export default function ConsultationChatPage() {
                     {room.partner_name}
                   </span>
                   {room.status === "ended" && (
-                    <Badge variant="secondary" className="text-[10px] shrink-0 ml-1">Ended</Badge>
+                    <Badge variant="secondary" className="text-[10px] shrink-0 ml-1">{t("patient.consultationChat.ended", "Ended")}</Badge>
                   )}
                 </div>
                 {room.last_message && (
@@ -401,7 +403,7 @@ export default function ConsultationChatPage() {
                 </p>
                 <p className="text-xs text-muted-foreground flex items-center gap-1">
                   {sessionEnded ? (
-                    <><Lock className="h-3 w-3" /> Sesi Berakhir</>
+                    <><Lock className="h-3 w-3" /> {t("patient.consultationChat.sessionEnded", "Sesi Berakhir")}</>
                   ) : (
                     <>
                       <span
@@ -409,7 +411,7 @@ export default function ConsultationChatPage() {
                           isConnected ? "bg-success" : "bg-muted-foreground"
                         }`}
                       />
-                      {isConnected ? "Connected" : "Disconnected"}
+                      {isConnected ? t("patient.consultationChat.connected", "Connected") : t("patient.consultationChat.disconnected", "Disconnected")}
                     </>
                   )}
                 </p>
@@ -417,34 +419,34 @@ export default function ConsultationChatPage() {
               <div className="flex items-center gap-2">
                 <div className="flex items-center gap-1">
                   <Lock className="h-3 w-3 text-success" />
-                  <span className="text-[10px] text-success font-medium hidden sm:inline">Encrypted</span>
+                  <span className="text-[10px] text-success font-medium hidden sm:inline">{t("patient.consultationChat.encrypted", "Encrypted")}</span>
                 </div>
                 
                   <Dialog open={isPrescriptionModalOpen} onOpenChange={setIsPrescriptionModalOpen}>
                     <DialogTrigger asChild>
                       <Button variant="outline" size="sm" className={`gap-1.5 text-primary border-primary/20 hover:bg-primary/5 ${prescriptions.length > 0 ? "animate-pulse-slow" : ""}`}>
                         <FileText className="h-4 w-4" />
-                        <span className="hidden sm:inline">Resep ({prescriptions.length})</span>
+                        <span className="hidden sm:inline">{t("patient.consultationChat.prescriptions", "Resep")} ({prescriptions.length})</span>
                       </Button>
                     </DialogTrigger>
                     <DialogContent className="sm:max-w-[500px] max-h-[80vh] overflow-y-auto">
                       <DialogHeader>
-                        <DialogTitle>Resep Obat dari Dokter</DialogTitle>
+                        <DialogTitle>{t("patient.consultationChat.prescriptionTitle", "Resep Obat dari Dokter")}</DialogTitle>
                         <DialogDescription>
-                          Daftar resep yang diberikan selama sesi konsultasi ini.
+                          {t("patient.consultationChat.prescriptionDesc", "Daftar resep yang diberikan selama sesi konsultasi ini.")}
                         </DialogDescription>
                       </DialogHeader>
                       <div className="space-y-4 py-4">
                         {prescriptions.length === 0 ? (
                           <div className="flex flex-col items-center justify-center py-8 text-center">
                             <FileText className="h-12 w-12 text-muted-foreground/30 mb-3" />
-                            <p className="text-muted-foreground text-sm font-medium">Belum ada obat yang diresepkan oleh dokter.</p>
+                            <p className="text-muted-foreground text-sm font-medium">{t("patient.consultationChat.noPrescriptions", "Belum ada obat yang diresepkan oleh dokter.")}</p>
                           </div>
                         ) : (
                           prescriptions.map((pres, idx) => (
                             <div key={pres.id} className="border rounded-xl overflow-hidden bg-card shadow-sm">
                               <div className="bg-primary/5 px-4 py-2 border-b flex justify-between items-center">
-                                <span className="text-xs font-bold text-primary uppercase tracking-wider">Resep #{prescriptions.length - idx}</span>
+                                <span className="text-xs font-bold text-primary uppercase tracking-wider">{t("patient.consultationChat.prescriptionNum", "Resep #{{num}}", { num: prescriptions.length - idx })}</span>
                                 <span className="text-[10px] text-muted-foreground">{new Date(pres.created_at).toLocaleDateString("id-ID", { day: 'numeric', month: 'short', year: 'numeric', hour: '2-digit', minute: '2-digit' })}</span>
                               </div>
                               <div className="p-4 space-y-4">
@@ -458,10 +460,10 @@ export default function ConsultationChatPage() {
                                         <p className="font-bold text-sm text-foreground">{med.name}</p>
                                         <div className="flex flex-wrap gap-x-4 gap-y-1 mt-1">
                                           <p className="text-xs text-muted-foreground flex items-center gap-1">
-                                            <span className="font-semibold text-foreground/70">Dosis:</span> {med.dosage}
+                                            <span className="font-semibold text-foreground/70">{t("patient.consultationChat.dosage", "Dosis")}:</span> {med.dosage}
                                           </p>
                                           <p className="text-xs text-muted-foreground flex items-center gap-1">
-                                            <span className="font-semibold text-foreground/70">Durasi:</span> {med.duration}
+                                            <span className="font-semibold text-foreground/70">{t("patient.consultationChat.duration", "Durasi")}:</span> {med.duration}
                                           </p>
                                         </div>
                                         <p className="text-xs text-primary font-medium mt-1.5 flex items-center gap-1">
@@ -473,7 +475,7 @@ export default function ConsultationChatPage() {
                                 </div>
                                 {pres.notes && (
                                   <div className="p-3 rounded-lg bg-accent/5 border border-accent/20">
-                                    <p className="text-[10px] uppercase font-bold text-accent tracking-widest mb-1">Catatan Dokter</p>
+                                    <p className="text-[10px] uppercase font-bold text-accent tracking-widest mb-1">{t("patient.consultationChat.doctorNotes", "Catatan Dokter")}</p>
                                     <p className="text-xs text-muted-foreground italic leading-relaxed">"{pres.notes}"</p>
                                   </div>
                                 )}
@@ -489,10 +491,10 @@ export default function ConsultationChatPage() {
                     size="sm"
                     className="gap-1.5 text-destructive hover:bg-destructive/10 hover:text-destructive"
                     onClick={() => setIsReportModalOpen(true)}
-                    title="Laporkan pengguna ini"
+                    title={t("patient.consultationChat.reportUser", "Laporkan pengguna ini")}
                   >
                     <AlertTriangle className="h-4 w-4" />
-                    <span className="hidden sm:inline">Report</span>
+                    <span className="hidden sm:inline">{t("patient.consultationChat.report", "Report")}</span>
                   </Button>
               </div>
               {activeRoom && (
@@ -508,7 +510,7 @@ export default function ConsultationChatPage() {
             </>
           ) : (
             <p className="font-semibold text-sm text-muted-foreground">
-              Pilih percakapan atau cari dokter
+              {t("patient.consultationChat.selectConversation", "Pilih percakapan atau cari dokter")}
             </p>
           )}
         </div>
@@ -519,12 +521,12 @@ export default function ConsultationChatPage() {
             <div className="flex flex-col items-center justify-center h-full text-center">
               <MessageCircle className="h-12 w-12 text-muted-foreground/30 mb-3" />
               <p className="text-muted-foreground text-sm">
-                Pilih dokter dari daftar di samping atau{" "}
+                {t("patient.consultationChat.selectDoctorPrompt", "Pilih dokter dari daftar di samping atau")}{" "}
                 <Link
                   to="/search-doctor"
                   className="text-primary hover:underline"
                 >
-                  cari dokter baru
+                  {t("patient.consultationChat.searchNewDoctorLink", "cari dokter baru")}
                 </Link>
               </p>
             </div>
@@ -534,7 +536,7 @@ export default function ConsultationChatPage() {
             <div className="flex items-center justify-center py-8">
               <Loader2 className="h-5 w-5 text-primary animate-spin mr-2" />
               <span className="text-sm text-muted-foreground">
-                Memuat pesan...
+                {t("patient.consultationChat.loadingMessages", "Memuat pesan...")}
               </span>
             </div>
           )}
@@ -543,10 +545,10 @@ export default function ConsultationChatPage() {
             <div className="flex flex-col items-center justify-center h-full text-center">
               <MessageCircle className="h-10 w-10 text-muted-foreground/30 mb-3" />
               <p className="text-muted-foreground text-sm">
-                Belum ada pesan. Kirim pesan untuk memulai konsultasi.
+                {t("patient.consultationChat.noMessages", "Belum ada pesan. Kirim pesan untuk memulai konsultasi.")}
               </p>
               <p className="text-[10px] text-success mt-2 flex items-center gap-1">
-                <Lock className="h-3 w-3" /> Pesan terenkripsi end-to-end
+                <Lock className="h-3 w-3" /> {t("patient.consultationChat.endToEndEncrypted", "Pesan terenkripsi end-to-end")}
               </p>
             </div>
           )}
@@ -595,17 +597,22 @@ export default function ConsultationChatPage() {
             {sessionEnded ? (
               <div className="bg-muted/50 rounded-lg p-3 text-center border border-dashed">
                 <p className="text-sm text-muted-foreground font-medium">
-                  Sesi konsultasi ini telah berakhir.
+                  {t("patient.consultationChat.sessionEndedMessage", "Sesi konsultasi ini telah berakhir.")}
                 </p>
               </div>
             ) : (
               <div className="flex items-center gap-2">
                 <Input
-                  placeholder="Ketik pesan..."
                   value={message}
                   onChange={(e) => setMessage(e.target.value)}
-                  onKeyDown={(e) => e.key === "Enter" && handleSend()}
-                  className="flex-1"
+                  onKeyDown={(e) => {
+                    if (e.key === "Enter" && !e.shiftKey) {
+                      e.preventDefault();
+                      handleSend();
+                    }
+                  }}
+                  placeholder={t("patient.consultationChat.typePlaceholder", "Ketik pesan...")}
+                  className="flex-1 rounded-full pl-4 pr-12 focus-visible:ring-primary/20 bg-background"
                   disabled={!isConnected}
                 />
                 <Button

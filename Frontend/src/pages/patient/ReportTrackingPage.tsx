@@ -1,4 +1,5 @@
 import { useEffect, useState } from "react";
+import { useTranslation } from "react-i18next";
 import {
   AlertTriangle,
   Clock,
@@ -31,33 +32,29 @@ interface Report {
   updated_at?: string;
 }
 
-const STATUS_CONFIG: Record<
+const STATUS_CONFIG_STYLE: Record<
   string,
-  { label: string; className: string; icon: React.ElementType; step: number }
+  { className: string; icon: React.ElementType; step: number }
 > = {
   pending: {
-    label: "Menunggu",
     className:
       "bg-amber-100 text-amber-800 border-amber-200 dark:bg-amber-900/30 dark:text-amber-300",
     icon: Clock,
     step: 1,
   },
   reviewed: {
-    label: "Ditinjau",
     className:
       "bg-blue-100 text-blue-800 border-blue-200 dark:bg-blue-900/30 dark:text-blue-300",
     icon: Eye,
     step: 2,
   },
   resolved: {
-    label: "Selesai",
     className:
       "bg-green-100 text-green-800 border-green-200 dark:bg-green-900/30 dark:text-green-300",
     icon: CheckCircle,
     step: 3,
   },
   dismissed: {
-    label: "Ditolak",
     className:
       "bg-gray-100 text-gray-600 border-gray-200 dark:bg-gray-800/30 dark:text-gray-400",
     icon: XCircle,
@@ -65,28 +62,10 @@ const STATUS_CONFIG: Record<
   },
 };
 
-const REASON_LABELS: Record<string, string> = {
-  inappropriate_behavior: "Perilaku Tidak Pantas",
-  unprofessional: "Tidak Profesional",
-  harassment: "Pelecehan",
-  fraud: "Penipuan",
-  other: "Lainnya",
-};
-
-const ROLE_LABELS: Record<string, string> = {
-  patient: "Pasien",
-  doctor: "Dokter",
-  ambulance: "Ambulance",
-  admin: "Admin",
-};
-
-const PROGRESS_STEPS = [
-  { status: "pending", label: "Dikirim", desc: "Laporan telah diterima" },
-  { status: "reviewed", label: "Ditinjau", desc: "Admin sedang meninjau" },
-  { status: "resolved", label: "Selesai", desc: "Laporan telah ditindak" },
-];
+// Labels will be resolved via t() inside component
 
 export default function ReportTrackingPage() {
+  const { t } = useTranslation();
   const user =
     typeof window !== "undefined"
       ? JSON.parse(localStorage.getItem("user") || "null")
@@ -98,6 +77,34 @@ export default function ReportTrackingPage() {
   const [selectedReport, setSelectedReport] = useState<Report | null>(null);
   const [showMobileDetail, setShowMobileDetail] = useState(false);
 
+  const STATUS_LABELS: Record<string, string> = {
+    pending: t("patient.reportTracking.statusPending"),
+    reviewed: t("patient.reportTracking.statusReviewed"),
+    resolved: t("patient.reportTracking.statusResolved"),
+    dismissed: t("patient.reportTracking.statusDismissed"),
+  };
+
+  const REASON_LABELS: Record<string, string> = {
+    inappropriate_behavior: t("patient.reportTracking.reasonInappropriate"),
+    unprofessional: t("patient.reportTracking.reasonUnprofessional"),
+    harassment: t("patient.reportTracking.reasonHarassment"),
+    fraud: t("patient.reportTracking.reasonFraud"),
+    other: t("patient.reportTracking.reasonOther"),
+  };
+
+  const ROLE_LABELS: Record<string, string> = {
+    patient: t("patient.reportTracking.rolePatient"),
+    doctor: t("patient.reportTracking.roleDoctor"),
+    ambulance: t("patient.reportTracking.roleAmbulance"),
+    admin: t("patient.reportTracking.roleAdmin"),
+  };
+
+  const PROGRESS_STEPS = [
+    { status: "pending", label: t("patient.reportTracking.stepSent"), desc: t("patient.reportTracking.stepSentDesc") },
+    { status: "reviewed", label: t("patient.reportTracking.stepReviewed"), desc: t("patient.reportTracking.stepReviewedDesc") },
+    { status: "resolved", label: t("patient.reportTracking.stepResolved"), desc: t("patient.reportTracking.stepResolvedDesc") },
+  ];
+
   // Fetch reports
   const fetchReports = async () => {
     setIsLoading(true);
@@ -105,7 +112,7 @@ export default function ReportTrackingPage() {
       const res = await reportService.getMyReports();
       setReports(res.data.reports);
     } catch {
-      toast.error("Gagal memuat laporan");
+      toast.error(t("patient.reportTracking.loadFailed"));
     } finally {
       setIsLoading(false);
     }
@@ -143,7 +150,7 @@ export default function ReportTrackingPage() {
               ? { ...prev, status: data.new_status, admin_notes: data.admin_notes }
               : prev
           );
-          toast.info(`Status laporan diperbarui: ${data.new_status}`);
+          toast.info(t("patient.reportTracking.statusUpdated", { status: data.new_status }));
         }
       } catch (e) {
         console.error("WS error", e);
@@ -181,7 +188,7 @@ export default function ReportTrackingPage() {
       <div className="flex flex-col items-center justify-center py-20">
         <FileWarning className="h-8 w-8 text-muted-foreground mb-3" />
         <p className="text-muted-foreground">
-          Silakan login untuk melihat laporan Anda.
+          {t("patient.reportTracking.loginRequired")}
         </p>
       </div>
     );
@@ -205,10 +212,10 @@ export default function ReportTrackingPage() {
         <div className="p-4 border-b border-border/50 bg-card">
           <h2 className="font-semibold text-lg text-foreground flex items-center gap-2">
             <FileWarning className="h-5 w-5 text-primary" />
-            Laporan Saya
+            {t("patient.reportTracking.myReports")}
           </h2>
           <p className="text-xs text-muted-foreground mt-1">
-            Pantau status laporan Anda secara real-time
+            {t("patient.reportTracking.subtitle")}
           </p>
         </div>
 
@@ -223,16 +230,16 @@ export default function ReportTrackingPage() {
                 <FileWarning className="h-6 w-6 text-primary" />
               </div>
               <p className="font-medium text-foreground mb-1">
-                Belum ada laporan
+                {t("patient.reportTracking.noReports")}
               </p>
               <p className="text-xs">
-                Laporan yang Anda buat akan muncul di sini.
+                {t("patient.reportTracking.noReportsDesc")}
               </p>
             </div>
           ) : (
             reports.map((report) => {
               const statusMeta =
-                STATUS_CONFIG[report.status] || STATUS_CONFIG.pending;
+                STATUS_CONFIG_STYLE[report.status] || STATUS_CONFIG_STYLE.pending;
               const StatusIcon = statusMeta.icon;
               const isSelected = selectedReport?.id === report.id;
 
@@ -249,7 +256,7 @@ export default function ReportTrackingPage() {
                   <div className="flex items-start justify-between mb-2">
                     <Badge className={`${statusMeta.className} text-[10px]`}>
                       <StatusIcon className="h-3 w-3 mr-1" />
-                      {statusMeta.label}
+                      {STATUS_LABELS[report.status] || report.status}
                     </Badge>
                     <span className="text-[10px] text-muted-foreground">
                       {formatDate(report.created_at)}
@@ -291,17 +298,17 @@ export default function ReportTrackingPage() {
                 <div className="flex-1 min-w-0">
                   <div className="flex items-center gap-2 mb-1">
                     <h3 className="font-semibold text-foreground truncate">
-                      Laporan terhadap {selectedReport.reported_name}
+                      {t("patient.reportTracking.reportAgainst", { name: selectedReport.reported_name })}
                     </h3>
                     {(() => {
                       const sm =
-                        STATUS_CONFIG[selectedReport.status] ||
-                        STATUS_CONFIG.pending;
+                        STATUS_CONFIG_STYLE[selectedReport.status] ||
+                        STATUS_CONFIG_STYLE.pending;
                       const Icon = sm.icon;
                       return (
                         <Badge className={`${sm.className} text-[10px] shrink-0`}>
                           <Icon className="h-3 w-3 mr-1" />
-                          {sm.label}
+                          {STATUS_LABELS[selectedReport.status] || selectedReport.status}
                         </Badge>
                       );
                     })()}
@@ -316,7 +323,7 @@ export default function ReportTrackingPage() {
               <div className="grid grid-cols-2 gap-3">
                 <div className="p-3 rounded-lg bg-muted/30 border">
                   <p className="text-[10px] uppercase text-muted-foreground font-bold tracking-wider mb-1">
-                    Yang Dilaporkan
+                    {t("patient.reportTracking.reportedPerson")}
                   </p>
                   <p className="font-medium text-sm">{selectedReport.reported_name}</p>
                   <Badge variant="secondary" className="text-[10px] mt-1">
@@ -325,13 +332,13 @@ export default function ReportTrackingPage() {
                 </div>
                 <div className="p-3 rounded-lg bg-muted/30 border">
                   <p className="text-[10px] uppercase text-muted-foreground font-bold tracking-wider mb-1">
-                    Alasan
+                    {t("patient.reportTracking.reason")}
                   </p>
                   <p className="font-medium text-sm">
                     {REASON_LABELS[selectedReport.reason] || selectedReport.reason}
                   </p>
                   <Badge variant="outline" className="text-[10px] mt-1 capitalize">
-                    {selectedReport.context_type === "consultation" ? "Konsultasi" : "Emergency"}
+                    {selectedReport.context_type === "consultation" ? t("patient.reportTracking.contextConsultation") : t("patient.reportTracking.contextEmergency")}
                   </Badge>
                 </div>
               </div>
@@ -340,7 +347,7 @@ export default function ReportTrackingPage() {
             {/* Description */}
             <div className="p-4 sm:p-6 border-b border-border/50">
               <p className="text-[10px] uppercase text-muted-foreground font-bold tracking-wider mb-2">
-                Deskripsi Laporan
+                {t("patient.reportTracking.reportDescription")}
               </p>
               <p className="text-sm text-foreground leading-relaxed bg-muted/20 rounded-lg p-4 border">
                 {selectedReport.description}
@@ -350,7 +357,7 @@ export default function ReportTrackingPage() {
             {/* Progress Tracking Timeline */}
             <div className="p-4 sm:p-6 border-b border-border/50">
               <p className="text-[10px] uppercase text-muted-foreground font-bold tracking-wider mb-4">
-                Status Tracking
+                {t("patient.reportTracking.statusTracking")}
               </p>
 
               {selectedReport.status === "dismissed" ? (
@@ -360,9 +367,9 @@ export default function ReportTrackingPage() {
                       <XCircle className="h-5 w-5 text-gray-500" />
                     </div>
                     <div>
-                      <p className="font-semibold text-sm text-foreground">Laporan Ditolak</p>
+                      <p className="font-semibold text-sm text-foreground">{t("patient.reportTracking.reportDismissed")}</p>
                       <p className="text-xs text-muted-foreground">
-                        Admin telah meninjau dan menolak laporan ini.
+                        {t("patient.reportTracking.reportDismissedDesc")}
                       </p>
                     </div>
                   </div>
@@ -424,7 +431,7 @@ export default function ReportTrackingPage() {
                                 <span className="relative inline-flex rounded-full h-2 w-2 bg-primary"></span>
                               </span>
                               <span className="text-[10px] text-primary font-medium uppercase tracking-wider">
-                                Status saat ini
+                                {t("patient.reportTracking.currentStatus")}
                               </span>
                             </div>
                           )}
@@ -440,7 +447,7 @@ export default function ReportTrackingPage() {
             {selectedReport.admin_notes && (
               <div className="p-4 sm:p-6">
                 <p className="text-[10px] uppercase text-muted-foreground font-bold tracking-wider mb-2">
-                  Catatan Admin
+                  {t("patient.reportTracking.adminNotes")}
                 </p>
                 <div className="p-4 rounded-lg bg-blue-50 dark:bg-blue-950/20 border border-blue-200 dark:border-blue-800">
                   <p className="text-sm text-blue-800 dark:text-blue-300 leading-relaxed">
@@ -456,10 +463,10 @@ export default function ReportTrackingPage() {
               <FileWarning className="h-12 w-12 text-primary" />
             </div>
             <h3 className="text-lg font-semibold text-foreground mb-1">
-              Report Tracking
+              {t("patient.reportTracking.title")}
             </h3>
             <p className="text-sm text-muted-foreground max-w-sm">
-              Pilih laporan di sebelah kiri untuk melihat detail dan progress tracking.
+              {t("patient.reportTracking.selectReport")}
             </p>
           </div>
         )}

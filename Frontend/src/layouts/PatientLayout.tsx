@@ -1,5 +1,6 @@
 import { useState, useEffect, useRef } from "react";
 import { useQuery } from "@tanstack/react-query";
+import { useTranslation } from "react-i18next";
 import { authService } from "@/services/api";
 import { Link, useLocation, Outlet, useNavigate } from "react-router-dom";
 import {
@@ -18,19 +19,7 @@ import {
 import { toast } from "sonner";
 import { AccessibilityProvider } from "@/contexts/AccessibilityContext";
 import AccessibilityPanel from "@/components/AccessibilityPanel";
-
-const patientNav = [
-  { label: "Dashboard", path: "/dashboard", icon: LayoutDashboard },
-  { label: "Search Doctor", path: "/search-doctor", icon: Search },
-  { label: "Chat", path: "/chat", icon: MessageSquare },
-  { label: "Chat History", path: "/chat-history", icon: History },
-  { label: "Home Visit", path: "/home-visit", icon: Home },
-  { label: "Report Tracking", path: "/report-tracking", icon: FileWarning },
-  { label: "Home Visit Tracking", path: "/tracking", icon: Home },
-  { label: "Medical Records", path: "/health-records", icon: ClipboardList },
-  { label: "Emergency", path: "/emergency", icon: AlertTriangle },
-  { label: "Profile", path: "/profile", icon: User },
-];
+import LanguageSwitcher from "@/components/LanguageSwitcher";
 
 interface PatientLayoutProps {
   userName?: string;
@@ -41,7 +30,21 @@ export default function PatientLayout({
   userName = "John Doe",
   userInitials = "JD"
 }: PatientLayoutProps) {
+  const { t } = useTranslation();
   const [sidebarOpen, setSidebarOpen] = useState(false);
+
+  const patientNav = [
+    { label: t("patient.layout.dashboard"), path: "/dashboard", icon: LayoutDashboard },
+    { label: t("patient.layout.searchDoctor"), path: "/search-doctor", icon: Search },
+    { label: t("patient.layout.chat"), path: "/chat", icon: MessageSquare },
+    { label: t("patient.layout.chatHistory"), path: "/chat-history", icon: History },
+    { label: t("patient.layout.homeVisit"), path: "/home-visit", icon: Home },
+    { label: t("patient.layout.reportTracking"), path: "/report-tracking", icon: FileWarning },
+    { label: t("patient.layout.homeVisitTracking"), path: "/tracking", icon: Home },
+    { label: t("patient.layout.medicalRecords"), path: "/health-records", icon: ClipboardList },
+    { label: t("patient.layout.emergency"), path: "/emergency", icon: AlertTriangle },
+    { label: t("patient.layout.profile"), path: "/profile", icon: User },
+  ];
 
   const { data: meData } = useQuery({
     queryKey: ["me"],
@@ -52,9 +55,7 @@ export default function PatientLayout({
   if (meData) {
     userName = meData.full_name || userName;
     const parts = (meData.full_name || "").split(" ").filter(Boolean);
-    userInitials = parts.length
-      ? parts.map((p) => p[0]).slice(0, 2).join("")
-      : userInitials;
+    userInitials = parts.length ? parts.map(p => p[0]).slice(0, 2).join("") : userInitials;
   }
 
   const [notifications, setNotifications] = useState<any[]>([]);
@@ -63,22 +64,16 @@ export default function PatientLayout({
 
   const isActive = (path: string) => location.pathname === path;
 
-  const userId =
-    meData?.id || JSON.parse(localStorage.getItem("user") || "{}")?.id;
-
+  // WebSocket for notifications
+  const userId = meData?.id || JSON.parse(localStorage.getItem("user") || "{}")?.id;
   const wsRef = useRef<WebSocket | null>(null);
 
   useEffect(() => {
     if (!userId) return;
 
     const connectWS = () => {
-      const port =
-        window.location.hostname === "localhost"
-          ? "8001"
-          : window.location.port;
-
-      const wsUrl = `${window.location.protocol === "https:" ? "wss" : "ws"
-        }://${window.location.hostname}:${port}/ws/chat/${userId}`;
+      const port = window.location.hostname === "localhost" ? "8001" : window.location.port;
+      const wsUrl = `${window.location.protocol === "https:" ? "wss" : "ws"}://${window.location.hostname}:${port}/ws/chat/${userId}`;
 
       const ws = new WebSocket(wsUrl);
       wsRef.current = ws;
@@ -91,7 +86,7 @@ export default function PatientLayout({
             setNotifications((prev) => [
               {
                 id: Date.now(),
-                title: "Pesan Baru",
+                title: t("patient.layout.newMessage"),
                 description: data.content,
                 sender_id: data.sender_id,
                 room_id: data.room_id,
@@ -104,10 +99,10 @@ export default function PatientLayout({
             ]);
 
             if (!location.pathname.includes("/chat")) {
-              toast("Pesan Baru dari Dokter", {
+              toast(t("patient.layout.newMessageFromDoctor"), {
                 description: data.content,
                 action: {
-                  label: "Lihat Chat",
+                  label: t("patient.layout.viewChat"),
                   onClick: () => navigate("/chat"),
                 },
               });
@@ -123,7 +118,8 @@ export default function PatientLayout({
 
     connectWS();
     return () => wsRef.current?.close();
-  }, [userId, location.pathname, navigate]);
+  }, [userId, location.pathname, navigate, t]);
+
 
   return (
     <AccessibilityProvider>
@@ -158,21 +154,15 @@ export default function PatientLayout({
 
         <nav className="px-3 py-4 space-y-1 overflow-y-auto h-[calc(100%-140px)]">
           <p className="px-3 text-xs font-semibold uppercase tracking-wider text-sidebar-foreground/50 mb-2">
-            Patient Menu
+            {t("patient.layout.menu")}
           </p>
 
           {patientNav.map((item) => (
-            <Link
-              key={item.path}
-              to={item.path}
-              onClick={() => setSidebarOpen(false)}
-              className={`flex items-center gap-3 px-3 py-2.5 rounded-lg text-sm font-medium transition ${isActive(item.path)
-                ? "bg-sidebar-primary text-sidebar-primary-foreground"
-                : "text-sidebar-foreground/70 hover:bg-sidebar-accent hover:text-sidebar-accent-foreground"
-                }`}
-            >
-              <item.icon className="h-4 w-4" />
-              {item.label}
+            <Link key={item.path} to={item.path} onClick={() => setSidebarOpen(false)}
+              className={`flex items-center gap-3 px-3 py-2.5 rounded-lg text-sm font-medium transition-all duration-200 ${
+                isActive(item.path) ? "bg-sidebar-primary text-sidebar-primary-foreground" : "text-sidebar-foreground/70 hover:bg-sidebar-accent hover:text-sidebar-accent-foreground"
+              }`}>
+              <item.icon className="h-4 w-4" />{item.label}
             </Link>
           ))}
         </nav>
@@ -183,7 +173,7 @@ export default function PatientLayout({
             className="flex items-center gap-3 px-3 py-2.5 rounded-lg text-sm font-medium text-sidebar-foreground/70 hover:bg-sidebar-accent"
           >
             <LogOut className="h-4 w-4" />
-            Logout
+            {t("common.logout")}
           </Link>
         </div>
       </aside>
@@ -204,14 +194,16 @@ export default function PatientLayout({
 
             {/* breadcrumb */}
             <nav className="hidden sm:flex items-center text-sm text-muted-foreground">
-              <Link to="/dashboard">Home</Link>
+              <Link to="/dashboard">{t("common.home")}</Link>
               <span className="mx-2">/</span>
               <span className="text-foreground font-medium capitalize">
-                {location.pathname.slice(1).replace(/-/g, " ") || "Dashboard"}
+                {location.pathname.slice(1).replace(/-/g, " ") || t("common.dashboard")}
               </span>
             </nav>
 
             <div className="flex items-center gap-3">
+
+              <LanguageSwitcher />
 
               {/* notif */}
               <DropdownMenu>
@@ -228,13 +220,13 @@ export default function PatientLayout({
 
                 <DropdownMenuContent align="end" className="w-72">
                   <div className="px-3 py-2 font-semibold text-sm">
-                    Notifications
+                    {t("common.notifications")}
                   </div>
                   <DropdownMenuSeparator />
 
                   {notifications.length === 0 ? (
                     <div className="px-3 py-4 text-xs text-muted-foreground">
-                      No new notifications
+                      {t("common.noNotifications")}
                     </div>
                   ) : (
                     notifications.map((n) => (
@@ -263,15 +255,15 @@ export default function PatientLayout({
 
                 <DropdownMenuContent align="end">
                   <DropdownMenuItem asChild>
-                    <Link to="/profile">Profile</Link>
+                    <Link to="/profile">{t("common.profile")}</Link>
                   </DropdownMenuItem>
                   <DropdownMenuItem>
                     <Settings className="h-4 w-4 mr-2" />
-                    Settings
+                    {t("common.settings")}
                   </DropdownMenuItem>
                   <DropdownMenuSeparator />
                   <DropdownMenuItem asChild>
-                    <Link to="/login">Logout</Link>
+                    <Link to="/login">{t("common.logout")}</Link>
                   </DropdownMenuItem>
                 </DropdownMenuContent>
               </DropdownMenu>
@@ -286,7 +278,7 @@ export default function PatientLayout({
         </main>
 
         <footer className="border-t px-6 py-4 text-center text-sm text-muted-foreground">
-          © 2026 Medicall — Healthcare Platform
+          {t("patient.layout.footer")}
         </footer>
 
       </div>
