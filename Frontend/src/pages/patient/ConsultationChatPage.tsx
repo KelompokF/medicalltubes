@@ -5,7 +5,7 @@ import { Send, Loader2, MessageCircle, Lock, FileText, ChevronRight, Check, Chec
 import { Input } from "@/components/ui/input";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
-import api, { prescriptionService } from "@/services/api";
+import api, { API_BASE_URL, prescriptionService } from "@/services/api";
 import { toast } from "sonner";
 import ReportModal from "@/components/ReportModal";
 import {
@@ -180,8 +180,8 @@ export default function ConsultationChatPage() {
   useEffect(() => {
     if (!userId) return;
 
-    const port = window.location.hostname === "localhost" ? "8001" : window.location.port;
-    const wsUrl = `${window.location.protocol === "https:" ? "wss" : "ws"}://${window.location.hostname}:${port}/ws/chat/${userId}`;
+    const wsBaseUrl = API_BASE_URL.replace(/^http/, "ws");
+    const wsUrl = `${wsBaseUrl}/ws/chat/${userId}`;
     const ws = new WebSocket(wsUrl);
     wsRef.current = ws;
 

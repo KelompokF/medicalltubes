@@ -16,7 +16,7 @@ import {
   AlertDialogTitle,
   AlertDialogTrigger,
 } from "@/components/ui/alert-dialog";
-import api, { prescriptionService, doctorService } from "@/services/api";
+import api, { API_BASE_URL, prescriptionService, doctorService } from "@/services/api";
 import { toast } from "sonner";
 import ReportModal from "@/components/ReportModal";
 import {
@@ -169,8 +169,8 @@ export default function DoctorConsultationPage() {
   useEffect(() => {
     if (!doctorId) return;
 
-    const port = window.location.hostname === "localhost" ? "8001" : window.location.port;
-    const wsUrl = `${window.location.protocol === "https:" ? "wss" : "ws"}://${window.location.hostname}:${port}/ws/chat/${doctorId}`;
+    const wsBaseUrl = API_BASE_URL.replace(/^http/, "ws");
+    const wsUrl = `${wsBaseUrl}/ws/chat/${doctorId}`;
     const ws = new WebSocket(wsUrl);
     wsRef.current = ws;
 
