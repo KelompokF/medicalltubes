@@ -86,7 +86,7 @@ export default function SearchDoctorPage() {
 
     if (!navigator.geolocation) {
       setLocationStatus("denied");
-      toast.error("Geolocation tidak didukung oleh browser Anda.");
+      toast.error(t("patient.searchDoctor.geoNotSupported", "Geolocation tidak didukung oleh browser Anda."));
       return;
     }
 
@@ -104,7 +104,7 @@ export default function SearchDoctorPage() {
         setLocationStatus("denied");
         if (error.code === error.PERMISSION_DENIED) {
           toast.info(
-            "Akses lokasi ditolak. Menampilkan semua dokter tanpa filter jarak."
+            t("patient.searchDoctor.locationDeniedToast", "Akses lokasi ditolak. Menampilkan semua dokter tanpa filter jarak.")
           );
         }
       },
@@ -133,7 +133,7 @@ export default function SearchDoctorPage() {
       setCurrentPage(1);
     } catch (error: any) {
       console.error("Error fetching doctors:", error);
-      toast.error("Gagal memuat data dokter.");
+      toast.error(t("patient.searchDoctor.loadFailedToast", "Gagal memuat data dokter."));
     } finally {
       setIsLoading(false);
     }

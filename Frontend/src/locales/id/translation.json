@@ -182,7 +182,23 @@
       "loadingDashboard": "Memuat dasbor...",
       "errorOccurred": "Ups, terjadi kesalahan",
       "failedLoadDashboard": "Gagal memuat data dasbor Anda.",
-      "tryAgain": "Coba Lagi"
+      "tryAgain": "Coba Lagi",
+      "status": {
+        "aktif": "Aktif",
+        "active": "Aktif",
+        "selesai": "Selesai",
+        "completed": "Selesai",
+        "dibatalkan": "Dibatalkan",
+        "cancelled": "Dibatalkan",
+        "menunggu": "Menunggu",
+        "pending": "Menunggu"
+      },
+      "prescriptions": "Resep Obat",
+      "prescriptionList": "Daftar Resep Obat",
+      "noPrescriptions": "Belum ada resep obat",
+      "dosage": "Dosis:",
+      "duration": "Durasi:",
+      "doctorNotes": "Catatan Dokter"
     },
     "chatHistory": {
       "title": "Riwayat Chat",
@@ -250,7 +266,23 @@
       "viewProfile": "Lihat Profil",
       "noDoctorsFound": "Tidak ada dokter ditemukan",
       "noDoctorsDesc": "Coba sesuaikan pencarian atau filter Anda.",
-      "offline": "Offline"
+      "offline": "Offline",
+      "findingGps": "Mencari lokasi GPS...",
+      "gpsActive": "GPS Aktif",
+      "locationInactive": "Lokasi tidak aktif",
+      "nearbyOn": "Nearby: ON",
+      "nearbyOff": "Nearby: OFF",
+      "enableGps": "Aktifkan GPS",
+      "doctorsFound": "dokter ditemukan",
+      "inRadius": " dalam radius {{radius}} km",
+      "yearsAbbr": "thn",
+      "perConsultation": "/ konsultasi",
+      "show": "Tampilkan",
+      "perPage": "per halaman",
+      "pageInfo": "Halaman {{current}} dari {{total}}",
+      "geoNotSupported": "Geolocation tidak didukung oleh browser Anda.",
+      "locationDeniedToast": "Akses lokasi ditolak. Menampilkan semua dokter tanpa filter jarak.",
+      "loadFailedToast": "Gagal memuat data dokter."
     },
     "doctorDetail": {
       "loadingDoctor": "Memuat data dokter...",
@@ -811,7 +843,7 @@
     "schedule": {
       "serviceSettings": "Pengaturan Layanan",
       "title": "Jadwal Praktik",
-      "subtitle": "Atur ketersediaan waktu Anda untuk layanan <bold>Kunjungan Rumah (Home Visit)</bold>. Pasien hanya dapat memilih waktu yang Anda aktifkan di sini.",
+      "subtitle": "Atur ketersediaan waktu Anda untuk layanan <b>Kunjungan Rumah (Home Visit)</b>. Pasien hanya dapat memilih waktu yang Anda aktifkan di sini.",
       "saveSchedule": "Simpan Jadwal",
       "selectDay": "Pilih Hari",
       "dayTitle": "Hari {{day}}",
@@ -830,7 +862,7 @@
       "autoSaveOff": "Auto-save mati",
       "clickSaveToApply": "Klik simpan untuk menerapkan",
       "tips": "Tips",
-      "tipsDesc": "Gunakan fitur <bold>Salin ke Semua</bold> jika jadwal praktik Anda sama setiap harinya.",
+      "tipsDesc": "Gunakan fitur <b>Salin ke Semua</b> jika jadwal praktik Anda sama setiap harinya.",
       "loadingSchedule": "Memuat pengaturan jadwal...",
       "loadFailed": "Gagal memuat jadwal praktik.",
       "saveFailed": "Gagal menyimpan jadwal praktik.",
@@ -838,7 +870,13 @@
       "copiedSuccess": "Jadwal {{day}} disalin ke semua hari.",
       "invalidTimeFormat": "Format waktu tidak valid (Gunakan HH:MM)",
       "timeAlreadyExists": "Waktu sudah ada di jadwal.",
-      "selectAtLeastOneSlot": "Pilih setidaknya satu slot waktu untuk disalin."
+      "selectAtLeastOneSlot": "Pilih setidaknya satu slot waktu untuk disalin.",
+      "saveButton": "Simpan Jadwal",
+      "slotCount": "Slot",
+      "summaryTitle": "Ringkasan Jadwal",
+      "noSlotSelected": "Belum Ada Slot Terpilih",
+      "noSlotDesc": "Silakan pilih dari slot waktu di atas atau tambah jam kustom untuk hari {{day}}.",
+      "clickToApply": "Klik simpan untuk menerapkan"
     }
   },
   "ambulance": {
@@ -871,6 +909,22 @@
       "noHistory": "Tidak ada riwayat darurat."
     },
     "active": {
+      "boardTitle": "Emergency Active Board",
+      "mainTitle": "Lokasi pasien aktif untuk unit ambulans",
+      "mainDesc": "Pantau titik penjemputan, buka navigasi instan, lalu update progres penanganan dari satu layar yang ringkas.",
+      "refresh": "Refresh Kasus",
+      "stat": {
+        "activeRequest": "Active Request",
+        "activeRequestDesc": "Kasus aktif yang masih ditangani",
+        "nearest": "Nearest Pickup",
+        "nearestDesc": "Jarak terdekat dari base ambulans",
+        "onProgress": "On Progress",
+        "onProgressDesc": "Pasien yang sedang ditangani"
+      },
+      "emptyTitle": "Belum ada emergency aktif",
+      "emptyDesc": "Saat ini belum ada pasien yang di-assign ke unit ambulans ini.",
+      "errorTitle": "Gagal memuat emergency aktif",
+      "errorDesc": "Data pasien aktif belum bisa diambil. Coba refresh lagi.",
       "title": "Darurat Aktif",
       "subtitle": "Manajemen permintaan darurat real-time",
       "totalActive": "Total Aktif",
