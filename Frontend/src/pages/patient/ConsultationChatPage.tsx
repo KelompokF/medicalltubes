@@ -1,13 +1,14 @@
 import { useEffect, useRef, useState } from "react";
 import { useSearchParams, Link } from "react-router-dom";
 import { useTranslation } from "react-i18next";
-import { Send, Loader2, MessageCircle, Lock, FileText, ChevronRight, Check, CheckCheck, AlertTriangle } from "lucide-react";
+import { Send, Loader2, MessageCircle, Lock, FileText, ChevronRight, Check, CheckCheck, AlertTriangle, Star } from "lucide-react";
 import { Input } from "@/components/ui/input";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
-import api, { API_BASE_URL, prescriptionService } from "@/services/api";
+import api, { API_BASE_URL, prescriptionService, reviewService } from "@/services/api";
 import { toast } from "sonner";
 import ReportModal from "@/components/ReportModal";
+import RatingModal from "@/components/RatingModal";
 import {
   Dialog,
   DialogContent,
@@ -75,6 +76,8 @@ export default function ConsultationChatPage() {
   const [prescriptions, setPrescriptions] = useState<Prescription[]>([]);
   const [isPrescriptionModalOpen, setIsPrescriptionModalOpen] = useState(false);
   const [isReportModalOpen, setIsReportModalOpen] = useState(false);
+  const [isRatingModalOpen, setIsRatingModalOpen] = useState(false);
+  const [hasReviewed, setHasReviewed] = useState(false);
 
   const wsRef = useRef<WebSocket | null>(null);
   const messagesEndRef = useRef<HTMLDivElement>(null);
@@ -167,6 +170,16 @@ export default function ConsultationChatPage() {
         if (Array.isArray(presRes.data)) {
           setPrescriptions(presRes.data);
         }
+
+        // Check if already reviewed (for ended sessions)
+        if (activeRoom.status === "ended") {
+          try {
+            const reviewRes = await reviewService.checkReview("consultation", activeRoom.room_id);
+            setHasReviewed(reviewRes.data?.has_reviewed || false);
+          } catch {
+            setHasReviewed(false);
+          }
+        }
       } catch {
         setMessages([]);
       } finally {
@@ -196,6 +209,7 @@ export default function ConsultationChatPage() {
 
         if (data.type === "end_session") {
           setSessionEnded(true);
+          setHasReviewed(false); // Reset so we can check
           toast.info(t("patient.consultationChat.sessionEndedByDoctor", "Sesi konsultasi telah diakhiri oleh dokter."));
           return;
         }
@@ -595,10 +609,25 @@ export default function ConsultationChatPage() {
         {activeRoom && (
           <div className="p-4 border-t">
             {sessionEnded ? (
-              <div className="bg-muted/50 rounded-lg p-3 text-center border border-dashed">
+              <div className="bg-muted/50 rounded-lg p-3 text-center border border-dashed space-y-2">
                 <p className="text-sm text-muted-foreground font-medium">
                   {t("patient.consultationChat.sessionEndedMessage", "Sesi konsultasi ini telah berakhir.")}
                 </p>
+                {!hasReviewed ? (
+                  <Button
+                    size="sm"
+                    className="bg-amber-500 hover:bg-amber-600 text-white rounded-full px-6 gap-2 shadow-md"
+                    onClick={() => setIsRatingModalOpen(true)}
+                  >
+                    <Star className="h-4 w-4 fill-white" />
+                    {t("patient.reviews.rateDoctor", "Beri Rating Dokter")}
+                  </Button>
+                ) : (
+                  <p className="text-xs text-green-600 font-medium flex items-center justify-center gap-1">
+                    <Star className="h-3.5 w-3.5 fill-green-600" />
+                    {t("patient.reviews.alreadyReviewed", "Anda sudah memberi rating")}
+                  </p>
+                )}
               </div>
             ) : (
               <div className="flex items-center gap-2">
@@ -629,6 +658,17 @@ export default function ConsultationChatPage() {
               <p className="text-xs text-destructive mt-1">
                 Koneksi terputus. Mencoba menghubungkan ulang...
               </p>
+            )}
+            {activeRoom && (
+              <RatingModal
+                open={isRatingModalOpen}
+                onOpenChange={setIsRatingModalOpen}
+                doctorId={activeRoom.partner_id}
+                doctorName={activeRoom.partner_name}
+                contextType="consultation"
+                contextId={activeRoom.room_id}
+                onSuccess={() => setHasReviewed(true)}
+              />
             )}
           </div>
         )}

@@ -595,6 +595,32 @@
       "completeRequestDesc": "Tandai bantuan darurat ini selesai dan hapus dari status aktif.",
       "back": "Kembali",
       "confirm": "Konfirmasi"
+    },
+    "reviews": {
+      "rateDoctor": "Beri Rating Dokter",
+      "howWasExperience": "Bagaimana pengalaman Anda?",
+      "writeComment": "Tulis Komentar",
+      "optional": "opsional",
+      "commentPlaceholder": "Ceritakan pengalaman Anda dengan dokter ini...",
+      "submitReview": "Kirim Review",
+      "submitting": "Mengirim...",
+      "selectRating": "Pilih rating terlebih dahulu",
+      "reviewSubmitted": "Review berhasil dikirim!",
+      "submitFailed": "Gagal mengirim review.",
+      "thankYou": "Terima Kasih!",
+      "reviewRecorded": "Rating dan komentar Anda telah dicatat.",
+      "alreadyReviewed": "Anda sudah memberi rating",
+      "reviewed": "Sudah dinilai",
+      "reviewsAndRatings": "Ulasan & Rating",
+      "reviewsCount": "ulasan",
+      "noReviews": "Belum ada ulasan untuk dokter ini.",
+      "beFirst": "Jadilah yang pertama memberi penilaian!",
+      "ago": "yang lalu",
+      "ratingTerrible": "Sangat Buruk",
+      "ratingBad": "Buruk",
+      "ratingOkay": "Cukup",
+      "ratingGood": "Baik",
+      "ratingExcellent": "Sangat Baik"
     }
   },
   "admin": {

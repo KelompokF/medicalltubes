@@ -3,13 +3,14 @@ import { useTranslation } from "react-i18next";
 import {
   Calendar, Clock, MapPin, Phone, User, Stethoscope,
   FileText, CheckCircle2, XCircle, AlertCircle, Loader2,
-  ChevronRight, Home, RefreshCw, X
+  ChevronRight, Home, RefreshCw, X, Star
 } from "lucide-react";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
 import { useNavigate } from "react-router-dom";
 import api from "@/services/api";
+import RatingModal from "@/components/RatingModal";
 
 interface HomeVisitRequest {
   id: string;
@@ -147,6 +148,8 @@ export default function HomeVisitTrackingPage() {
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
   const [selectedRequest, setSelectedRequest] = useState<HomeVisitRequest | null>(null);
+  const [ratingTarget, setRatingTarget] = useState<HomeVisitRequest | null>(null);
+  const [reviewedIds, setReviewedIds] = useState<Set<string>>(new Set());
 
   const statusLabel: Record<string, string> = {
     pending:   t("patient.homeVisitTracking.statusPending"),
@@ -271,6 +274,22 @@ export default function HomeVisitTrackingPage() {
                         {t("common.viewDetail")}
                         <ChevronRight className="h-3.5 w-3.5" />
                       </Button>
+                      {status === "completed" && item.doctor_id && !reviewedIds.has(item.id) && (
+                        <Button
+                          size="sm"
+                          className="bg-amber-500 hover:bg-amber-600 text-white flex items-center gap-1 text-xs rounded-full"
+                          onClick={() => setRatingTarget(item)}
+                        >
+                          <Star className="h-3.5 w-3.5 fill-white" />
+                          {t("patient.reviews.rateDoctor", "Beri Rating")}
+                        </Button>
+                      )}
+                      {status === "completed" && reviewedIds.has(item.id) && (
+                        <span className="text-xs text-green-600 font-medium flex items-center gap-1">
+                          <Star className="h-3 w-3 fill-green-600" />
+                          {t("patient.reviews.reviewed", "Sudah dinilai")}
+                        </span>
+                      )}
                     </div>
                   </div>
                 </CardContent>
@@ -285,6 +304,20 @@ export default function HomeVisitTrackingPage() {
           request={selectedRequest}
           onClose={() => setSelectedRequest(null)}
           t={t}
+        />
+      )}
+
+      {ratingTarget && ratingTarget.doctor_id && (
+        <RatingModal
+          open={!!ratingTarget}
+          onOpenChange={(open) => { if (!open) setRatingTarget(null); }}
+          doctorId={ratingTarget.doctor_id}
+          doctorName={ratingTarget.doctor_name}
+          contextType="home_visit"
+          contextId={ratingTarget.id}
+          onSuccess={() => {
+            setReviewedIds(prev => new Set([...prev, ratingTarget.id]));
+          }}
         />
       )}
     </div>

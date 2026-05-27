@@ -26,7 +26,7 @@ import {
 } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
 import { toast } from "sonner";
-import { doctorService, doctorScheduleService, DoctorScheduleResponse } from "@/services/api";
+import { doctorService, doctorScheduleService, DoctorScheduleResponse, reviewService } from "@/services/api";
 
 interface DoctorDetail {
   id: string;
@@ -47,12 +47,32 @@ interface DoctorDetail {
   lng: number | null;
 }
 
+interface ReviewItem {
+  id: string;
+  patient_id: string;
+  patient_name: string;
+  doctor_id: string;
+  rating: number;
+  comment: string | null;
+  context_type: string;
+  context_id: string;
+  created_at: string;
+}
+
+interface ReviewSummary {
+  average_rating: number;
+  total_reviews: number;
+  distribution: Record<string, number>;
+  reviews: ReviewItem[];
+}
+
 export default function DoctorDetailPage() {
   const { t } = useTranslation();
   const { id } = useParams();
   const navigate = useNavigate();
   const [doctor, setDoctor] = useState<DoctorDetail | null>(null);
   const [schedule, setSchedule] = useState<DoctorScheduleResponse | null>(null);
+  const [reviewData, setReviewData] = useState<ReviewSummary | null>(null);
   const [isLoading, setIsLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
 
@@ -72,6 +92,14 @@ export default function DoctorDetailPage() {
           setSchedule(schedRes.data);
         } catch (schedErr) {
           console.warn("Jadwal tidak ditemukan atau error:", schedErr);
+        }
+
+        // Fetch reviews
+        try {
+          const reviewRes = await reviewService.getDoctorReviews(id);
+          setReviewData(reviewRes.data);
+        } catch (reviewErr) {
+          console.warn("Reviews tidak ditemukan:", reviewErr);
         }
       } catch (err: any) {
         console.error("Error fetching doctor:", err);
@@ -267,6 +295,148 @@ export default function DoctorDetailPage() {
                       </div>
                     </div>
                   ))}
+                </div>
+              )}
+            </CardContent>
+          </Card>
+
+          {/* Reviews Section */}
+          <Card className="border-0 shadow-md rounded-[2rem] overflow-hidden bg-white">
+            <CardHeader className="bg-slate-50/50 border-b border-slate-100 pb-5 pt-6 px-8">
+              <CardTitle className="flex items-center gap-3 text-xl font-bold text-slate-800">
+                <div className="p-2.5 bg-amber-50 rounded-xl">
+                  <Star className="h-5 w-5 text-amber-500" />
+                </div>
+                {t("patient.reviews.reviewsAndRatings", "Reviews & Ratings")}
+                {reviewData && reviewData.total_reviews > 0 && (
+                  <span className="text-sm font-normal text-muted-foreground ml-auto">
+                    {reviewData.total_reviews} {t("patient.reviews.reviewsCount", "reviews")}
+                  </span>
+                )}
+              </CardTitle>
+            </CardHeader>
+            <CardContent className="p-8">
+              {!reviewData || reviewData.total_reviews === 0 ? (
+                <div className="flex flex-col items-center justify-center py-10 text-center bg-slate-50 rounded-2xl border border-dashed border-slate-200">
+                  <div className="bg-white p-4 rounded-full shadow-sm mb-3">
+                    <Star className="h-8 w-8 text-slate-300" />
+                  </div>
+                  <p className="text-slate-600 font-semibold">
+                    {t("patient.reviews.noReviews", "Belum ada review untuk dokter ini.")}
+                  </p>
+                  <p className="text-sm text-muted-foreground mt-1">
+                    {t("patient.reviews.beFirst", "Jadilah yang pertama memberi penilaian!")}
+                  </p>
+                </div>
+              ) : (
+                <div className="space-y-6">
+                  {/* Rating Summary */}
+                  <div className="flex flex-col sm:flex-row items-center gap-6 p-5 rounded-2xl bg-gradient-to-r from-amber-50/80 to-orange-50/60 border border-amber-100">
+                    <div className="text-center">
+                      <p className="text-5xl font-black text-slate-900">{reviewData.average_rating}</p>
+                      <div className="flex items-center justify-center gap-0.5 mt-1">
+                        {[1, 2, 3, 4, 5].map((s) => (
+                          <Star
+                            key={s}
+                            className={`h-4 w-4 ${
+                              s <= Math.round(reviewData.average_rating)
+                                ? "text-amber-500 fill-amber-500"
+                                : "text-slate-300"
+                            }`}
+                          />
+                        ))}
+                      </div>
+                      <p className="text-xs text-muted-foreground mt-1 font-medium">
+                        {reviewData.total_reviews} {t("patient.reviews.reviewsCount", "reviews")}
+                      </p>
+                    </div>
+                    <div className="flex-1 w-full space-y-1.5">
+                      {[5, 4, 3, 2, 1].map((star) => {
+                        const count = reviewData.distribution[String(star)] || 0;
+                        const pct = reviewData.total_reviews > 0 ? (count / reviewData.total_reviews) * 100 : 0;
+                        return (
+                          <div key={star} className="flex items-center gap-2">
+                            <span className="text-xs font-semibold text-slate-600 w-4 text-right">{star}</span>
+                            <Star className="h-3 w-3 text-amber-500 fill-amber-500" />
+                            <div className="flex-1 bg-slate-200 rounded-full h-2 overflow-hidden">
+                              <div
+                                className="bg-amber-500 h-full rounded-full transition-all duration-500"
+                                style={{ width: `${pct}%` }}
+                              />
+                            </div>
+                            <span className="text-xs text-muted-foreground w-8 text-right">{count}</span>
+                          </div>
+                        );
+                      })}
+                    </div>
+                  </div>
+
+                  {/* Review List */}
+                  <div className="space-y-4">
+                    {reviewData.reviews.map((review) => {
+                      const initials = review.patient_name
+                        .split(" ")
+                        .filter((n) => n.length > 1 && !n.includes("."))
+                        .map((n) => n[0])
+                        .join("")
+                        .slice(0, 2)
+                        .toUpperCase();
+
+                      const timeAgo = (() => {
+                        if (!review.created_at) return "";
+                        const diff = Date.now() - new Date(review.created_at).getTime();
+                        const mins = Math.floor(diff / 60000);
+                        if (mins < 60) return `${mins}m ${t("patient.reviews.ago", "yang lalu")}`;
+                        const hrs = Math.floor(mins / 60);
+                        if (hrs < 24) return `${hrs}h ${t("patient.reviews.ago", "yang lalu")}`;
+                        const days = Math.floor(hrs / 24);
+                        if (days < 30) return `${days}d ${t("patient.reviews.ago", "yang lalu")}`;
+                        return new Date(review.created_at).toLocaleDateString("id-ID", {
+                          day: "numeric",
+                          month: "short",
+                          year: "numeric",
+                        });
+                      })();
+
+                      return (
+                        <div
+                          key={review.id}
+                          className="p-4 rounded-xl border border-slate-100 bg-white hover:border-slate-200 transition-colors shadow-sm"
+                        >
+                          <div className="flex items-start gap-3">
+                            <div className="h-10 w-10 rounded-full bg-gradient-to-br from-primary/80 to-primary/50 flex items-center justify-center text-white text-xs font-bold shrink-0">
+                              {initials}
+                            </div>
+                            <div className="flex-1 min-w-0">
+                              <div className="flex items-center justify-between">
+                                <p className="font-semibold text-sm text-slate-800">
+                                  {review.patient_name}
+                                </p>
+                                <span className="text-xs text-muted-foreground">{timeAgo}</span>
+                              </div>
+                              <div className="flex items-center gap-0.5 mt-0.5">
+                                {[1, 2, 3, 4, 5].map((s) => (
+                                  <Star
+                                    key={s}
+                                    className={`h-3.5 w-3.5 ${
+                                      s <= review.rating
+                                        ? "text-amber-500 fill-amber-500"
+                                        : "text-slate-200"
+                                    }`}
+                                  />
+                                ))}
+                              </div>
+                              {review.comment && (
+                                <p className="text-sm text-slate-600 mt-2 leading-relaxed">
+                                  {review.comment}
+                                </p>
+                              )}
+                            </div>
+                          </div>
+                        </div>
+                      );
+                    })}
+                  </div>
                 </div>
               )}
             </CardContent>

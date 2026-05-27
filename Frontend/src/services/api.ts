@@ -316,3 +316,25 @@ export const reportService = {
     api.post(`/reports/${reportId}/messages`, { content }),
 };
 
+// ============================================
+// REVIEW / RATING ENDPOINTS
+// ============================================
+export const reviewService = {
+  /** Submit review untuk dokter */
+  submitReview: (data: {
+    doctor_id: string;
+    rating: number;
+    comment?: string;
+    context_type: "consultation" | "home_visit";
+    context_id: string;
+  }) => api.post("/reviews", data),
+
+  /** Cek apakah user sudah review di konteks tertentu */
+  checkReview: (contextType: string, contextId: string) =>
+    api.get("/reviews/check", { params: { context_type: contextType, context_id: contextId } }),
+
+  /** Ambil semua review untuk dokter (public) */
+  getDoctorReviews: (doctorId: string) =>
+    api.get(`/reviews/doctor/${doctorId}`),
+};
+
