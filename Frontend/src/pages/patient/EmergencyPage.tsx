@@ -458,7 +458,7 @@ export default function EmergencyPage() {
                   )}
                 </p>
                 <p className="font-medium text-foreground text-sm truncate">
-                  {getLocationDisplayText(location, isResolvingAddress)}
+                  {getLocationDisplayText(location, isResolvingAddress, t)}
                 </p>
               </div>
               <Button size="sm" variant="outline" onClick={getLocation}>

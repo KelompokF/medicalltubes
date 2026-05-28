@@ -2,7 +2,8 @@ import axios from "axios";
 
 // Base API configuration — point to your FastAPI backend
 // Default to backend root (no /api/v1) since backend routes use /auth, /chat, etc.
-const API_BASE_URL = import.meta.env.VITE_API_BASE_URL || "http://localhost:8001";
+export const API_BASE_URL = import.meta.env.VITE_API_BASE_URL || "http://localhost:8001";
+
 
 const api = axios.create({
   baseURL: API_BASE_URL,
@@ -313,5 +314,27 @@ export const reportService = {
   /** Kirim pesan chat di sebuah report */
   sendReportMessage: (reportId: string, content: string) =>
     api.post(`/reports/${reportId}/messages`, { content }),
+};
+
+// ============================================
+// REVIEW / RATING ENDPOINTS
+// ============================================
+export const reviewService = {
+  /** Submit review untuk dokter */
+  submitReview: (data: {
+    doctor_id: string;
+    rating: number;
+    comment?: string;
+    context_type: "consultation" | "home_visit";
+    context_id: string;
+  }) => api.post("/reviews", data),
+
+  /** Cek apakah user sudah review di konteks tertentu */
+  checkReview: (contextType: string, contextId: string) =>
+    api.get("/reviews/check", { params: { context_type: contextType, context_id: contextId } }),
+
+  /** Ambil semua review untuk dokter (public) */
+  getDoctorReviews: (doctorId: string) =>
+    api.get(`/reviews/doctor/${doctorId}`),
 };
 

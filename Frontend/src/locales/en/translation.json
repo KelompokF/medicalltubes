@@ -182,7 +182,23 @@
       "loadingDashboard": "Loading dashboard...",
       "errorOccurred": "Oops, an error occurred",
       "failedLoadDashboard": "Failed to load your dashboard data.",
-      "tryAgain": "Try Again"
+      "tryAgain": "Try Again",
+      "status": {
+        "aktif": "Active",
+        "active": "Active",
+        "selesai": "Completed",
+        "completed": "Completed",
+        "dibatalkan": "Cancelled",
+        "cancelled": "Cancelled",
+        "menunggu": "Pending",
+        "pending": "Pending"
+      },
+      "prescriptions": "Prescriptions",
+      "prescriptionList": "Prescription List",
+      "noPrescriptions": "No prescriptions yet",
+      "dosage": "Dosage:",
+      "duration": "Duration:",
+      "doctorNotes": "Doctor Notes"
     },
     "chatHistory": {
       "title": "Chat History",
@@ -250,7 +266,23 @@
       "viewProfile": "View Profile",
       "noDoctorsFound": "No doctors found",
       "noDoctorsDesc": "Try adjusting your search or filters.",
-      "offline": "Offline"
+      "offline": "Offline",
+      "findingGps": "Finding GPS location...",
+      "gpsActive": "GPS Active",
+      "locationInactive": "Location inactive",
+      "nearbyOn": "Nearby: ON",
+      "nearbyOff": "Nearby: OFF",
+      "enableGps": "Enable GPS",
+      "doctorsFound": "doctors found",
+      "inRadius": " within {{radius}} km radius",
+      "yearsAbbr": "yrs",
+      "perConsultation": "/ consultation",
+      "show": "Show",
+      "perPage": "per page",
+      "pageInfo": "Page {{current}} of {{total}}",
+      "geoNotSupported": "Geolocation is not supported by your browser.",
+      "locationDeniedToast": "Location access denied. Showing all doctors without distance filter.",
+      "loadFailedToast": "Failed to load doctor data."
     },
     "doctorDetail": {
       "loadingDoctor": "Loading doctor data...",
@@ -563,6 +595,32 @@
       "completeRequestDesc": "Mark this emergency assistance as completed and remove from active status.",
       "back": "Back",
       "confirm": "Confirm"
+    },
+    "reviews": {
+      "rateDoctor": "Rate Doctor",
+      "howWasExperience": "How was your experience?",
+      "writeComment": "Write a Comment",
+      "optional": "optional",
+      "commentPlaceholder": "Tell us about your experience with this doctor...",
+      "submitReview": "Submit Review",
+      "submitting": "Submitting...",
+      "selectRating": "Please select a rating first",
+      "reviewSubmitted": "Review submitted successfully!",
+      "submitFailed": "Failed to submit review.",
+      "thankYou": "Thank You!",
+      "reviewRecorded": "Your rating and comment have been recorded.",
+      "alreadyReviewed": "You have already rated this session",
+      "reviewed": "Reviewed",
+      "reviewsAndRatings": "Reviews & Ratings",
+      "reviewsCount": "reviews",
+      "noReviews": "No reviews yet for this doctor.",
+      "beFirst": "Be the first to leave a review!",
+      "ago": "ago",
+      "ratingTerrible": "Terrible",
+      "ratingBad": "Bad",
+      "ratingOkay": "Okay",
+      "ratingGood": "Good",
+      "ratingExcellent": "Excellent"
     }
   },
   "admin": {
@@ -812,7 +870,7 @@
     "schedule": {
       "serviceSettings": "Service Settings",
       "title": "Practice Schedule",
-      "subtitle": "Set your availability for <bold>Home Visit</bold> services. Patients can only select times you activate here.",
+      "subtitle": "Set your availability for <b>Home Visit</b> services. Patients can only select times you activate here.",
       "saveSchedule": "Save Schedule",
       "selectDay": "Select Day",
       "dayTitle": "Day {{day}}",
@@ -831,7 +889,7 @@
       "autoSaveOff": "Auto-save off",
       "clickSaveToApply": "Click save to apply",
       "tips": "Tips",
-      "tipsDesc": "Use the <bold>Copy to All</bold> feature if your schedule is the same every day.",
+      "tipsDesc": "Use the <b>Copy to All</b> feature if your schedule is the same every day.",
       "loadingSchedule": "Loading schedule settings...",
       "loadFailed": "Failed to load practice schedule.",
       "saveFailed": "Failed to save practice schedule.",
@@ -839,7 +897,14 @@
       "copiedSuccess": "{{day}} schedule copied to all days.",
       "invalidTimeFormat": "Invalid time format (Use HH:MM)",
       "timeAlreadyExists": "Time already exists in the schedule.",
-      "selectAtLeastOneSlot": "Select at least one time slot to copy."
+      "selectAtLeastOneSlot": "Select at least one time slot to copy.",
+      "saveButton": "Save Schedule",
+      "slotCount": "Slot",
+      "summaryTitle": "Schedule Summary",
+      "noSlotSelected": "No Slots Selected",
+      "noSlotDesc": "Please select from the time slots above or add a custom time for {{day}}.",
+      "autoSaveOff": "Auto-save off",
+      "clickToApply": "Click save to apply"
     }
   },
   "ambulance": {
@@ -872,6 +937,22 @@
       "noHistory": "No emergency history available."
     },
     "active": {
+      "boardTitle": "Emergency Active Board",
+      "mainTitle": "Active patient locations for ambulance units",
+      "mainDesc": "Monitor pickup points, open instant navigation, and update handling progress from a single compact screen.",
+      "refresh": "Refresh Cases",
+      "stat": {
+        "activeRequest": "Active Request",
+        "activeRequestDesc": "Active cases currently being handled",
+        "nearest": "Nearest Pickup",
+        "nearestDesc": "Shortest distance from ambulance base",
+        "onProgress": "On Progress",
+        "onProgressDesc": "Patients currently being handled"
+      },
+      "emptyTitle": "No active emergencies",
+      "emptyDesc": "There are no patients assigned to this ambulance unit at the moment.",
+      "errorTitle": "Failed to load active emergencies",
+      "errorDesc": "Active patient data could not be fetched. Please refresh to try again.",
       "title": "Active Emergencies",
       "subtitle": "Real-time emergency request management",
       "totalActive": "Total Active",

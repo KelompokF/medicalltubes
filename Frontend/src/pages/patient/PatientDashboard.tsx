@@ -84,7 +84,7 @@ export default function PatientDashboard() {
                 </div>
               </div>
               <div className={`px-2.5 py-1 rounded-full text-[10px] font-medium whitespace-nowrap ${getStatusBadge(item.status)}`}>
-                {item.status.charAt(0).toUpperCase() + item.status.slice(1)}
+                {t(`patient.dashboard.status.${item.status.toLowerCase()}`, item.status.charAt(0).toUpperCase() + item.status.slice(1))}
               </div>
             </div>
           ))}
