@@ -845,6 +845,7 @@
       "noHistorySearch": "Tidak ditemukan riwayat dengan pencarian tersebut.",
       "noHistoryDesc": "Riwayat konsultasi dan home visit akan muncul di sini.",
       "backToList": "← Kembali ke Daftar Pasien",
+      "viewMedicalRecords": "Lihat Rekam Medis",
       "lastInteraction": "Terakhir interaksi: {{date}}",
       "totalVisits": "Total Kunjungan",
       "consultation": "Konsultasi",

@@ -845,6 +845,7 @@
       "noHistorySearch": "No history found with that search.",
       "noHistoryDesc": "Consultation and home visit history will appear here.",
       "backToList": "← Back to Patient List",
+      "viewMedicalRecords": "View Medical Records",
       "lastInteraction": "Last interaction: {{date}}",
       "totalVisits": "Total Visits",
       "consultation": "Consultation",
