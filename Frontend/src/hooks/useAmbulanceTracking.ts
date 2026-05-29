@@ -211,9 +211,15 @@ export function useAmbulanceTracking(
         setError('WebSocket connection error');
       };
 
-      ws.onclose = () => {
-        console.log('WebSocket disconnected');
+      ws.onclose = (event) => {
+        console.log('WebSocket disconnected', event.code);
         setIsConnected(false);
+
+        // Do not attempt to reconnect if the server rejected the connection due to auth/policy
+        if (event.code === 1008) {
+          console.error('WebSocket connection rejected by server (Policy Violation / Invalid Token).');
+          return;
+        }
 
         // Attempt reconnection if not manually disconnected
         if (!isManualDisconnectRef.current) {
