@@ -138,6 +138,7 @@ async def get_doctor_patients(
                             r.status
                         FROM home_visit_requests_v3 r
                         WHERE r.doctor_id = :doctor_profile_id
+                          AND r.payment_status = 'paid_cash'
                         ORDER BY r.created_at DESC
                     """),
                     {"doctor_profile_id": str(profile_id)}

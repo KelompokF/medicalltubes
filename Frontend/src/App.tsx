@@ -3,6 +3,7 @@ import { BrowserRouter, Route, Routes, Navigate } from "react-router-dom";
 import { Toaster as Sonner } from "@/components/ui/sonner";
 import { Toaster } from "@/components/ui/toaster";
 import { TooltipProvider } from "@/components/ui/tooltip";
+import { useTranslation } from "react-i18next";
 
 import PatientLayout from "@/layouts/PatientLayout";
 import AdminLayout from "@/layouts/AdminLayout";
@@ -18,12 +19,17 @@ import HealthRecordPage from "@/pages/patient/HealthRecordPage";
 import ConsultationChatPage from "@/pages/patient/ConsultationChatPage";
 import ChatHistoryPage from "@/pages/patient/ChatHistoryPage";
 import HomeVisitBookingPage from "@/pages/patient/HomeVisitBookingPage";
+import HomeVisitPaymentPage from "@/pages/patient/HomeVisitPaymentPage";
 import HomeVisitTrackingPage from "@/pages/patient/HomeVisitTrackingPage";
 import HomeVisitHistoryPage from "@/pages/patient/HomeVisitHistoryPage";
+import ReportTrackingPage from "@/pages/patient/ReportTrackingPage";
 import EmergencyPage from "@/pages/patient/EmergencyPage";
 import AmbulanceTrackingPage from "@/pages/patient/AmbulanceTrackingPage";
 import UserProfilePage from "@/pages/patient/UserProfilePage";
 import AdminDashboard from "@/pages/admin/AdminDashboard";
+import AdminReportsPage from "@/pages/admin/AdminReportsPage";
+import AdminUsersPage from "@/pages/admin/AdminUsersPage";
+import AdminPrescriptionsPage from "@/pages/admin/AdminPrescriptionsPage";
 import DoctorDashboard from "@/pages/doctor/DoctorDashboard";
 import DoctorConsultationPage from "@/pages/doctor/DoctorConsultationPage";
 import DoctorSchedulePage from "@/pages/doctor/DoctorSchedulePage";
@@ -44,15 +50,18 @@ const queryClient = new QueryClient({
   },
 });
 
-const ComingSoon = ({ title }: { title: string }) => (
-  <div className="flex flex-col items-center justify-center py-20 text-center animate-fade-in">
-    <div className="rounded-full bg-primary/10 p-6 mb-4">
-      <div className="h-8 w-8 text-primary">🚧</div>
+const ComingSoon = ({ title }: { title: string }) => {
+  const { t } = useTranslation();
+  return (
+    <div className="flex flex-col items-center justify-center py-20 text-center animate-fade-in">
+      <div className="rounded-full bg-primary/10 p-6 mb-4">
+        <div className="h-8 w-8 text-primary">🚧</div>
+      </div>
+      <h2 className="text-xl font-bold text-foreground">{title}</h2>
+      <p className="text-muted-foreground mt-2">{t("common.underDevelopment")}</p>
     </div>
-    <h2 className="text-xl font-bold text-foreground">{title}</h2>
-    <p className="text-muted-foreground mt-2">This page is under development.</p>
-  </div>
-);
+  );
+};
 
 const App = () => (
   <QueryClientProvider client={queryClient}>
@@ -75,7 +84,9 @@ const App = () => (
             <Route path="/chat" element={<ConsultationChatPage />} />
             <Route path="/chat-history" element={<ChatHistoryPage />} />
             <Route path="/home-visit" element={<HomeVisitBookingPage />} />
+            <Route path="/home-visit/payment/:id" element={<HomeVisitPaymentPage />} />
             <Route path="/home-visit-history" element={<HomeVisitHistoryPage />} />
+            <Route path="/report-tracking" element={<ReportTrackingPage />} />
             <Route path="/tracking" element={<HomeVisitTrackingPage />} />
             <Route path="/emergency" element={<EmergencyPage />} />
             <Route path="/ambulance-tracking/:requestId" element={<AmbulanceTrackingPage />} />
@@ -85,8 +96,11 @@ const App = () => (
           {/* Admin Routes */}
           <Route element={<AdminLayout />}>
             <Route path="/admin" element={<AdminDashboard />} />
+            <Route path="/admin/users" element={<AdminUsersPage />} />
             <Route path="/admin/emergencies" element={<ComingSoon title="Emergency Monitor" />} />
             <Route path="/admin/consultations" element={<ComingSoon title="Consultations" />} />
+            <Route path="/admin/prescriptions" element={<AdminPrescriptionsPage />} />
+            <Route path="/admin/reports" element={<AdminReportsPage />} />
             <Route path="/admin/settings" element={<ComingSoon title="Admin Settings" />} />
           </Route>
 
@@ -99,6 +113,7 @@ const App = () => (
             <Route path="/doctor-dashboard/schedule" element={<DoctorSchedulePage />} />
             <Route path="/doctor-dashboard/prescriptions" element={<ComingSoon title="Prescriptions" />} />
             <Route path="/doctor-dashboard/records" element={<ComingSoon title="Medical Records" />} />
+            <Route path="/doctor-dashboard/report-tracking" element={<ReportTrackingPage />} />
             <Route path="/doctor-dashboard/settings" element={<ComingSoon title="Doctor Settings" />} />
           </Route>
 
@@ -109,6 +124,7 @@ const App = () => (
             <Route path="/ambulance-dashboard/tracking" element={<ComingSoon title="Live Tracking" />} />
             <Route path="/ambulance-dashboard/fleet" element={<ComingSoon title="Fleet Status" />} />
             <Route path="/ambulance-dashboard/history" element={<AmbulanceHistoryPage />} />
+            <Route path="/ambulance-dashboard/report-tracking" element={<ReportTrackingPage />} />
             <Route path="/ambulance-dashboard/settings" element={<ComingSoon title="Ambulance Settings" />} />
           </Route>
 

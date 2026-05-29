@@ -2,7 +2,8 @@ import axios from "axios";
 
 // Base API configuration — point to your FastAPI backend
 // Default to backend root (no /api/v1) since backend routes use /auth, /chat, etc.
-const API_BASE_URL = import.meta.env.VITE_API_BASE_URL || "http://localhost:8001";
+export const API_BASE_URL = import.meta.env.VITE_API_BASE_URL || "http://localhost:8001";
+
 
 const api = axios.create({
   baseURL: API_BASE_URL,
@@ -88,11 +89,23 @@ export const doctorService = {
   getDoctorById: (id: string) => api.get(`/doctors/${id}`),
   startConsultation: (doctorId: string) =>
     api.post("/doctors/start-consultation", { doctor_id: doctorId }),
+  // Get doctors with schedules
+  getDoctorSchedules: () => api.get("/doctors/schedules/available"),
+  getDoctorScheduleById: (doctorId: string) =>
+    api.get(`/doctors/${doctorId}/schedules`),
   // Doctor dashboard
   getDashboard: () => api.get("/doctor/dashboard"),
   getPatientRequests: () => api.get("/doctor/requests"),
   acceptRequest: (id: string) => api.post(`/doctor/requests/${id}/accept`),
   createPrescription: (data: any) => api.post("/doctor/prescriptions", data),
+  // Patient data endpoints for doctor
+  getPatientProfile: (patientId: string) =>
+    api.get(`/doctors/patient/${patientId}/profile`),
+  getPatientHealthRecords: (patientId: string) =>
+    api.get(`/doctors/patient/${patientId}/health-records`),
+  /** Single combined request: profile + all health records + aggregated summary */
+  getPatientSummary: (patientId: string) =>
+    api.get(`/doctors/patient/${patientId}/summary`),
 };
 
 // ============================================
@@ -152,9 +165,17 @@ export const homeVisitScheduleService = {
     preferred_date: string;
     preferred_time: string;
   }) => api.post("/home-visits/request", data),
+
+  /** Ambil detail satu permintaan berdasarkan ID (GET /home-visits/requests/{id}) */
+  getRequestById: (id: string) => api.get(`/home-visits/requests/${id}`),
+
+  /** Update status pembayaran (PATCH /home-visits/requests/{id}/payment) */
+  updatePaymentStatus: (id: string, payment_status: string) =>
+    api.patch(`/home-visits/requests/${id}/payment`, { payment_status }),
 };
 
 // ============================================
+
 // EMERGENCY ENDPOINTS
 // ============================================
 export const emergencyService = {
@@ -197,6 +218,9 @@ export const adminService = {
   getActiveEmergencies: () => api.get("/admin/emergencies"),
   updateUserStatus: (userId: string, status: string) =>
     api.patch(`/admin/users/${userId}`, { status }),
+  getUserReports: (userId: string) =>
+    api.get("/reports", { params: { user_id: userId } }),
+  deleteUser: (userId: string) => api.delete(`/admin/users/${userId}`),
 };
 
 // ============================================
@@ -217,6 +241,11 @@ export const prescriptionService = {
   create: (data: any) => api.post("/prescriptions", data),
   getRoomPrescriptions: (roomId: string) => api.get(`/prescriptions/room/${roomId}`),
   getPatientPrescriptions: (patientId: string) => api.get(`/prescriptions/patient/${patientId}`),
+
+  // Admin prescription tracking
+  getAdminPrescriptionsList: () => api.get("/prescriptions/admin/list"),
+  updatePrescriptionStatus: (id: string, status: string) =>
+    api.patch(`/prescriptions/admin/${id}/status`, { status }),
 };
 
 // ============================================
@@ -255,3 +284,61 @@ export const doctorScheduleService = {
   updateMySchedule: (schedule: DaySchedule[]) =>
     api.put<DoctorScheduleResponse>("/doctor/schedule", { schedule }),
 };
+
+// ============================================
+// REPORT ENDPOINTS
+// ============================================
+export const reportService = {
+  /** Buat laporan baru */
+  createReport: (data: {
+    reported_id: string;
+    reason: string;
+    description: string;
+    context_type: "consultation" | "emergency";
+    context_id?: string;
+  }) => api.post("/reports", data),
+
+  /** Lihat laporan yang pernah saya buat */
+  getMyReports: () => api.get("/reports/my"),
+
+  /** (Admin) Lihat semua laporan */
+  getAllReports: (params?: { status?: string }) =>
+    api.get("/reports", { params }),
+
+  /** (Admin) Update status laporan */
+  updateReportStatus: (
+    id: string,
+    data: { status: string; admin_notes?: string }
+  ) => api.patch(`/reports/${id}/status`, data),
+
+  /** Ambil pesan chat untuk sebuah report */
+  getReportMessages: (reportId: string) =>
+    api.get(`/reports/${reportId}/messages`),
+
+  /** Kirim pesan chat di sebuah report */
+  sendReportMessage: (reportId: string, content: string) =>
+    api.post(`/reports/${reportId}/messages`, { content }),
+};
+
+// ============================================
+// REVIEW / RATING ENDPOINTS
+// ============================================
+export const reviewService = {
+  /** Submit review untuk dokter */
+  submitReview: (data: {
+    doctor_id: string;
+    rating: number;
+    comment?: string;
+    context_type: "consultation" | "home_visit";
+    context_id: string;
+  }) => api.post("/reviews", data),
+
+  /** Cek apakah user sudah review di konteks tertentu */
+  checkReview: (contextType: string, contextId: string) =>
+    api.get("/reviews/check", { params: { context_type: contextType, context_id: contextId } }),
+
+  /** Ambil semua review untuk dokter (public) */
+  getDoctorReviews: (doctorId: string) =>
+    api.get(`/reviews/doctor/${doctorId}`),
+};
+

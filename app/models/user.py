@@ -44,6 +44,7 @@ class User(Base):
     email = Column(String, unique=True, nullable=False, index=True)
     hashed_password = Column(String, nullable=False)
     is_active = Column(Boolean, default=True)
+    account_status = Column(String, default='active')
     role = Column(String, default='patient')
     location_sharing_enabled = Column(Boolean, default=False)
     is_deleted = Column(Boolean, default=False)

@@ -1,5 +1,6 @@
 import { useState, useEffect } from "react";
 import { useParams, Link, useNavigate } from "react-router-dom";
+import { useTranslation } from "react-i18next";
 import {
   Star,
   MapPin,
@@ -25,7 +26,7 @@ import {
 } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
 import { toast } from "sonner";
-import { doctorService, doctorScheduleService, DoctorScheduleResponse } from "@/services/api";
+import { doctorService, doctorScheduleService, DoctorScheduleResponse, reviewService } from "@/services/api";
 
 interface DoctorDetail {
   id: string;
@@ -46,11 +47,32 @@ interface DoctorDetail {
   lng: number | null;
 }
 
+interface ReviewItem {
+  id: string;
+  patient_id: string;
+  patient_name: string;
+  doctor_id: string;
+  rating: number;
+  comment: string | null;
+  context_type: string;
+  context_id: string;
+  created_at: string;
+}
+
+interface ReviewSummary {
+  average_rating: number;
+  total_reviews: number;
+  distribution: Record<string, number>;
+  reviews: ReviewItem[];
+}
+
 export default function DoctorDetailPage() {
+  const { t } = useTranslation();
   const { id } = useParams();
   const navigate = useNavigate();
   const [doctor, setDoctor] = useState<DoctorDetail | null>(null);
   const [schedule, setSchedule] = useState<DoctorScheduleResponse | null>(null);
+  const [reviewData, setReviewData] = useState<ReviewSummary | null>(null);
   const [isLoading, setIsLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
 
@@ -71,9 +93,17 @@ export default function DoctorDetailPage() {
         } catch (schedErr) {
           console.warn("Jadwal tidak ditemukan atau error:", schedErr);
         }
+
+        // Fetch reviews
+        try {
+          const reviewRes = await reviewService.getDoctorReviews(id);
+          setReviewData(reviewRes.data);
+        } catch (reviewErr) {
+          console.warn("Reviews tidak ditemukan:", reviewErr);
+        }
       } catch (err: any) {
         console.error("Error fetching doctor:", err);
-        setError("Dokter tidak ditemukan.");
+        setError(t("patient.doctorDetail.doctorNotFound"));
       } finally {
         setIsLoading(false);
       }
@@ -100,7 +130,7 @@ export default function DoctorDetailPage() {
     return (
       <div className="flex flex-col items-center justify-center py-20 animate-fade-in">
         <Loader2 className="h-8 w-8 text-primary animate-spin mb-3" />
-        <p className="text-muted-foreground font-medium">Memuat data dokter...</p>
+        <p className="text-muted-foreground font-medium">{t("patient.doctorDetail.loadingDoctor")}</p>
       </div>
     );
   }
@@ -112,12 +142,12 @@ export default function DoctorDetailPage() {
           <User className="h-10 w-10 text-red-400" />
         </div>
         <p className="text-slate-600 mb-6 font-medium">
-          {error || "Dokter tidak ditemukan."}
+          {error || t("patient.doctorDetail.doctorNotFound")}
         </p>
         <Button variant="outline" className="rounded-full" asChild>
           <Link to="/search-doctor">
             <ArrowLeft className="h-4 w-4 mr-2" />
-            Kembali ke Pencarian
+            {t("patient.doctorDetail.backToSearch")}
           </Link>
         </Button>
       </div>
@@ -137,7 +167,7 @@ export default function DoctorDetailPage() {
       <Button variant="ghost" size="sm" asChild className="hover:bg-slate-100 hover:text-slate-900 transition-colors rounded-xl text-slate-500 -ml-2 mb-2">
         <Link to="/search-doctor">
           <ArrowLeft className="h-4 w-4 mr-2" />
-          Kembali ke Pencarian
+          {t("patient.doctorDetail.backToSearch")}
         </Link>
       </Button>
 
@@ -172,22 +202,22 @@ export default function DoctorDetailPage() {
                     : "bg-slate-100 text-slate-600 border border-slate-200"
                     }`}
                 >
-                  {doctor.is_available ? "Tersedia Sekarang" : "Sedang Offline"}
+                  {doctor.is_available ? t("patient.doctorDetail.availableNow") : t("patient.doctorDetail.offlineNow")}
                 </Badge>
               </div>
 
               <div className="flex flex-wrap justify-center sm:justify-start gap-4 mt-5 text-sm text-slate-600 font-medium">
                 <span className="flex items-center gap-1.5 bg-amber-50 text-amber-800 px-3.5 py-1.5 rounded-xl border border-amber-100 font-semibold shadow-sm">
                   <Star className="h-4 w-4 fill-amber-500 text-amber-500" />
-                  {doctor.rating} ({doctor.total_reviews} ulasan)
+                  {doctor.rating} ({t("patient.doctorDetail.reviews", { count: doctor.total_reviews })})
                 </span>
                 <span className="flex items-center gap-1.5 bg-blue-50 text-blue-800 px-3.5 py-1.5 rounded-xl border border-blue-100 font-semibold shadow-sm">
                   <Clock className="h-4 w-4 text-blue-500" />
-                  {doctor.experience_years} thn pengalaman
+                  {t("patient.doctorDetail.yrsExperience", { years: doctor.experience_years })}
                 </span>
                 <span className="flex items-center gap-1.5 bg-emerald-50 text-emerald-800 px-3.5 py-1.5 rounded-xl border border-emerald-100 font-semibold shadow-sm">
                   <Users className="h-4 w-4 text-emerald-500" />
-                  {doctor.total_patients} pasien
+                  {t("patient.doctorDetail.patientsCount", { count: doctor.total_patients })}
                 </span>
               </div>
 
@@ -195,13 +225,13 @@ export default function DoctorDetailPage() {
                 {doctor.is_available && (
                   <Button onClick={handleStartChat} size="lg" className="rounded-xl px-6 shadow-md hover:shadow-lg transition-all bg-primary hover:bg-primary/90 text-white font-semibold">
                     <MessageCircle className="h-5 w-5 mr-2" />
-                    Mulai Konsultasi
+                    {t("patient.doctorDetail.startConsultation")}
                   </Button>
                 )}
                 <Button variant="outline" size="lg" className="rounded-xl px-6 border-2 hover:bg-primary/5 text-primary border-primary/20 transition-colors font-semibold shadow-sm" asChild>
                   <Link to="/home-visit">
                     <Calendar className="h-5 w-5 mr-2" />
-                    Kunjungan Rumah
+                    {t("patient.doctorDetail.homeVisit")}
                   </Link>
                 </Button>
               </div>
@@ -220,12 +250,12 @@ export default function DoctorDetailPage() {
                 <div className="p-2.5 bg-primary/10 rounded-xl">
                   <Stethoscope className="h-5 w-5 text-primary" />
                 </div>
-                Tentang Dokter
+                {t("patient.doctorDetail.aboutDoctor")}
               </CardTitle>
             </CardHeader>
             <CardContent className="p-8">
               <p className="text-slate-600 leading-relaxed text-[15px] sm:text-base">
-                {doctor.about || "Informasi dokter belum tersedia. Silakan hubungi klinik atau rumah sakit untuk detail lebih lanjut."}
+                {doctor.about || t("patient.doctorDetail.aboutNotAvailable")}
               </p>
             </CardContent>
           </Card>
@@ -237,7 +267,7 @@ export default function DoctorDetailPage() {
                 <div className="p-2.5 bg-primary/10 rounded-xl">
                   <Calendar className="h-5 w-5 text-primary" />
                 </div>
-                Jadwal Praktik (Home Visit)
+                {t("patient.doctorDetail.practiceSchedule")}
               </CardTitle>
             </CardHeader>
             <CardContent className="p-8">
@@ -247,7 +277,7 @@ export default function DoctorDetailPage() {
                     <Calendar className="h-8 w-8 text-slate-300" />
                   </div>
                   <p className="text-slate-600 font-semibold">
-                    Belum ada jadwal praktik yang tersedia.
+                    {t("patient.doctorDetail.noSchedule")}
                   </p>
                 </div>
               ) : (
@@ -270,6 +300,148 @@ export default function DoctorDetailPage() {
             </CardContent>
           </Card>
 
+          {/* Reviews Section */}
+          <Card className="border-0 shadow-md rounded-[2rem] overflow-hidden bg-white">
+            <CardHeader className="bg-slate-50/50 border-b border-slate-100 pb-5 pt-6 px-8">
+              <CardTitle className="flex items-center gap-3 text-xl font-bold text-slate-800">
+                <div className="p-2.5 bg-amber-50 rounded-xl">
+                  <Star className="h-5 w-5 text-amber-500" />
+                </div>
+                {t("patient.reviews.reviewsAndRatings", "Reviews & Ratings")}
+                {reviewData && reviewData.total_reviews > 0 && (
+                  <span className="text-sm font-normal text-muted-foreground ml-auto">
+                    {reviewData.total_reviews} {t("patient.reviews.reviewsCount", "reviews")}
+                  </span>
+                )}
+              </CardTitle>
+            </CardHeader>
+            <CardContent className="p-8">
+              {!reviewData || reviewData.total_reviews === 0 ? (
+                <div className="flex flex-col items-center justify-center py-10 text-center bg-slate-50 rounded-2xl border border-dashed border-slate-200">
+                  <div className="bg-white p-4 rounded-full shadow-sm mb-3">
+                    <Star className="h-8 w-8 text-slate-300" />
+                  </div>
+                  <p className="text-slate-600 font-semibold">
+                    {t("patient.reviews.noReviews", "Belum ada review untuk dokter ini.")}
+                  </p>
+                  <p className="text-sm text-muted-foreground mt-1">
+                    {t("patient.reviews.beFirst", "Jadilah yang pertama memberi penilaian!")}
+                  </p>
+                </div>
+              ) : (
+                <div className="space-y-6">
+                  {/* Rating Summary */}
+                  <div className="flex flex-col sm:flex-row items-center gap-6 p-5 rounded-2xl bg-gradient-to-r from-amber-50/80 to-orange-50/60 border border-amber-100">
+                    <div className="text-center">
+                      <p className="text-5xl font-black text-slate-900">{reviewData.average_rating}</p>
+                      <div className="flex items-center justify-center gap-0.5 mt-1">
+                        {[1, 2, 3, 4, 5].map((s) => (
+                          <Star
+                            key={s}
+                            className={`h-4 w-4 ${
+                              s <= Math.round(reviewData.average_rating)
+                                ? "text-amber-500 fill-amber-500"
+                                : "text-slate-300"
+                            }`}
+                          />
+                        ))}
+                      </div>
+                      <p className="text-xs text-muted-foreground mt-1 font-medium">
+                        {reviewData.total_reviews} {t("patient.reviews.reviewsCount", "reviews")}
+                      </p>
+                    </div>
+                    <div className="flex-1 w-full space-y-1.5">
+                      {[5, 4, 3, 2, 1].map((star) => {
+                        const count = reviewData.distribution[String(star)] || 0;
+                        const pct = reviewData.total_reviews > 0 ? (count / reviewData.total_reviews) * 100 : 0;
+                        return (
+                          <div key={star} className="flex items-center gap-2">
+                            <span className="text-xs font-semibold text-slate-600 w-4 text-right">{star}</span>
+                            <Star className="h-3 w-3 text-amber-500 fill-amber-500" />
+                            <div className="flex-1 bg-slate-200 rounded-full h-2 overflow-hidden">
+                              <div
+                                className="bg-amber-500 h-full rounded-full transition-all duration-500"
+                                style={{ width: `${pct}%` }}
+                              />
+                            </div>
+                            <span className="text-xs text-muted-foreground w-8 text-right">{count}</span>
+                          </div>
+                        );
+                      })}
+                    </div>
+                  </div>
+
+                  {/* Review List */}
+                  <div className="space-y-4">
+                    {reviewData.reviews.map((review) => {
+                      const initials = review.patient_name
+                        .split(" ")
+                        .filter((n) => n.length > 1 && !n.includes("."))
+                        .map((n) => n[0])
+                        .join("")
+                        .slice(0, 2)
+                        .toUpperCase();
+
+                      const timeAgo = (() => {
+                        if (!review.created_at) return "";
+                        const diff = Date.now() - new Date(review.created_at).getTime();
+                        const mins = Math.floor(diff / 60000);
+                        if (mins < 60) return `${mins}m ${t("patient.reviews.ago", "yang lalu")}`;
+                        const hrs = Math.floor(mins / 60);
+                        if (hrs < 24) return `${hrs}h ${t("patient.reviews.ago", "yang lalu")}`;
+                        const days = Math.floor(hrs / 24);
+                        if (days < 30) return `${days}d ${t("patient.reviews.ago", "yang lalu")}`;
+                        return new Date(review.created_at).toLocaleDateString("id-ID", {
+                          day: "numeric",
+                          month: "short",
+                          year: "numeric",
+                        });
+                      })();
+
+                      return (
+                        <div
+                          key={review.id}
+                          className="p-4 rounded-xl border border-slate-100 bg-white hover:border-slate-200 transition-colors shadow-sm"
+                        >
+                          <div className="flex items-start gap-3">
+                            <div className="h-10 w-10 rounded-full bg-gradient-to-br from-primary/80 to-primary/50 flex items-center justify-center text-white text-xs font-bold shrink-0">
+                              {initials}
+                            </div>
+                            <div className="flex-1 min-w-0">
+                              <div className="flex items-center justify-between">
+                                <p className="font-semibold text-sm text-slate-800">
+                                  {review.patient_name}
+                                </p>
+                                <span className="text-xs text-muted-foreground">{timeAgo}</span>
+                              </div>
+                              <div className="flex items-center gap-0.5 mt-0.5">
+                                {[1, 2, 3, 4, 5].map((s) => (
+                                  <Star
+                                    key={s}
+                                    className={`h-3.5 w-3.5 ${
+                                      s <= review.rating
+                                        ? "text-amber-500 fill-amber-500"
+                                        : "text-slate-200"
+                                    }`}
+                                  />
+                                ))}
+                              </div>
+                              {review.comment && (
+                                <p className="text-sm text-slate-600 mt-2 leading-relaxed">
+                                  {review.comment}
+                                </p>
+                              )}
+                            </div>
+                          </div>
+                        </div>
+                      );
+                    })}
+                  </div>
+                </div>
+              )}
+            </CardContent>
+          </Card>
+
           {/* Hospital Info */}
           <Card className="border-0 shadow-md rounded-[2rem] overflow-hidden relative group bg-white">
             <div className="absolute left-0 top-0 w-2 h-full bg-primary/80 group-hover:bg-primary transition-colors"></div>
@@ -278,7 +450,7 @@ export default function DoctorDetailPage() {
                 <div className="p-2.5 bg-primary/10 rounded-xl">
                   <Building2 className="h-5 w-5 text-primary" />
                 </div>
-                Rumah Sakit / Klinik Utama
+                {t("patient.doctorDetail.hospitalClinic")}
               </CardTitle>
             </CardHeader>
             <CardContent className="p-8 pl-10">
@@ -306,7 +478,7 @@ export default function DoctorDetailPage() {
                     }
                   >
                     <Navigation className="h-4 w-4 mr-2 text-primary" />
-                    Lihat di Google Maps
+                    {t("patient.doctorDetail.viewOnMaps")}
                   </Button>
                 )}
               </div>
@@ -319,13 +491,13 @@ export default function DoctorDetailPage() {
           {/* Quick Info */}
           <Card className="border-0 shadow-md rounded-[2rem] overflow-hidden bg-white">
             <CardHeader className="bg-slate-50/50 border-b border-slate-100 pb-5 pt-6 px-8">
-              <CardTitle className="text-lg font-bold text-slate-800">Informasi Praktik</CardTitle>
+              <CardTitle className="text-lg font-bold text-slate-800">{t("patient.doctorDetail.practiceInfo")}</CardTitle>
             </CardHeader>
             <CardContent className="p-8 space-y-6">
               <div className="flex items-center justify-between p-4 rounded-2xl bg-primary/5 border border-primary/10">
                 <span className="text-[15px] text-primary/80 flex items-center gap-2.5 font-bold">
                   <DollarSign className="h-5 w-5" />
-                  Biaya Konsultasi
+                  {t("patient.doctorDetail.consultationFee")}
                 </span>
                 <span className="font-black text-2xl text-primary">
                   {formatCurrency(doctor.fee)}
@@ -334,16 +506,16 @@ export default function DoctorDetailPage() {
               <div className="flex items-center justify-between">
                 <span className="text-[15px] text-slate-600 flex items-center gap-2.5 font-medium">
                   <Clock className="h-5 w-5 text-slate-400" />
-                  Pengalaman
+                  {t("patient.doctorDetail.experienceLabel")}
                 </span>
                 <span className="font-bold text-slate-800 bg-slate-100 px-3 py-1.5 rounded-lg text-sm">
-                  {doctor.experience_years} tahun
+                  {t("patient.doctorDetail.yearsLabel", { years: doctor.experience_years })}
                 </span>
               </div>
               <div className="flex items-center justify-between">
                 <span className="text-[15px] text-slate-600 flex items-center gap-2.5 font-medium">
                   <Star className="h-5 w-5 text-slate-400" />
-                  Rating
+                  {t("patient.doctorDetail.ratingLabel")}
                 </span>
                 <span className="font-bold text-slate-800 bg-amber-50 px-3 py-1.5 rounded-lg text-sm flex items-center gap-1.5 border border-amber-100">
                   {doctor.rating}
@@ -353,7 +525,7 @@ export default function DoctorDetailPage() {
               <div className="flex items-center justify-between">
                 <span className="text-[15px] text-slate-600 flex items-center gap-2.5 font-medium">
                   <Users className="h-5 w-5 text-slate-400" />
-                  Total Pasien
+                  {t("patient.doctorDetail.totalPatients")}
                 </span>
                 <span className="font-bold text-slate-800 bg-slate-100 px-3 py-1.5 rounded-lg text-sm">
                   {doctor.total_patients.toLocaleString("id-ID")}
@@ -363,7 +535,7 @@ export default function DoctorDetailPage() {
                 <div className="flex items-center justify-between pt-4 mt-2 border-t border-slate-100">
                   <span className="text-[15px] text-slate-600 flex items-center gap-2.5 font-medium">
                     <Phone className="h-5 w-5 text-slate-400" />
-                    Telepon RS
+                    {t("patient.doctorDetail.hospitalPhone")}
                   </span>
                   <a
                     href={`tel:${doctor.phone}`}
@@ -386,14 +558,14 @@ export default function DoctorDetailPage() {
                   <MessageCircle className="h-8 w-8 text-primary" />
                 </div>
                 <h3 className="font-extrabold text-2xl text-slate-900 mb-2">
-                  Konsultasi Sekarang
+                  {t("patient.doctorDetail.consultNow")}
                 </h3>
                 <p className="text-[15px] text-slate-600 mb-8 leading-relaxed font-medium">
-                  Dokter sedang online dan siap menerima konsultasi via chat saat ini juga.
+                  {t("patient.doctorDetail.doctorOnline")}
                 </p>
                 <Button className="w-full rounded-2xl h-14 text-base font-bold shadow-lg shadow-primary/20 hover:shadow-xl hover:shadow-primary/30 transition-all bg-primary hover:bg-primary/90 text-white" onClick={handleStartChat}>
                   <MessageCircle className="h-5 w-5 mr-2" />
-                  Mulai Chat Sekarang
+                  {t("patient.doctorDetail.startChatNow")}
                 </Button>
               </CardContent>
             </Card>

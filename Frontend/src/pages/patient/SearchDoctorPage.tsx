@@ -1,5 +1,6 @@
 import { useState, useEffect, useCallback } from "react";
 import { Link } from "react-router-dom";
+import { useTranslation } from "react-i18next";
 import {
   Search,
   MapPin,
@@ -54,6 +55,7 @@ interface UserLocation {
 }
 
 export default function SearchDoctorPage() {
+  const { t } = useTranslation();
   const [search, setSearch] = useState("");
   const [specialization, setSpecialization] = useState("All");
   const [specializations, setSpecializations] = useState<string[]>([]);
@@ -84,7 +86,7 @@ export default function SearchDoctorPage() {
 
     if (!navigator.geolocation) {
       setLocationStatus("denied");
-      toast.error("Geolocation tidak didukung oleh browser Anda.");
+      toast.error(t("patient.searchDoctor.geoNotSupported", "Geolocation tidak didukung oleh browser Anda."));
       return;
     }
 
@@ -102,7 +104,7 @@ export default function SearchDoctorPage() {
         setLocationStatus("denied");
         if (error.code === error.PERMISSION_DENIED) {
           toast.info(
-            "Akses lokasi ditolak. Menampilkan semua dokter tanpa filter jarak."
+            t("patient.searchDoctor.locationDeniedToast", "Akses lokasi ditolak. Menampilkan semua dokter tanpa filter jarak.")
           );
         }
       },
@@ -128,10 +130,10 @@ export default function SearchDoctorPage() {
       const data = response.data;
       setDoctors(data.doctors || []);
       setSpecializations(data.specializations || []);
-      setCurrentPage(1); // Reset ke halaman 1 setiap fetch baru
+      setCurrentPage(1);
     } catch (error: any) {
       console.error("Error fetching doctors:", error);
-      toast.error("Gagal memuat data dokter.");
+      toast.error(t("patient.searchDoctor.loadFailedToast", "Gagal memuat data dokter."));
     } finally {
       setIsLoading(false);
     }
@@ -173,10 +175,10 @@ export default function SearchDoctorPage() {
       <div>
         <h1 className="text-2xl font-bold text-foreground flex items-center gap-2">
           <Stethoscope className="h-6 w-6 text-primary" />
-          Find a Doctor
+          {t("patient.searchDoctor.title")}
         </h1>
         <p className="text-muted-foreground mt-1">
-          Search and connect with the best healthcare professionals near you.
+          {t("patient.searchDoctor.subtitle")}
         </p>
       </div>
 
@@ -188,14 +190,14 @@ export default function SearchDoctorPage() {
               {locationStatus === "loading" ? (
                 <div className="flex items-center gap-2 text-sm text-muted-foreground">
                   <Loader2 className="h-4 w-4 animate-spin text-primary" />
-                  <span>Mencari lokasi GPS...</span>
+                  <span>{t("patient.searchDoctor.findingGps", "Mencari lokasi GPS...")}</span>
                 </div>
               ) : locationStatus === "granted" ? (
                 <div className="flex items-center gap-2 text-sm">
                   <div className="rounded-full bg-success/10 p-1.5">
                     <Navigation className="h-3.5 w-3.5 text-success" />
                   </div>
-                  <span className="text-success font-medium">GPS Aktif</span>
+                  <span className="text-success font-medium">{t("patient.searchDoctor.gpsActive", "GPS Aktif")}</span>
                   <span className="text-muted-foreground">•</span>
                   <span className="text-muted-foreground truncate">
                     {location
@@ -206,7 +208,7 @@ export default function SearchDoctorPage() {
               ) : (
                 <div className="flex items-center gap-2 text-sm text-muted-foreground">
                   <MapPin className="h-4 w-4" />
-                  <span>Lokasi tidak aktif</span>
+                  <span>{t("patient.searchDoctor.locationInactive", "Lokasi tidak aktif")}</span>
                 </div>
               )}
             </div>
@@ -220,7 +222,7 @@ export default function SearchDoctorPage() {
                   className="text-xs"
                 >
                   <Navigation className="h-3.5 w-3.5 mr-1" />
-                  {nearbyMode ? "Nearby: ON" : "Nearby: OFF"}
+                  {nearbyMode ? t("patient.searchDoctor.nearbyOn", "Nearby: ON") : t("patient.searchDoctor.nearbyOff", "Nearby: OFF")}
                 </Button>
                 {nearbyMode && (
                   <select
@@ -239,7 +241,7 @@ export default function SearchDoctorPage() {
             {locationStatus === "denied" && (
               <Button size="sm" variant="outline" onClick={getLocation}>
                 <RefreshCw className="h-3.5 w-3.5 mr-1" />
-                Aktifkan GPS
+                {t("patient.searchDoctor.enableGps", "Aktifkan GPS")}
               </Button>
             )}
           </div>
@@ -253,7 +255,7 @@ export default function SearchDoctorPage() {
           <Input
             id="search-doctor-input"
             data-testid="search-doctor-input"
-            placeholder="Cari nama dokter..."
+            placeholder={t("patient.searchDoctor.searchPlaceholder")}
             value={search}
             onChange={(e) => {
               setSearch(e.target.value);
@@ -275,7 +277,7 @@ export default function SearchDoctorPage() {
             }}
             className="w-full h-10 appearance-none rounded-md border border-input bg-background pl-9 pr-8 py-2 text-sm ring-offset-background focus:outline-none focus:ring-1 focus:ring-ring focus:ring-offset-0 disabled:cursor-not-allowed disabled:opacity-50"
           >
-            <option value="All">Semua Spesialisasi</option>
+            <option value="All">{t("patient.searchDoctor.allSpecializations")}</option>
             {specializations.map((s) => (
               <option key={s} value={s}>{s}</option>
             ))}
@@ -290,8 +292,8 @@ export default function SearchDoctorPage() {
       {!isLoading && (
         <div className="flex items-center justify-between">
           <p className="text-sm text-muted-foreground">
-            {doctors.length} dokter ditemukan
-            {nearbyMode && location ? ` dalam radius ${radiusKm} km` : ""}
+            {doctors.length} {t("patient.searchDoctor.noDoctorsFound") !== doctors.length ? t("patient.searchDoctor.doctorsFound", "dokter ditemukan") : ""}
+            {nearbyMode && location ? t("patient.searchDoctor.inRadius", " dalam radius {{radius}} km", { radius: radiusKm }) : ""}
           </p>
           <Button
             size="sm"
@@ -302,7 +304,7 @@ export default function SearchDoctorPage() {
             <RefreshCw
               className={`h-3.5 w-3.5 mr-1 ${isLoading ? "animate-spin" : ""}`}
             />
-            Refresh
+            {t("common.refresh")}
           </Button>
         </div>
       )}
@@ -311,7 +313,7 @@ export default function SearchDoctorPage() {
       {isLoading && (
         <div className="flex flex-col items-center justify-center py-16">
           <Loader2 className="h-8 w-8 text-primary animate-spin mb-3" />
-          <p className="text-muted-foreground text-sm">Memuat data dokter...</p>
+          <p className="text-muted-foreground text-sm">{t("common.loading")}</p>
         </div>
       )}
 
@@ -347,7 +349,7 @@ export default function SearchDoctorPage() {
                         variant={doctor.is_available ? "default" : "secondary"}
                         className={doctor.is_available ? "bg-success/10 text-success border-success/20" : ""}
                       >
-                        {doctor.is_available ? "Available" : "Offline"}
+                        {doctor.is_available ? t("patient.searchDoctor.availableForChat") : t("patient.searchDoctor.offline")}
                       </Badge>
                     </div>
 
@@ -363,7 +365,7 @@ export default function SearchDoctorPage() {
                       </span>
                       <span className="flex items-center gap-1">
                         <Clock className="h-3.5 w-3.5" />
-                        {doctor.experience_years} thn
+                        {doctor.experience_years} {t("patient.searchDoctor.yearsAbbr", "thn")}
                       </span>
                       {doctor.distance_text && (
                         <span className="flex items-center gap-1 text-primary font-medium">
@@ -377,12 +379,12 @@ export default function SearchDoctorPage() {
                       <span className="text-sm font-semibold text-foreground">
                         {formatCurrency(doctor.fee)}
                       </span>
-                      <span className="text-xs text-muted-foreground">/ konsultasi</span>
+                      <span className="text-xs text-muted-foreground">{t("patient.searchDoctor.perConsultation", "/ konsultasi")}</span>
                     </div>
 
                     <div className="flex gap-2 mt-3">
                       <Button size="sm" variant="outline" asChild>
-                        <Link to={`/doctor/${doctor.user_id}`}>Detail</Link>
+                        <Link to={`/doctor/${doctor.user_id}`}>{t("common.detail")}</Link>
                       </Button>
                       {doctor.is_available && (
                         <Button size="sm" asChild>
@@ -410,21 +412,11 @@ export default function SearchDoctorPage() {
             <Search className="h-6 w-6 text-muted-foreground" />
           </div>
           <p className="text-muted-foreground">
-            Tidak Menemukan Nama Dokter Yang Sesuai Dengan Kriteria Pencarian
+            {t("patient.searchDoctor.noDoctorsFound")}
           </p>
-          {nearbyMode && (
-            <Button
-              size="sm"
-              variant="outline"
-              className="mt-3"
-              onClick={() => {
-                setRadiusKm(200);
-                setNearbyMode(true);
-              }}
-            >
-              Perbesar Radius
-            </Button>
-          )}
+          <p className="text-sm text-muted-foreground mt-1">
+            {t("patient.searchDoctor.noDoctorsDesc")}
+          </p>
         </div>
       )}
 
@@ -432,7 +424,7 @@ export default function SearchDoctorPage() {
       {!isLoading && doctors.length > 0 && (
         <div className="flex flex-col sm:flex-row items-center justify-between gap-4 pt-6 border-t border-muted mt-4">
           <div className="flex items-center gap-2 text-sm text-muted-foreground">
-            <span>Tampilkan</span>
+            <span>{t("patient.searchDoctor.show", "Tampilkan")}</span>
             <select
               value={itemsPerPage}
               onChange={(e) => {
@@ -445,7 +437,7 @@ export default function SearchDoctorPage() {
               <option value={20}>20</option>
               <option value={50}>50</option>
             </select>
-            <span>per halaman</span>
+            <span>{t("patient.searchDoctor.perPage", "per halaman")}</span>
           </div>
 
           <div className="flex items-center gap-4">
@@ -456,11 +448,11 @@ export default function SearchDoctorPage() {
               disabled={currentPage === 1}
             >
               <ChevronLeft className="h-4 w-4 mr-1" />
-              Prev
+              {t("common.previous")}
             </Button>
 
             <div className="text-sm font-medium">
-              Halaman {currentPage} dari {totalPages || 1}
+              {t("patient.searchDoctor.pageInfo", "Halaman {{current}} dari {{total}}", { current: currentPage, total: totalPages || 1 })}
             </div>
 
             <Button
@@ -469,7 +461,7 @@ export default function SearchDoctorPage() {
               onClick={() => setCurrentPage((p) => Math.min(totalPages, p + 1))}
               disabled={currentPage >= totalPages}
             >
-              Next
+              {t("common.next")}
               <ChevronRight className="h-4 w-4 ml-1" />
             </Button>
           </div>

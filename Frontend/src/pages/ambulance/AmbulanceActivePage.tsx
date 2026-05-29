@@ -1,4 +1,5 @@
 import { useEffect, useState } from "react";
+import { useTranslation } from "react-i18next";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import {
   AlertTriangle,
@@ -19,6 +20,7 @@ import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { cn } from "@/lib/utils";
 import { emergencyService } from "@/services/api";
 import trackingService from "@/services/trackingService";
+import ReportModal from "@/components/ReportModal";
 
 import {
   buildMapsUrl,
@@ -90,14 +92,20 @@ function formatDateTime(value: string) {
   });
 }
 
-function getStatusMeta(status: EmergencyStatus) {
-  return (
-    statusConfig[status] ?? {
-      label: status.replace(/_/g, " "),
-      className: "bg-muted text-muted-foreground border-border",
-      description: "Status belum memiliki deskripsi.",
-    }
-  );
+function getStatusMeta(status: EmergencyStatus, t: any) {
+  const config = statusConfig[status];
+  if (config) {
+    return {
+      label: t(`ambulance.active.status.${status}.label`, config.label),
+      className: config.className,
+      description: t(`ambulance.active.status.${status}.desc`, config.description),
+    };
+  }
+  return {
+    label: status.replace(/_/g, " "),
+    className: "bg-muted text-muted-foreground border-border",
+    description: t("ambulance.active.status.unknown.desc", "Status belum memiliki deskripsi."),
+  };
 }
 
 function getProgressStepState(
@@ -133,8 +141,10 @@ function getProgressStepState(
 }
 
 export default function AmbulanceActivePage() {
+  const { t } = useTranslation();
   const queryClient = useQueryClient();
   const [selectedId, setSelectedId] = useState<string | null>(null);
+  const [reportTarget, setReportTarget] = useState<{ id: string; name: string; emergencyId: string } | null>(null);
 
   const { data, isLoading, isError, isFetching, refetch } =
     useQuery<ActiveEmergenciesResponse>({
@@ -239,10 +249,10 @@ export default function AmbulanceActivePage() {
         queryClient.invalidateQueries({ queryKey: ["ambulanceEmergencyHistory"] }),
       ]);
 
-      toast.success(`Status updated to ${getStatusMeta(variables.status).label}`);
+      toast.success(t("ambulance.active.statusUpdated", { status: getStatusMeta(variables.status, t).label, defaultValue: `Status updated to ${getStatusMeta(variables.status, t).label}` }));
     },
     onError: () => {
-      toast.error("Gagal memperbarui status emergency. Silakan coba lagi.");
+      toast.error(t("ambulance.active.updateError", "Gagal memperbarui status emergency. Silakan coba lagi."));
     },
   });
 
@@ -251,7 +261,7 @@ export default function AmbulanceActivePage() {
     if (!action) {
       return (
         <Button className="w-full sm:w-auto" variant="outline" disabled>
-          Case Closed
+          {t("ambulance.active.caseClosed", "Case Closed")}
         </Button>
       );
     }
@@ -276,7 +286,7 @@ export default function AmbulanceActivePage() {
         ) : (
           <ArrowRight className="mr-2 h-4 w-4" />
         )}
-        {action.label}
+        {t(`ambulance.active.action.${action.status}`, action.label)}
       </Button>
     );
   };
@@ -291,14 +301,13 @@ export default function AmbulanceActivePage() {
               <div className="max-w-2xl">
                 <div className="mb-3 inline-flex items-center gap-2 rounded-full border border-emergency/15 bg-emergency/10 px-3 py-1 text-xs font-semibold uppercase tracking-[0.2em] text-emergency">
                   <Siren className="h-3.5 w-3.5" />
-                  Emergency Active Board
+                  {t("ambulance.active.boardTitle", "Emergency Active Board")}
                 </div>
                 <h1 className="text-2xl font-bold tracking-tight text-foreground sm:text-3xl">
-                  Lokasi pasien aktif untuk unit ambulans
+                  {t("ambulance.active.mainTitle", "Lokasi pasien aktif untuk unit ambulans")}
                 </h1>
                 <p className="mt-2 max-w-xl text-sm text-muted-foreground sm:text-base">
-                  Pantau titik penjemputan, buka navigasi instan, lalu update progres
-                  penanganan dari satu layar yang ringkas.
+                  {t("ambulance.active.mainDesc", "Pantau titik penjemputan, buka navigasi instan, lalu update progres penanganan dari satu layar yang ringkas.")}
                 </p>
               </div>
               <Button
@@ -312,7 +321,7 @@ export default function AmbulanceActivePage() {
                 ) : (
                   <AlertTriangle className="mr-2 h-4 w-4" />
                 )}
-                Refresh Cases
+                {t("ambulance.active.refresh", "Refresh Cases")}
               </Button>
             </div>
 
@@ -320,39 +329,39 @@ export default function AmbulanceActivePage() {
               <Card className="border-white/40 bg-white/80 shadow-none">
                 <CardContent className="p-4">
                   <p className="text-xs font-medium uppercase tracking-wide text-muted-foreground">
-                    Active Request
+                    {t("ambulance.active.stat.activeRequest", "Active Request")}
                   </p>
                   <p className="mt-2 text-3xl font-semibold text-foreground">
                     {data?.total ?? 0}
                   </p>
                   <p className="mt-1 text-sm text-muted-foreground">
-                    Kasus aktif yang masih ditangani
+                    {t("ambulance.active.stat.activeRequestDesc", "Kasus aktif yang masih ditangani")}
                   </p>
                 </CardContent>
               </Card>
               <Card className="border-white/40 bg-white/80 shadow-none">
                 <CardContent className="p-4">
                   <p className="text-xs font-medium uppercase tracking-wide text-muted-foreground">
-                    Nearest Pickup
+                    {t("ambulance.active.stat.nearest", "Nearest Pickup")}
                   </p>
                   <p className="mt-2 text-3xl font-semibold text-foreground">
-                    {nearestRequest ? `${nearestRequest.distance_km.toFixed(1)} km` : "-"}
+                    {nearestRequest ? `${nearestRequest.distance_km.toFixed(1)} ${t("common.km", "km")}` : "-"}
                   </p>
                   <p className="mt-1 text-sm text-muted-foreground">
-                    Jarak terdekat dari base ambulans
+                    {t("ambulance.active.stat.nearestDesc", "Jarak terdekat dari base ambulans")}
                   </p>
                 </CardContent>
               </Card>
               <Card className="border-white/40 bg-white/80 shadow-none">
                 <CardContent className="p-4">
                   <p className="text-xs font-medium uppercase tracking-wide text-muted-foreground">
-                    On Progress
+                    {t("ambulance.active.stat.onProgress", "On Progress")}
                   </p>
                   <p className="mt-2 text-3xl font-semibold text-foreground">
                     {progressCount}
                   </p>
                   <p className="mt-1 text-sm text-muted-foreground">
-                    Pasien yang sedang ditangani
+                    {t("ambulance.active.stat.onProgressDesc", "Pasien yang sedang ditangani")}
                   </p>
                 </CardContent>
               </Card>
@@ -371,12 +380,12 @@ export default function AmbulanceActivePage() {
         <Card className="shadow-card">
           <CardContent className="space-y-4 p-6">
             <EmptyState
-              title="Gagal memuat emergency aktif"
-              description="Data pasien aktif belum bisa diambil. Coba refresh lagi."
+              title={t("ambulance.active.errorTitle", "Gagal memuat emergency aktif")}
+              description={t("ambulance.active.errorDesc", "Data pasien aktif belum bisa diambil. Coba refresh lagi.")}
             />
             <div className="flex justify-center">
               <Button variant="outline" onClick={() => refetch()}>
-                Coba Lagi
+                {t("common.tryAgain", "Coba Lagi")}
               </Button>
             </div>
           </CardContent>
@@ -385,8 +394,8 @@ export default function AmbulanceActivePage() {
         <Card className="shadow-card">
           <CardContent className="p-6">
             <EmptyState
-              title="Belum ada emergency aktif"
-              description="Saat ini belum ada pasien yang di-assign ke unit ambulans ini."
+              title={t("ambulance.active.emptyTitle", "Belum ada emergency aktif")}
+              description={t("ambulance.active.emptyDesc", "Saat ini belum ada pasien yang di-assign ke unit ambulans ini.")}
             />
           </CardContent>
         </Card>
@@ -394,7 +403,7 @@ export default function AmbulanceActivePage() {
         <div className="grid gap-6 xl:grid-cols-[minmax(0,1.05fr)_420px]">
           <section className="space-y-4">
             {requests.map((item) => {
-              const status = getStatusMeta(item.status);
+              const status = getStatusMeta(item.status, t);
               const isSelected = selectedRequest?.id === item.id;
               const isPendingItem =
                 updateStatus.isPending && updateStatus.variables?.id === item.id;
@@ -432,13 +441,13 @@ export default function AmbulanceActivePage() {
                               {isPendingItem && (
                                 <span className="inline-flex items-center gap-1 text-xs text-primary">
                                   <Loader2 className="h-3.5 w-3.5 animate-spin" />
-                                  Updating
+                                  {t("common.updating", "Updating")}
                                 </span>
                               )}
                             </div>
                             <div>
                               <h2 className="text-lg font-semibold text-foreground">
-                                {item.user_name || "Pasien tidak diketahui"}
+                                {item.user_name || t("ambulance.active.unknownPatient", "Pasien tidak diketahui")}
                               </h2>
                               <p className="text-sm capitalize text-muted-foreground">
                                 {item.type.replace(/_/g, " ")}
@@ -453,7 +462,7 @@ export default function AmbulanceActivePage() {
                               </div>
                               <div className="flex items-center gap-2">
                                 <Route className="h-4 w-4 shrink-0 text-primary" />
-                                <span>{item.distance_km.toFixed(2)} km dari base</span>
+                                <span>{item.distance_km.toFixed(2)} {t("ambulance.active.kmFromBase", "km dari base")}</span>
                               </div>
                             </div>
                             {item.notes && (
@@ -476,12 +485,30 @@ export default function AmbulanceActivePage() {
                                 onClick={(event) => event.stopPropagation()}
                               >
                                 <Navigation className="mr-2 h-4 w-4" />
-                                Open Maps
+                                {t("ambulance.active.openMaps", "Open Maps")}
                               </a>
                             </Button>
                             <div onClick={(event) => event.stopPropagation()}>
                               {renderActionButton(item)}
                             </div>
+                            {item.user_id && (
+                              <Button
+                                variant="ghost"
+                                size="sm"
+                                className="w-full gap-1.5 text-amber-600 hover:bg-amber-50 hover:text-amber-700 dark:hover:bg-amber-950/30 sm:w-auto"
+                                onClick={(event) => {
+                                  event.stopPropagation();
+                                  setReportTarget({
+                                    id: item.user_id!,
+                                    name: item.user_name || t("common.patient", "Pasien"),
+                                    emergencyId: item.id,
+                                  });
+                                }}
+                              >
+                                <AlertTriangle className="h-3.5 w-3.5" />
+                                {t("common.report", "Report")}
+                              </Button>
+                            )}
                           </div>
                         </div>
                       </div>
@@ -499,17 +526,17 @@ export default function AmbulanceActivePage() {
                   <div className="flex items-start justify-between gap-3">
                     <div>
                       <p className="text-xs font-semibold uppercase tracking-[0.18em] text-muted-foreground">
-                        Selected Emergency
+                        {t("ambulance.active.selectedEmergency", "Selected Emergency")}
                       </p>
                       <CardTitle className="mt-2 text-xl">
-                        {selectedRequest.user_name || "Pasien tidak diketahui"}
+                        {selectedRequest.user_name || t("ambulance.active.unknownPatient", "Pasien tidak diketahui")}
                       </CardTitle>
                       <p className="mt-1 text-sm capitalize text-muted-foreground">
                         {selectedRequest.type.replace(/_/g, " ")}
                       </p>
                     </div>
-                    <Badge className={getStatusMeta(selectedRequest.status).className}>
-                      {getStatusMeta(selectedRequest.status).label}
+                    <Badge className={getStatusMeta(selectedRequest.status, t).className}>
+                      {getStatusMeta(selectedRequest.status, t).label}
                     </Badge>
                   </div>
                 </CardHeader>
@@ -525,20 +552,20 @@ export default function AmbulanceActivePage() {
 
                   <div className="rounded-3xl border border-border/70 bg-card p-4">
                     <p className="text-xs font-semibold uppercase tracking-[0.18em] text-muted-foreground">
-                      Patient Location
+                      {t("ambulance.active.patientLocation", "Patient Location")}
                     </p>
                     <p className="mt-2 font-medium text-foreground">
                       {formatEmergencyLocation(selectedRequest)}
                     </p>
                     <div className="mt-4 grid gap-3 sm:grid-cols-2">
                       <div className="rounded-2xl bg-muted/60 p-3">
-                        <p className="text-xs text-muted-foreground">Latitude</p>
+                        <p className="text-xs text-muted-foreground">{t("ambulance.active.lat", "Latitude")}</p>
                         <p className="mt-1 font-semibold text-foreground">
                           {selectedRequest.location_lat.toFixed(5)}
                         </p>
                       </div>
                       <div className="rounded-2xl bg-muted/60 p-3">
-                        <p className="text-xs text-muted-foreground">Longitude</p>
+                        <p className="text-xs text-muted-foreground">{t("ambulance.active.lng", "Longitude")}</p>
                         <p className="mt-1 font-semibold text-foreground">
                           {selectedRequest.location_lng.toFixed(5)}
                         </p>
@@ -548,7 +575,7 @@ export default function AmbulanceActivePage() {
 
                   <div className="rounded-3xl border border-border/70 bg-card p-4">
                     <p className="text-xs font-semibold uppercase tracking-[0.18em] text-muted-foreground">
-                      Status Flow
+                      {t("ambulance.active.statusFlow", "Status Flow")}
                     </p>
                     <div className="mt-4 space-y-3">
                       {progressSteps.map((step, index) => {
@@ -579,13 +606,13 @@ export default function AmbulanceActivePage() {
                               )}
                             </div>
                             <div>
-                              <p className="font-medium text-foreground">{step.label}</p>
+                              <p className="font-medium text-foreground">{t(`ambulance.active.status.${step.status}.label`, step.label)}</p>
                               <p className="text-sm text-muted-foreground">
                                 {state === "done"
-                                  ? "Step selesai"
+                                  ? t("ambulance.active.stepDone", "Step selesai")
                                   : state === "active"
-                                    ? "Sedang berjalan"
-                                    : "Menunggu langkah berikutnya"}
+                                    ? t("ambulance.active.stepActive", "Sedang berjalan")
+                                    : t("ambulance.active.stepUpcoming", "Menunggu langkah berikutnya")}
                               </p>
                             </div>
                           </div>
@@ -593,7 +620,7 @@ export default function AmbulanceActivePage() {
                       })}
                     </div>
                     <p className="mt-4 text-sm text-muted-foreground">
-                      {getStatusMeta(selectedRequest.status).description}
+                      {getStatusMeta(selectedRequest.status, t).description}
                     </p>
                   </div>
 
@@ -605,7 +632,7 @@ export default function AmbulanceActivePage() {
                         rel="noreferrer"
                       >
                         <Navigation className="mr-2 h-4 w-4" />
-                        Navigate to Patient
+                        {t("ambulance.active.navigateToPatient", "Navigate to Patient")}
                       </a>
                     </Button>
                     <div className="flex-1">{renderActionButton(selectedRequest)}</div>
@@ -616,6 +643,16 @@ export default function AmbulanceActivePage() {
           )}
         </div>
       )}
+
+      {/* Report Modal for Patient */}
+      <ReportModal
+        open={!!reportTarget}
+        onOpenChange={(open) => { if (!open) setReportTarget(null); }}
+        reportedId={reportTarget?.id || ""}
+        reportedName={reportTarget?.name || ""}
+        contextType="emergency"
+        contextId={reportTarget?.emergencyId}
+      />
     </div>
   );
 }
