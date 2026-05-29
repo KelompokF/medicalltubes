@@ -1,7 +1,8 @@
 from contextlib import asynccontextmanager
-from fastapi import FastAPI
+from uuid import UUID
+from fastapi import FastAPI, WebSocket, WebSocketDisconnect, Depends, HTTPException, status
 from fastapi.middleware.cors import CORSMiddleware
-from app.routers import auth, health_record, user, emergency
+from app.routers import auth, health_record, user, emergency, tracking
 from app.routers.patient import router as patient_router
 from app.routers.dashboard import router as dashboard_router
 from app.routers.chat import router as chat_router
@@ -10,7 +11,12 @@ from app.routers.doctor import router as doctor_router
 from app.routers.doctor_patients import router as doctor_patients_router
 from app.routers.doctor_schedule import router as doctor_schedule_router
 from app.Websocket.chat import router as websocket_router
-from app.database import engine, Base
+from app.Websocket.tracking_manager import tracking_manager
+from app.database import engine, Base, get_db
+from app.routers.auth import get_current_user
+from sqlalchemy.ext.asyncio import AsyncSession
+from app.models.emergency_request import EmergencyRequest
+from sqlalchemy import select
 # Ensure models are loaded for create_all
 import app.models.doctor_profile  # noqa: F401
 import app.models.doctor_schedule  # noqa: F401
@@ -78,6 +84,7 @@ app.include_router(home_visit_router)
 from app.routers.prescription import router as prescription_router
 app.include_router(prescription_router)
 app.include_router(emergency.router)
+app.include_router(tracking.router, prefix="/api")
 app.include_router(doctor_schedule_router)  # must be BEFORE doctor_router (specific before wildcard)
 app.include_router(doctor_patients_router)
 app.include_router(doctor_router)
@@ -89,6 +96,174 @@ from app.routers.review import router as review_router
 app.include_router(review_router)
 
 
+
+
+@app.websocket("/ws/tracking/{emergency_request_id}")
+async def websocket_tracking_endpoint(
+    websocket: WebSocket,
+    emergency_request_id: str,
+    token: str = None
+):
+    """
+    WebSocket endpoint for real-time ambulance tracking.
+    
+    Args:
+        websocket: WebSocket connection
+        emergency_request_id: UUID string of the emergency request to track
+        token: Authentication token (passed as query parameter)
+    """
+    # Accept the WebSocket connection first
+    await websocket.accept()
+    
+    try:
+        # Authenticate user
+        if not token:
+            await websocket.send_json({
+                "type": "error",
+                "message": "Authentication token required"
+            })
+            await websocket.close(code=1008)  # Policy violation
+            return
+        
+        # Get database session
+        async for db in get_db():
+            try:
+                # Verify token and get user
+                from app.core.security import decode_access_token
+                from app.models.ambulance import AmbulanceService
+                from app.models.user import User
+                
+                payload = decode_access_token(token)
+                if not payload:
+                    await websocket.send_json({
+                        "type": "error",
+                        "message": "Invalid or expired token"
+                    })
+                    await websocket.close(code=1008)
+                    return
+                
+                user_id_str = payload.get("sub")
+                if not user_id_str:
+                    await websocket.send_json({
+                        "type": "error",
+                        "message": "Invalid token payload"
+                    })
+                    await websocket.close(code=1008)
+                    return
+                
+                try:
+                    user_id = UUID(user_id_str)
+                    emergency_uuid = UUID(emergency_request_id)
+                except ValueError:
+                    await websocket.send_json({
+                        "type": "error",
+                        "message": "Invalid ID format"
+                    })
+                    await websocket.close(code=1008)
+                    return
+                
+                # Get the user to check their role
+                user_result = await db.execute(
+                    select(User).where(User.id == user_id)
+                )
+                user = user_result.scalar_one_or_none()
+                
+                if not user:
+                    await websocket.send_json({
+                        "type": "error",
+                        "message": "User not found"
+                    })
+                    await websocket.close(code=1008)
+                    return
+                
+                # Verify user has access to this emergency request
+                result = await db.execute(
+                    select(EmergencyRequest).where(
+                        EmergencyRequest.id == emergency_uuid
+                    )
+                )
+                emergency = result.scalar_one_or_none()
+                
+                if not emergency:
+                    await websocket.send_json({
+                        "type": "error",
+                        "message": "Emergency request not found"
+                    })
+                    await websocket.close(code=1008)
+                    return
+                
+                # Check if user has access to this emergency
+                has_access = False
+                
+                # Patient can access their own emergency
+                if emergency.user_id == user_id:
+                    has_access = True
+                
+                # Ambulance can access if they're assigned to this emergency
+                if user.role == "ambulance" and emergency.ambulance_service_id:
+                    ambulance_result = await db.execute(
+                        select(AmbulanceService).where(
+                            AmbulanceService.user_id == user_id
+                        )
+                    )
+                    ambulance = ambulance_result.scalar_one_or_none()
+                    if ambulance and ambulance.id == emergency.ambulance_service_id:
+                        has_access = True
+                
+                if not has_access:
+                    await websocket.send_json({
+                        "type": "error",
+                        "message": "Access denied to this emergency request"
+                    })
+                    await websocket.close(code=1008)
+                    return
+                
+                # Manually add to tracking room (websocket already accepted above)
+                if emergency_request_id not in tracking_manager.tracking_rooms:
+                    tracking_manager.tracking_rooms[emergency_request_id] = []
+                
+                tracking_manager.tracking_rooms[emergency_request_id].append(websocket)
+                
+                # Send connection confirmation
+                await websocket.send_json({
+                    "type": "connection_established",
+                    "emergency_request_id": emergency_request_id,
+                    "message": "Connected to tracking room"
+                })
+                
+                # Keep connection alive and handle incoming messages
+                try:
+                    while True:
+                        # Receive messages from client (e.g., ping/pong for keep-alive)
+                        data = await websocket.receive_json()
+                        
+                        # Handle ping messages
+                        if data.get("type") == "ping":
+                            await websocket.send_json({"type": "pong"})
+                        
+                except WebSocketDisconnect:
+                    # Client disconnected normally
+                    pass
+                
+            finally:
+                # Always disconnect from tracking room
+                await tracking_manager.disconnect_from_tracking(emergency_request_id, websocket)
+                break
+    
+    except Exception as e:
+        # Handle any unexpected errors
+        try:
+            await websocket.send_json({
+                "type": "error",
+                "message": f"Server error: {str(e)}"
+            })
+        except:
+            pass
+        finally:
+            try:
+                await websocket.close(code=1011)  # Internal error
+            except:
+                pass
 
 
 @app.get("/", tags=["Root"])

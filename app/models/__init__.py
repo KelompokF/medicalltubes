@@ -1,0 +1,1 @@
+from app.models.ambulance_location_update import AmbulanceLocationUpdate

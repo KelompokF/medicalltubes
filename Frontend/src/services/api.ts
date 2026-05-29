@@ -189,6 +189,7 @@ export const emergencyService = {
     limit?: number;
   }) => api.get("/emergencies/history", { params }),
   getActiveEmergencies: () => api.get("/emergencies/active"),
+  getMyActiveRequests: () => api.get("/emergencies/my-active-requests"),
   updateActiveEmergencyStatus: (
     id: string,
     status: "on_my_way" | "on_progress" | "completed"

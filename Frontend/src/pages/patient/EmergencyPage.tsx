@@ -16,6 +16,7 @@ import {
 import { toast } from "sonner";
 import { emergencyService, patientService } from "@/services/api";
 import { useQuery } from "@tanstack/react-query";
+import { useNavigate } from "react-router-dom";
 import ReportModal from "@/components/ReportModal";
 
 export type EmergencyAction = "cancel" | "complete";
@@ -109,6 +110,7 @@ export default function EmergencyPage() {
     ambulance?: AmbulanceService;
   } | null>(null);
   const [radiusKm, setRadiusKm] = useState(50);
+  const navigate = useNavigate();
   const [isReportModalOpen, setIsReportModalOpen] = useState(false);
 
   // Fetch location sharing setting from user profile
@@ -117,6 +119,40 @@ export default function EmergencyPage() {
     queryFn: () => patientService.getLocationSharing().then((r) => r.data),
   });
   const isLocationSharingEnabled = locationSetting?.location_sharing_enabled ?? null;
+
+  // Fetch active emergency requests
+  const { data: activeEmergencies } = useQuery({
+    queryKey: ["activeEmergencies"],
+    queryFn: () => emergencyService.getMyActiveRequests().then((r) => r.data),
+    refetchInterval: 5000, // Refetch every 5 seconds to keep status updated
+  });
+
+  // Update emergencyStatus when active emergencies are fetched
+  useEffect(() => {
+    if (activeEmergencies?.requests && activeEmergencies.requests.length > 0) {
+      const activeRequest = activeEmergencies.requests[0]; // Get the first active request
+      setEmergencyStatus({
+        id: activeRequest.id,
+        status: activeRequest.status,
+        message: activeRequest.message || "Permintaan darurat aktif",
+        address: activeRequest.address,
+        ambulance: activeRequest.ambulance_service ? {
+          id: activeRequest.ambulance_service.id,
+          name: activeRequest.ambulance_service.name,
+          address: activeRequest.ambulance_service.address,
+          lat: activeRequest.ambulance_service.lat,
+          lng: activeRequest.ambulance_service.lng,
+          distance_km: activeRequest.ambulance_service.distance_km || 0,
+          distance_text: activeRequest.ambulance_service.distance_text || "",
+          eta_minutes: activeRequest.ambulance_service.eta_minutes || 0,
+          eta_text: activeRequest.ambulance_service.eta_text || "",
+          phone: activeRequest.ambulance_service.phone || "",
+          status: activeRequest.ambulance_service.status || "",
+          source: activeRequest.ambulance_service.source || "",
+        } : undefined,
+      });
+    }
+  }, [activeEmergencies]);
   const locationRequestId = useRef(0);
   const ambulanceRequestId = useRef(0);
   const radiusKmRef = useRef(radiusKm);
@@ -662,6 +698,16 @@ export default function EmergencyPage() {
                     <span>ETA: {emergencyStatus.ambulance.eta_text}</span>
                   </div>
                 </div>
+              )}
+              {emergencyStatus.ambulance && (emergencyStatus.status === "on_my_way" || emergencyStatus.status === "on_progress") && (
+                <Button 
+                  onClick={() => navigate(`/ambulance-tracking/${emergencyStatus.id}`)}
+                  className="w-full"
+                  variant="default"
+                >
+                  <Navigation className="h-4 w-4 mr-2" />
+                  Lacak Ambulans
+                </Button>
               )}
               <div className="grid grid-cols-1 sm:grid-cols-2 gap-2">
                 <Button variant="outline" onClick={() => setPendingAction("cancel")}>

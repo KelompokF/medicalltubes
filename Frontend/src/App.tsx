@@ -24,6 +24,7 @@ import HomeVisitTrackingPage from "@/pages/patient/HomeVisitTrackingPage";
 import HomeVisitHistoryPage from "@/pages/patient/HomeVisitHistoryPage";
 import ReportTrackingPage from "@/pages/patient/ReportTrackingPage";
 import EmergencyPage from "@/pages/patient/EmergencyPage";
+import AmbulanceTrackingPage from "@/pages/patient/AmbulanceTrackingPage";
 import UserProfilePage from "@/pages/patient/UserProfilePage";
 import AdminDashboard from "@/pages/admin/AdminDashboard";
 import AdminReportsPage from "@/pages/admin/AdminReportsPage";
@@ -88,6 +89,7 @@ const App = () => (
             <Route path="/report-tracking" element={<ReportTrackingPage />} />
             <Route path="/tracking" element={<HomeVisitTrackingPage />} />
             <Route path="/emergency" element={<EmergencyPage />} />
+            <Route path="/ambulance-tracking/:requestId" element={<AmbulanceTrackingPage />} />
             <Route path="/profile" element={<UserProfilePage />} />
           </Route>
 

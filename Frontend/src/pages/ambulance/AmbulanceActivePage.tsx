@@ -19,6 +19,7 @@ import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { cn } from "@/lib/utils";
 import { emergencyService } from "@/services/api";
+import trackingService from "@/services/trackingService";
 import ReportModal from "@/components/ReportModal";
 
 import {
@@ -178,6 +179,61 @@ export default function AmbulanceActivePage() {
       setSelectedId(requests[0].id);
     }
   }, [requests, selectedId]);
+
+  // Auto location sharing for on_my_way status
+  useEffect(() => {
+    if (!selectedRequest || selectedRequest.status !== "on_my_way") {
+      return;
+    }
+
+    let intervalId: NodeJS.Timeout | null = null;
+    let isActive = true;
+
+    const updateLocation = () => {
+      if (!isActive) return;
+
+      navigator.geolocation.getCurrentPosition(
+        async (position) => {
+          if (!isActive) return;
+
+          try {
+            await trackingService.updateLocation({
+              emergency_request_id: selectedRequest.id,
+              lat: position.coords.latitude,
+              lng: position.coords.longitude,
+            });
+          } catch (error) {
+            console.error("Failed to update location:", error);
+          }
+        },
+        (error) => {
+          console.error("Geolocation error:", error);
+          if (error.code === error.PERMISSION_DENIED) {
+            toast.error("Location permission denied. Please enable location access.");
+            isActive = false;
+          }
+        },
+        {
+          enableHighAccuracy: true,
+          timeout: 10000,
+          maximumAge: 0,
+        }
+      );
+    };
+
+    // Initial update
+    updateLocation();
+
+    // Set up interval for updates every 5 seconds
+    intervalId = setInterval(updateLocation, 5000);
+
+    return () => {
+      isActive = false;
+      if (intervalId) {
+        clearInterval(intervalId);
+      }
+    };
+  }, [selectedRequest]);
 
   const updateStatus = useMutation({
     mutationFn: ({
