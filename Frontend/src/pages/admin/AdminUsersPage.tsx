@@ -199,8 +199,11 @@ export default function AdminUsersPage() {
 
     const handleRefreshAll = () => {
         setSearchText("");
-        setRoleFilter("all");
-        refetch();
+        if (roleFilter !== "all") {
+            setRoleFilter("all");
+        } else {
+            refetch();
+        }
     };
 
     return (
@@ -242,7 +245,7 @@ export default function AdminUsersPage() {
                     <Button
                         variant="outline"
                         size="icon"
-                        onClick={() => refetch()}
+                        onClick={handleRefreshAll}
                         disabled={isLoading || isFetching}
                         title="Segarkan data"
                         className="shrink-0"
@@ -257,7 +260,7 @@ export default function AdminUsersPage() {
                     <CardTitle>Daftar Pengguna</CardTitle>
                 </CardHeader>
                 <CardContent>
-                    {isLoading ? (
+                    {(isLoading || (isFetching && !data)) ? (
                         <div className="grid gap-4">
                             {[...Array(4)].map((_, idx) => (
                                 <div key={idx} className="h-12 rounded-lg bg-muted/40 animate-pulse" />
