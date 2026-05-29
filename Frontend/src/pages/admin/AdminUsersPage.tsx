@@ -197,6 +197,12 @@ export default function AdminUsersPage() {
         setConfirmAction(null);
     };
 
+    const handleRefreshAll = () => {
+        setSearchText("");
+        setRoleFilter("all");
+        refetch();
+    };
+
     return (
         <div className="space-y-6 animate-fade-in">
             <div className="flex flex-col gap-4 sm:flex-row sm:items-center sm:justify-between">
@@ -235,13 +241,13 @@ export default function AdminUsersPage() {
                     </div>
                     <Button
                         variant="outline"
-                        size="sm"
+                        size="icon"
                         onClick={() => refetch()}
-                        disabled={isFetching}
-                        className="flex items-center"
+                        disabled={isLoading || isFetching}
+                        title="Segarkan data"
+                        className="shrink-0"
                     >
-                        <RefreshCw className={`h-4 w-4 mr-2 ${isFetching ? "animate-spin" : ""}`} />
-                        Refresh
+                        <RefreshCw className={`h-4 w-4 ${isFetching ? "animate-spin" : ""}`} />
                     </Button>
                 </div>
             </div>
@@ -260,8 +266,17 @@ export default function AdminUsersPage() {
                     ) : error ? (
                         <div className="text-red-500">Gagal memuat daftar pengguna.</div>
                     ) : filteredUsers.length === 0 ? (
-                        <div className="text-center py-16 text-muted-foreground">
-                            Tidak ada pengguna yang cocok dengan filter saat ini.
+                        <div className="text-center py-16 text-muted-foreground flex flex-col items-center justify-center gap-4">
+                            <p>Tidak ada pengguna yang cocok dengan filter saat ini.</p>
+                            <Button 
+                                variant="outline" 
+                                onClick={handleRefreshAll}
+                                className="gap-2"
+                                disabled={isFetching}
+                            >
+                                <RefreshCw className={`h-4 w-4 ${isFetching ? "animate-spin" : ""}`} />
+                                Segarkan & Reset Filter
+                            </Button>
                         </div>
                     ) : (
                         <Table className="min-w-full table-auto">

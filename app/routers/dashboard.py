@@ -1,4 +1,4 @@
-from fastapi import APIRouter, Depends, Query
+from fastapi import APIRouter, Depends, Query, HTTPException
 from sqlalchemy.ext.asyncio import AsyncSession
 from sqlalchemy.future import select
 from sqlalchemy import func
@@ -426,11 +426,11 @@ async def get_admin_dashboard_summary(
         )
 
     # 1. Total Users (Pasien)
-    res_users = await db.execute(select(func.count(User.id)).where(User.role == "patient"))
+    res_users = await db.execute(select(func.count(User.id)).where(User.role == "patient", User.is_deleted == False))
     total_users = res_users.scalar() or 0
 
     # 2. Total Doctors
-    res_doctors = await db.execute(select(func.count(User.id)).where(User.role == "doctor"))
+    res_doctors = await db.execute(select(func.count(User.id)).where(User.role == "doctor", User.is_deleted == False))
     total_doctors = res_doctors.scalar() or 0
 
     # 3. Active Emergencies
@@ -450,7 +450,7 @@ async def get_admin_dashboard_summary(
 
     # 5. Recent Users Table (5 newest users)
     recent_users_result = await db.execute(
-        select(User).order_by(User.created_at.desc()).limit(5)
+        select(User).where(User.is_deleted == False).order_by(User.created_at.desc()).limit(5)
     )
     
     recent_users = []
@@ -490,14 +490,14 @@ async def get_admin_users(
         return AdminUsersResponse(users=[], total=0)
     
     # Build query
-    query = select(User)
+    query = select(User).where(User.is_deleted == False)
     
     # Apply role filter
     if role and role != "all":
         query = query.where(User.role == role)
     
     # Count total
-    count_query = select(func.count(User.id))
+    count_query = select(func.count(User.id)).where(User.is_deleted == False)
     if role and role != "all":
         count_query = count_query.where(User.role == role)
     
@@ -533,14 +533,14 @@ async def update_user_status(
 ):
     """Update status pengguna (active/suspended/banned)."""
     if current_user.role != "admin":
-        return {"detail": "Unauthorized"}
+        raise HTTPException(status_code=403, detail="Unauthorized")
     
     # Get the user
-    result = await db.execute(select(User).where(User.id == user_id))
+    result = await db.execute(select(User).where(User.id == user_id, User.is_deleted == False))
     user = result.scalars().first()
     
     if not user:
-        return {"detail": "User not found"}
+        raise HTTPException(status_code=404, detail="User not found")
 
     status_value = payload.status.lower()
     if status_value == "active":
@@ -548,7 +548,7 @@ async def update_user_status(
     elif status_value in ["suspended", "banned"]:
         user.is_active = False
     else:
-        return {"detail": "Status tidak valid"}
+        raise HTTPException(status_code=400, detail="Status tidak valid")
 
     user.account_status = status_value
     await db.commit()
@@ -563,13 +563,13 @@ async def delete_admin_user(
 ):
     """Delete a user account permanently."""
     if current_user.role != "admin":
-        return {"detail": "Unauthorized"}
+        raise HTTPException(status_code=403, detail="Unauthorized")
 
     result = await db.execute(select(User).where(User.id == user_id))
     user = result.scalars().first()
 
     if not user:
-        return {"detail": "User not found"}
+        raise HTTPException(status_code=404, detail="User not found")
 
     await db.delete(user)
     await db.commit()
