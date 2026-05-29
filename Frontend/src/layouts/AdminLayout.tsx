@@ -10,7 +10,18 @@ import {
   DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuSeparator, DropdownMenuTrigger
 } from "@/components/ui/dropdown-menu";
 import { toast } from "sonner";
+
+const adminNav = [
+  { label: "Dashboard", path: "/admin", icon: LayoutDashboard },
+  { label: "User Accounts", path: "/admin/users", icon: Users },
+  { label: "Emergency Monitor", path: "/admin/emergencies", icon: AlertTriangle },
+  { label: "Consultations", path: "/admin/consultations", icon: MessageSquare },
+  { label: "Reports", path: "/admin/reports", icon: FileWarning },
+  { label: "Settings", path: "/admin/settings", icon: Settings },
+];
+
 import LanguageSwitcher from "@/components/LanguageSwitcher";
+
 
 interface AdminNotification {
   id: number;
@@ -32,6 +43,7 @@ export default function AdminLayout() {
 
   const adminNav = [
     { label: t("admin.layout.dashboard"), path: "/admin", icon: LayoutDashboard },
+    { label: t("admin.layout.userAccounts", { defaultValue: "User Accounts" }), path: "/admin/users", icon: Users },
     { label: t("admin.layout.emergencyMonitor"), path: "/admin/emergencies", icon: AlertTriangle },
     { label: t("admin.layout.consultations"), path: "/admin/consultations", icon: MessageSquare },
     { label: t("admin.layout.prescriptionTracking", { defaultValue: "Prescription Tracking" }), path: "/admin/prescriptions", icon: Stethoscope },
@@ -60,9 +72,8 @@ export default function AdminLayout() {
         window.location.hostname === "localhost"
           ? "8001"
           : window.location.port;
-      const wsUrl = `${
-        window.location.protocol === "https:" ? "wss" : "ws"
-      }://${window.location.hostname}:${port}/ws/chat/${adminId}`;
+      const wsUrl = `${window.location.protocol === "https:" ? "wss" : "ws"
+        }://${window.location.hostname}:${port}/ws/chat/${adminId}`;
 
       const ws = new WebSocket(wsUrl);
       wsRef.current = ws;
@@ -163,9 +174,8 @@ export default function AdminLayout() {
           <p className="px-3 text-xs font-semibold uppercase tracking-wider text-sidebar-foreground/50 mb-2">{t("admin.layout.administration")}</p>
           {adminNav.map((item) => (
             <Link key={item.path} to={item.path} onClick={() => setSidebarOpen(false)}
-              className={`flex items-center gap-3 px-3 py-2.5 rounded-lg text-sm font-medium transition-all duration-200 ${
-                isActive(item.path) ? "bg-sidebar-primary text-sidebar-primary-foreground" : "text-sidebar-foreground/70 hover:bg-sidebar-accent hover:text-sidebar-accent-foreground"
-              }`}>
+              className={`flex items-center gap-3 px-3 py-2.5 rounded-lg text-sm font-medium transition-all duration-200 ${isActive(item.path) ? "bg-sidebar-primary text-sidebar-primary-foreground" : "text-sidebar-foreground/70 hover:bg-sidebar-accent hover:text-sidebar-accent-foreground"
+                }`}>
               <item.icon className="h-4 w-4" />{item.label}
             </Link>
           ))}
@@ -233,9 +243,8 @@ export default function AdminLayout() {
                           onClick={() => navigate("/admin/reports")}
                         >
                           <div className="flex items-center gap-2 w-full">
-                            <span className={`h-2 w-2 rounded-full shrink-0 ${
-                              n.type === "new_report" ? "bg-amber-500" : "bg-blue-500"
-                            }`} />
+                            <span className={`h-2 w-2 rounded-full shrink-0 ${n.type === "new_report" ? "bg-amber-500" : "bg-blue-500"
+                              }`} />
                             <span className="font-medium text-xs text-foreground flex-1 truncate">
                               {n.title}
                             </span>

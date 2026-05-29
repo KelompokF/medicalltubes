@@ -1,7 +1,7 @@
 from fastapi import APIRouter, Depends, HTTPException, status, Query
 from sqlalchemy.ext.asyncio import AsyncSession
 from sqlalchemy.future import select
-from sqlalchemy import func
+from sqlalchemy import func, or_
 from typing import Optional, List
 import logging
 
@@ -169,10 +169,11 @@ async def get_my_reports(
 @router.get("", response_model=ReportListResponse)
 async def get_all_reports(
     status_filter: Optional[str] = Query(None, alias="status"),
+    user_id: Optional[str] = Query(None, alias="user_id"),
     db: AsyncSession = Depends(get_db),
     current_user: User = Depends(get_current_user),
 ):
-    """(Admin only) Lihat semua laporan dengan optional filter status."""
+    """(Admin only) Lihat semua laporan dengan optional filter status dan user_id."""
     if current_user.role != "admin":
         raise HTTPException(
             status_code=status.HTTP_403_FORBIDDEN,
@@ -182,6 +183,10 @@ async def get_all_reports(
     query = select(Report).order_by(Report.created_at.desc())
     if status_filter:
         query = query.where(Report.status == status_filter)
+    if user_id:
+        query = query.where(
+            or_(Report.reporter_id == user_id, Report.reported_id == user_id)
+        )
 
     result = await db.execute(query)
     reports = result.scalars().all()
@@ -190,6 +195,10 @@ async def get_all_reports(
     count_query = select(func.count(Report.id))
     if status_filter:
         count_query = count_query.where(Report.status == status_filter)
+    if user_id:
+        count_query = count_query.where(
+            or_(Report.reporter_id == user_id, Report.reported_id == user_id)
+        )
     count_result = await db.execute(count_query)
     total = count_result.scalar() or 0
 

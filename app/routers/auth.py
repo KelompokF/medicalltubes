@@ -60,6 +60,12 @@ async def login(data: UserLogin, db: AsyncSession = Depends(get_db)):
     if getattr(user, 'is_deleted', False):
         raise HTTPException(status_code=403, detail="Akun telah dihapus")
 
+    account_status = getattr(user, 'account_status', 'active')
+    if account_status == 'suspended':
+        raise HTTPException(status_code=403, detail="Akun Ditangguhkan Sementara, Silahkan Hubungi Admin")
+    if account_status == 'banned':
+        raise HTTPException(status_code=403, detail="Akun Diblokir Admin")
+
     token = create_access_token({"sub": str(user.id), "role": getattr(user, 'role', 'patient')})
     return {"access_token": token, "token_type": "bearer"}
 

@@ -1,4 +1,4 @@
-from fastapi import APIRouter, Depends
+from fastapi import APIRouter, Depends, Query, HTTPException
 from sqlalchemy.ext.asyncio import AsyncSession
 from sqlalchemy.future import select
 from sqlalchemy import func
@@ -17,7 +17,7 @@ from app.schemas.prescription import MedicationItem
 from sqlalchemy import text
 from app.models.doctor_profile import DoctorProfile
 from pydantic import BaseModel
-from typing import List, Any
+from typing import List, Any, Optional
 
 class AdminStats(BaseModel):
     totalUsers: int
@@ -29,6 +29,21 @@ class AdminDashboardResponse(BaseModel):
     stats: AdminStats
     recentUsers: List[Any]
     analyticsData: List[Any]
+
+class UserResponse(BaseModel):
+    id: str
+    name: str
+    email: str
+    role: str
+    status: str
+    created_at: str
+
+class UpdateUserStatusRequest(BaseModel):
+    status: str
+
+class AdminUsersResponse(BaseModel):
+    users: List[UserResponse]
+    total: int
 
 router = APIRouter(tags=["Dashboard"])
 
@@ -411,11 +426,11 @@ async def get_admin_dashboard_summary(
         )
 
     # 1. Total Users (Pasien)
-    res_users = await db.execute(select(func.count(User.id)).where(User.role == "patient"))
+    res_users = await db.execute(select(func.count(User.id)).where(User.role == "patient", User.is_deleted == False))
     total_users = res_users.scalar() or 0
 
     # 2. Total Doctors
-    res_doctors = await db.execute(select(func.count(User.id)).where(User.role == "doctor"))
+    res_doctors = await db.execute(select(func.count(User.id)).where(User.role == "doctor", User.is_deleted == False))
     total_doctors = res_doctors.scalar() or 0
 
     # 3. Active Emergencies
@@ -435,7 +450,7 @@ async def get_admin_dashboard_summary(
 
     # 5. Recent Users Table (5 newest users)
     recent_users_result = await db.execute(
-        select(User).order_by(User.created_at.desc()).limit(5)
+        select(User).where(User.is_deleted == False).order_by(User.created_at.desc()).limit(5)
     )
     
     recent_users = []
@@ -463,3 +478,100 @@ async def get_admin_dashboard_summary(
         recentUsers=recent_users,
         analyticsData=analytics_data
     )
+
+@router.get("/admin/users", response_model=AdminUsersResponse)
+async def get_admin_users(
+    current_user: User = Depends(get_current_user),
+    db: AsyncSession = Depends(get_db),
+    role: Optional[str] = Query(None)
+):
+    """Ambil daftar SEMUA pengguna untuk admin dengan filter opsional."""
+    if current_user.role != "admin":
+        return AdminUsersResponse(users=[], total=0)
+    
+    # Build query
+    query = select(User).where(User.is_deleted == False)
+    
+    # Apply role filter
+    if role and role != "all":
+        query = query.where(User.role == role)
+    
+    # Count total
+    count_query = select(func.count(User.id)).where(User.is_deleted == False)
+    if role and role != "all":
+        count_query = count_query.where(User.role == role)
+    
+    total_result = await db.execute(count_query)
+    total = total_result.scalar() or 0
+    
+    # Get ALL users (no pagination)
+    query = query.order_by(User.created_at.desc())
+    
+    result = await db.execute(query)
+    users_data = result.scalars().all()
+    
+    users_list = [
+        UserResponse(
+            id=str(u.id),
+            name=u.full_name or "Unknown",
+            email=u.email,
+            role=u.role,
+            status=(getattr(u, "account_status", None) or ("active" if u.is_active else "suspended")),
+            created_at=u.created_at.strftime("%Y-%m-%d %H:%M:%S") if u.created_at else ""
+        )
+        for u in users_data
+    ]
+    
+    return AdminUsersResponse(users=users_list, total=total)
+
+@router.patch("/admin/users/{user_id}")
+async def update_user_status(
+    user_id: str,
+    payload: UpdateUserStatusRequest,
+    current_user: User = Depends(get_current_user),
+    db: AsyncSession = Depends(get_db)
+):
+    """Update status pengguna (active/suspended/banned)."""
+    if current_user.role != "admin":
+        raise HTTPException(status_code=403, detail="Unauthorized")
+    
+    # Get the user
+    result = await db.execute(select(User).where(User.id == user_id, User.is_deleted == False))
+    user = result.scalars().first()
+    
+    if not user:
+        raise HTTPException(status_code=404, detail="User not found")
+
+    status_value = payload.status.lower()
+    if status_value == "active":
+        user.is_active = True
+    elif status_value in ["suspended", "banned"]:
+        user.is_active = False
+    else:
+        raise HTTPException(status_code=400, detail="Status tidak valid")
+
+    user.account_status = status_value
+    await db.commit()
+    
+    return {"message": "Status updated successfully"}
+
+@router.delete("/admin/users/{user_id}")
+async def delete_admin_user(
+    user_id: str,
+    current_user: User = Depends(get_current_user),
+    db: AsyncSession = Depends(get_db)
+):
+    """Delete a user account permanently."""
+    if current_user.role != "admin":
+        raise HTTPException(status_code=403, detail="Unauthorized")
+
+    result = await db.execute(select(User).where(User.id == user_id))
+    user = result.scalars().first()
+
+    if not user:
+        raise HTTPException(status_code=404, detail="User not found")
+
+    await db.delete(user)
+    await db.commit()
+
+    return {"message": "User deleted successfully"}
