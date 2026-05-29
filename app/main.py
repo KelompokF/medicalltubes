@@ -89,7 +89,7 @@ app.include_router(doctor_router)
 @app.websocket("/ws/tracking/{emergency_request_id}")
 async def websocket_tracking_endpoint(
     websocket: WebSocket,
-    emergency_request_id: int,
+    emergency_request_id: str,
     token: str = None
 ):
     """
@@ -97,7 +97,7 @@ async def websocket_tracking_endpoint(
     
     Args:
         websocket: WebSocket connection
-        emergency_request_id: ID of the emergency request to track
+        emergency_request_id: UUID string of the emergency request to track
         token: Authentication token (passed as query parameter)
     """
     # Accept the WebSocket connection first
@@ -117,8 +117,11 @@ async def websocket_tracking_endpoint(
         async for db in get_db():
             try:
                 # Verify token and get user
-                from app.routers.auth import verify_token
-                payload = verify_token(token)
+                from app.core.security import decode_access_token
+                from app.models.ambulance import AmbulanceService
+                from app.models.user import User
+                
+                payload = decode_access_token(token)
                 if not payload:
                     await websocket.send_json({
                         "type": "error",
@@ -127,8 +130,8 @@ async def websocket_tracking_endpoint(
                     await websocket.close(code=1008)
                     return
                 
-                user_id = UUID(payload.get("sub"))
-                if not user_id:
+                user_id_str = payload.get("sub")
+                if not user_id_str:
                     await websocket.send_json({
                         "type": "error",
                         "message": "Invalid token payload"
@@ -136,10 +139,35 @@ async def websocket_tracking_endpoint(
                     await websocket.close(code=1008)
                     return
                 
+                try:
+                    user_id = UUID(user_id_str)
+                    emergency_uuid = UUID(emergency_request_id)
+                except ValueError:
+                    await websocket.send_json({
+                        "type": "error",
+                        "message": "Invalid ID format"
+                    })
+                    await websocket.close(code=1008)
+                    return
+                
+                # Get the user to check their role
+                user_result = await db.execute(
+                    select(User).where(User.id == user_id)
+                )
+                user = user_result.scalar_one_or_none()
+                
+                if not user:
+                    await websocket.send_json({
+                        "type": "error",
+                        "message": "User not found"
+                    })
+                    await websocket.close(code=1008)
+                    return
+                
                 # Verify user has access to this emergency request
                 result = await db.execute(
                     select(EmergencyRequest).where(
-                        EmergencyRequest.id == emergency_request_id
+                        EmergencyRequest.id == emergency_uuid
                     )
                 )
                 emergency = result.scalar_one_or_none()
@@ -152,8 +180,25 @@ async def websocket_tracking_endpoint(
                     await websocket.close(code=1008)
                     return
                 
-                # Check if user is the requester or assigned ambulance driver
-                if emergency.user_id != user_id and emergency.ambulance_driver_id != user_id:
+                # Check if user has access to this emergency
+                has_access = False
+                
+                # Patient can access their own emergency
+                if emergency.user_id == user_id:
+                    has_access = True
+                
+                # Ambulance can access if they're assigned to this emergency
+                if user.role == "ambulance" and emergency.ambulance_service_id:
+                    ambulance_result = await db.execute(
+                        select(AmbulanceService).where(
+                            AmbulanceService.user_id == user_id
+                        )
+                    )
+                    ambulance = ambulance_result.scalar_one_or_none()
+                    if ambulance and ambulance.id == emergency.ambulance_service_id:
+                        has_access = True
+                
+                if not has_access:
                     await websocket.send_json({
                         "type": "error",
                         "message": "Access denied to this emergency request"
@@ -161,14 +206,17 @@ async def websocket_tracking_endpoint(
                     await websocket.close(code=1008)
                     return
                 
-                # Connect to tracking room
-                await tracking_manager.connect(emergency_request_id, websocket)
+                # Manually add to tracking room (websocket already accepted above)
+                if emergency_request_id not in tracking_manager.tracking_rooms:
+                    tracking_manager.tracking_rooms[emergency_request_id] = []
                 
-                # Send initial connection success message
+                tracking_manager.tracking_rooms[emergency_request_id].append(websocket)
+                
+                # Send connection confirmation
                 await websocket.send_json({
-                    "type": "connected",
-                    "message": "Connected to tracking room",
-                    "emergency_request_id": emergency_request_id
+                    "type": "connection_established",
+                    "emergency_request_id": emergency_request_id,
+                    "message": "Connected to tracking room"
                 })
                 
                 # Keep connection alive and handle incoming messages
@@ -187,7 +235,7 @@ async def websocket_tracking_endpoint(
                 
             finally:
                 # Always disconnect from tracking room
-                tracking_manager.disconnect(emergency_request_id, websocket)
+                await tracking_manager.disconnect_from_tracking(emergency_request_id, websocket)
                 break
     
     except Exception as e:

@@ -21,8 +21,22 @@ export interface UseAmbulanceTrackingReturn {
  * WebSocket message types
  */
 interface WebSocketMessage {
-  type: 'location_update' | 'status_update' | 'error';
-  data?: Partial<TrackingData>;
+  type: 'location_update' | 'status_update' | 'error' | 'connection_established' | 'tracking_stopped';
+  emergency_request_id?: string;
+  data?: {
+    ambulance_lat?: number;
+    ambulance_lng?: number;
+    accuracy?: number;
+    speed?: number;
+    heading?: number;
+    distance_remaining_km?: number;
+    eta_minutes?: number;
+    estimated_arrival?: string;
+    route_coordinates?: [number, number][];
+    timestamp?: string;
+    status?: string;
+    reason?: string;
+  };
   message?: string;
 }
 
@@ -127,18 +141,63 @@ export function useAmbulanceTracking(
             return;
           }
 
-          if (message.type === 'location_update' || message.type === 'status_update') {
+          if (message.type === 'connection_established') {
+            console.log('Connection established:', message.message);
+            return;
+          }
+
+          if (message.type === 'location_update') {
             if (message.data) {
+              setTrackingData((prev) => {
+                if (!prev) return prev;
+                
+                // Create updated data object
+                const updatedData = { ...prev };
+                
+                // Update ambulance location and speed/heading
+                if (message.data.ambulance_lat !== undefined && message.data.ambulance_lng !== undefined) {
+                  if (updatedData.ambulance) {
+                    updatedData.ambulance = {
+                      ...updatedData.ambulance,
+                      current_lat: message.data.ambulance_lat,
+                      current_lng: message.data.ambulance_lng,
+                      speed: message.data.speed,
+                      heading: message.data.heading,
+                      last_update: message.data.timestamp || new Date().toISOString(),
+                    };
+                  }
+                }
+                
+                // Update route information
+                if (message.data.route_coordinates) {
+                  updatedData.route = {
+                    distance_km: message.data.distance_remaining_km || 0,
+                    duration_minutes: updatedData.route?.duration_minutes || 0,
+                    coordinates: message.data.route_coordinates,
+                    eta_minutes: message.data.eta_minutes || 0,
+                    estimated_arrival: message.data.estimated_arrival || '',
+                  };
+                }
+                
+                updatedData.last_updated = new Date().toISOString();
+                
+                return updatedData;
+              });
+              lastUpdateTimeRef.current = Date.now();
+              setIsLocationStale(false);
+            }
+          }
+
+          if (message.type === 'status_update') {
+            if (message.data && message.data.status) {
               setTrackingData((prev) => {
                 if (!prev) return prev;
                 return {
                   ...prev,
-                  ...message.data,
-                  updated_at: new Date().toISOString(),
+                  status: message.data.status as any,
+                  last_updated: new Date().toISOString(),
                 };
               });
-              lastUpdateTimeRef.current = Date.now();
-              setIsLocationStale(false);
             }
           }
         } catch (err) {

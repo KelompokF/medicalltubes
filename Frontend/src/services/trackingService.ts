@@ -13,18 +13,42 @@ export interface Location {
 }
 
 /**
+ * Patient location information
+ */
+export interface PatientLocation {
+  lat: number;
+  lng: number;
+  address?: string;
+}
+
+/**
+ * Route information between ambulance and patient
+ */
+export interface RouteInfo {
+  distance_km: number;
+  duration_minutes: number;
+  coordinates: [number, number][]; // Array of [lng, lat] pairs for route polyline
+  eta_minutes: number;
+  estimated_arrival: string;
+}
+
+/**
  * Ambulance information
  */
 export interface AmbulanceInfo {
   id: string;
-  driver_name: string;
-  vehicle_number: string;
-  phone_number: string;
-  current_location: Location;
+  name: string;
+  phone?: string;
+  vehicle_type?: string;
+  current_lat: number;
+  current_lng: number;
+  speed?: number;
+  heading?: number;
+  last_update: string;
 }
 
 /**
- * Patient information
+ * Patient information (legacy - for backward compatibility)
  */
 export interface PatientInfo {
   id: string;
@@ -38,13 +62,17 @@ export interface PatientInfo {
  */
 export interface TrackingData {
   emergency_request_id: string;
-  status: "pending" | "on_my_way" | "on_progress" | "completed" | "cancelled";
+  status: "pending" | "dispatched" | "on_my_way" | "on_progress" | "completed" | "cancelled";
+  patient_location: PatientLocation;
   ambulance: AmbulanceInfo | null;
-  patient: PatientInfo;
+  route: RouteInfo | null;
+  last_updated: string;
+  // Legacy fields for backward compatibility
+  patient?: PatientInfo;
   estimated_arrival_time?: string;
   distance_km?: number;
-  created_at: string;
-  updated_at: string;
+  created_at?: string;
+  updated_at?: string;
 }
 
 /**

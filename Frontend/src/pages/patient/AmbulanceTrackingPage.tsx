@@ -154,8 +154,8 @@ const AmbulanceTrackingPage = () => {
   };
 
   const handleCallAmbulance = () => {
-    if (trackingData.ambulance?.phone_number) {
-      window.location.href = `tel:${trackingData.ambulance.phone_number}`;
+    if (trackingData.ambulance?.phone) {
+      window.location.href = `tel:${trackingData.ambulance.phone}`;
     }
   };
 
@@ -251,6 +251,15 @@ const AmbulanceTrackingPage = () => {
               latitude: trackingData.ambulance?.current_lat || trackingData.patient_location.lat,
               longitude: trackingData.ambulance?.current_lng || trackingData.patient_location.lng,
             }}
+            ambulanceHeading={trackingData.ambulance?.heading}
+            route={
+              trackingData.route?.coordinates
+                ? trackingData.route.coordinates.map(([lng, lat]) => ({
+                    latitude: lat,
+                    longitude: lng,
+                  }))
+                : []
+            }
             className="h-full"
           />
         </div>
@@ -276,7 +285,7 @@ const AmbulanceTrackingPage = () => {
                   Estimated Arrival
                 </div>
                 <div className="text-2xl font-bold text-blue-900">
-                  {formatETA(trackingData.estimated_arrival_time)}
+                  {formatETA(trackingData.route?.estimated_arrival)}
                 </div>
               </div>
 
@@ -285,7 +294,7 @@ const AmbulanceTrackingPage = () => {
                   Distance
                 </div>
                 <div className="text-xl font-bold text-gray-900">
-                  {formatDistance(trackingData.distance_km)}
+                  {formatDistance(trackingData.route?.distance_km)}
                 </div>
               </div>
             </div>
@@ -300,19 +309,19 @@ const AmbulanceTrackingPage = () => {
                   <div>
                     <div className="text-sm text-gray-600">Driver</div>
                     <div className="text-base font-medium text-gray-900">
-                      {trackingData.ambulance.driver_name}
+                      {trackingData.ambulance.name}
                     </div>
                   </div>
                   <div>
-                    <div className="text-sm text-gray-600">Vehicle Number</div>
+                    <div className="text-sm text-gray-600">Vehicle Type</div>
                     <div className="text-base font-medium text-gray-900">
-                      {trackingData.ambulance.vehicle_number}
+                      {trackingData.ambulance.vehicle_type || 'N/A'}
                     </div>
                   </div>
                   <div>
                     <div className="text-sm text-gray-600">Contact</div>
                     <div className="text-base font-medium text-gray-900">
-                      {trackingData.ambulance.phone_number}
+                      {trackingData.ambulance.phone || 'N/A'}
                     </div>
                   </div>
                 </div>

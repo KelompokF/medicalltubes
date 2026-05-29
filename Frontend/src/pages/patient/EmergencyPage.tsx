@@ -140,6 +140,9 @@ export default function EmergencyPage() {
           distance_text: activeRequest.ambulance_service.distance_text || "",
           eta_minutes: activeRequest.ambulance_service.eta_minutes || 0,
           eta_text: activeRequest.ambulance_service.eta_text || "",
+          phone: activeRequest.ambulance_service.phone || "",
+          status: activeRequest.ambulance_service.status || "",
+          source: activeRequest.ambulance_service.source || "",
         } : undefined,
       });
     }
