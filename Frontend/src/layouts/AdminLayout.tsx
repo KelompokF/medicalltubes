@@ -21,6 +21,7 @@ const adminNav = [
 ];
 
 import LanguageSwitcher from "@/components/LanguageSwitcher";
+import medicallIcon from "@/assets/medicall-icon.png";
 
 
 interface AdminNotification {
@@ -160,9 +161,7 @@ export default function AdminLayout() {
 
       <aside className={`fixed top-0 left-0 z-50 h-full w-64 bg-sidebar text-sidebar-foreground transform transition-transform duration-300 lg:translate-x-0 ${sidebarOpen ? "translate-x-0" : "-translate-x-full"}`}>
         <div className="flex items-center gap-2 px-6 py-5 border-b border-sidebar-border">
-          <div className="rounded-lg bg-emergency p-2">
-            <Shield className="h-5 w-5 text-emergency-foreground" />
-          </div>
+          <img src={medicallIcon} alt="Medicall Icon" className="h-8 w-auto" />
           <div>
             <span className="text-xl font-bold text-sidebar-foreground">Medicall</span>
             <p className="text-[10px] uppercase tracking-widest text-sidebar-foreground/50">{t("admin.layout.adminPanel")}</p>
@@ -188,7 +187,7 @@ export default function AdminLayout() {
         </div>
       </aside>
 
-      <div className="lg:ml-64">
+      <div className="lg:ml-64 flex flex-col min-h-screen">
         <header className="sticky top-0 z-30 bg-card/80 backdrop-blur-md border-b">
           <div className="flex items-center justify-between px-4 sm:px-6 py-3">
             <div className="flex items-center gap-3">
@@ -280,7 +279,7 @@ export default function AdminLayout() {
             </div>
           </div>
         </header>
-        <main className="p-4 sm:p-6 lg:p-8"><Outlet /></main>
+        <main className="p-4 sm:p-6 lg:p-8 flex-1"><Outlet /></main>
         <footer className="border-t px-6 py-4 text-center text-sm text-muted-foreground">{t("admin.layout.footer")}</footer>
       </div>
     </div>

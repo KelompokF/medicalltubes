@@ -8,7 +8,9 @@ import { Label } from "@/components/ui/label";
 import { Checkbox } from "@/components/ui/checkbox";
 import { toast } from "sonner";
 import medicalIllustration from "@/assets/medical-illustration.jpg";
-import { authService } from "@/services/api";
+import medicallIcon from "@/assets/medicall-icon.png";
+import { authService, patientService } from "@/services/api";
+import { GoogleLogin } from "@react-oauth/google";
 import LanguageSwitcher from "@/components/LanguageSwitcher";
 
 export default function PatientLoginPage() {
@@ -45,6 +47,40 @@ export default function PatientLoginPage() {
     return Object.keys(e).length === 0;
   };
 
+  const handleGoogleSuccess = async (credentialResponse: any) => {
+    if (credentialResponse.credential) {
+      try {
+        const res = await authService.googleLogin(credentialResponse.credential);
+        const token = res.data?.access_token;
+        if (token) {
+          localStorage.setItem("access_token", token);
+          const r = await authService.getMe();
+          const user = r.data;
+          localStorage.setItem("user", JSON.stringify(user));
+          toast.success(t("auth.welcomeBackToast", "Welcome back!"));
+          
+          const isPatient = user.role === "patient" || !user.role;
+          if (isPatient) {
+            try {
+              const profileRes = await patientService.getProfile();
+              const p = profileRes.data;
+              const needsProfile = !p.place_of_birth || !p.date_of_birth || !p.blood_type;
+              if (needsProfile) navigate("/profile");
+              else navigate("/dashboard");
+            } catch (e) {
+              navigate("/dashboard");
+            }
+          } else if (user.role === "doctor") navigate("/doctor-dashboard");
+          else if (user.role === "ambulance") navigate("/ambulance-dashboard");
+          else if (user.role === "admin") navigate("/admin");
+          else navigate("/dashboard");
+        }
+      } catch (err: any) {
+        toast.error("Google Login Failed: " + (err.response?.data?.detail || "Unknown error"));
+      }
+    }
+  };
+
   // ================= SUBMIT =================
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -60,15 +96,22 @@ export default function PatientLoginPage() {
               // fetch user and route based on role
               authService
                 .getMe()
-                .then((r) => {
+                .then(async (r) => {
                   const user = r.data;
                   localStorage.setItem("user", JSON.stringify(user));
                   toast.success(t("auth.welcomeBackToast"));
                   // If patient and profile incomplete, force profile page first
                   const isPatient = user.role === "patient" || !user.role;
-                  const needsProfile = !user.place_of_birth || !user.date_of_birth || !user.blood_type;
-                  if (isPatient && needsProfile) {
-                    navigate("/profile");
+                  if (isPatient) {
+                    try {
+                      const profileRes = await patientService.getProfile();
+                      const p = profileRes.data;
+                      const needsProfile = !p.place_of_birth || !p.date_of_birth || !p.blood_type;
+                      if (needsProfile) navigate("/profile");
+                      else navigate("/dashboard");
+                    } catch (e) {
+                      navigate("/dashboard");
+                    }
                   } else if (user.role === "doctor") navigate("/doctor-dashboard");
                   else if (user.role === "ambulance") navigate("/ambulance-dashboard");
                   else if (user.role === "admin") navigate("/admin");
@@ -105,12 +148,18 @@ export default function PatientLoginPage() {
   // ================= UI =================
   return (
     <div className="min-h-screen flex">
-      <div className="hidden lg:flex lg:w-1/2 medical-gradient relative items-center justify-center p-12">
-        <div className="absolute inset-0 bg-gradient-to-br from-primary/90 to-accent/80" />
-        <div className="relative z-10 text-center">
-          <img src={medicalIllustration} alt="Healthcare" className="w-80 h-auto mx-auto rounded-2xl shadow-elevated mb-8 animate-float" width={800} height={1024} />
-          <h2 className="text-3xl font-bold text-primary-foreground mb-3">{t("auth.welcomeTo")}</h2>
-          <p className="text-primary-foreground/80 text-lg max-w-md mx-auto">{t("auth.platformDesc")}</p>
+      <div 
+        className="hidden lg:flex lg:w-1/2 relative items-center justify-center p-12 bg-cover bg-center"
+        style={{ backgroundImage: 'url("https://images.unsplash.com/photo-1576091160399-112ba8d25d1d?q=80&w=2070&auto=format&fit=crop")' }}
+      >
+        <div className="absolute inset-0 bg-blue-900/60 mix-blend-multiply" />
+        <div className="absolute inset-0 bg-black/20" />
+        <div className="relative z-10 text-center w-full max-w-lg mx-auto flex flex-col items-center">
+          <div className="bg-white p-6 rounded-2xl shadow-2xl mb-8 animate-float flex items-center justify-center">
+            <img src={medicallIcon} alt="Medicall Icon" className="h-32 sm:h-40 w-auto object-contain" />
+          </div>
+          <h2 className="text-4xl font-bold text-white mb-4">{t("auth.welcomeTo")}.</h2>
+          <p className="text-white/90 text-lg max-w-md mx-auto">{t("auth.platformDesc")}</p>
         </div>
       </div>
 
@@ -123,14 +172,8 @@ export default function PatientLoginPage() {
             <LanguageSwitcher />
           </div>
 
-          <div className="flex items-center gap-2 mb-8">
-            <div className="rounded-lg medical-gradient p-2">
-              <Heart className="h-5 w-5 text-primary-foreground" />
-            </div>
-            <div>
-              <span className="text-2xl font-bold text-foreground">Medicall</span>
-              <p className="text-[10px] uppercase tracking-widest text-muted-foreground">{t("auth.patientPortal")}</p>
-            </div>
+          <div className="flex items-center gap-3 mb-8">
+            <span className="text-3xl font-bold text-foreground leading-none">Medicall</span>
           </div>
 
           <h1 className="text-2xl font-bold text-foreground mb-1">{isLogin ? t("auth.signIn") : t("auth.createAccount")}</h1>
@@ -176,11 +219,30 @@ export default function PatientLoginPage() {
                 <Checkbox id="remember" />
                 <Label htmlFor="remember" className="text-sm font-normal">{t("auth.rememberMe")}</Label>
               </div>
-              {isLogin && <button type="button" className="text-sm text-primary hover:underline">{t("auth.forgotPassword")}</button>}
+              {isLogin && <Link to="/forgot-password" className="text-sm text-primary hover:underline">{t("auth.forgotPassword")}</Link>}
             </div>
             <Button type="submit" className="w-full medical-gradient text-primary-foreground hover:opacity-90 transition-opacity" size="lg">
               {isLogin ? t("auth.signInBtn") : t("auth.createAccountBtn")}
             </Button>
+            
+            <div className="relative my-4">
+              <div className="absolute inset-0 flex items-center">
+                <span className="w-full border-t border-border" />
+              </div>
+              <div className="relative flex justify-center text-xs uppercase">
+                <span className="bg-background px-2 text-muted-foreground">Or continue with</span>
+              </div>
+            </div>
+            
+            <div className="flex justify-center w-full">
+              <GoogleLogin
+                onSuccess={handleGoogleSuccess}
+                onError={() => {
+                  toast.error("Google Login Failed");
+                }}
+                useOneTap
+              />
+            </div>
           </form>
         </div>
       </div>

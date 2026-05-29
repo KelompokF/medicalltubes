@@ -573,6 +573,8 @@
       "cancel": "Cancel",
       "complete": "Complete",
       "reportAmbulanceService": "Report Ambulance Service",
+      "trackAmbulance": "Track Ambulance",
+      "activeRequest": "Active emergency request",
       "noActiveEmergency": "No active emergency request. Press the SOS button above if you need immediate help.",
       "emergencyTips": "Emergency Tips",
       "cpr": "CPR",

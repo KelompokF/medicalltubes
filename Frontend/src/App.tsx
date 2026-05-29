@@ -12,6 +12,8 @@ import AmbulanceLayout from "@/layouts/AmbulanceLayout";
 
 import LandingPage from "@/pages/LandingPage";
 import PatientLoginPage from "@/pages/auth/PatientLoginPage";
+import ForgotPasswordPage from "@/pages/auth/ForgotPasswordPage";
+import ResetPasswordPage from "@/pages/auth/ResetPasswordPage";
 import PatientDashboard from "@/pages/patient/PatientDashboard";
 import SearchDoctorPage from "@/pages/patient/SearchDoctorPage";
 import DoctorDetailPage from "@/pages/patient/DoctorDetailPage";
@@ -74,6 +76,8 @@ const App = () => (
           <Route path="/login" element={<PatientLoginPage />} />
           <Route path="/login/patient" element={<Navigate to="/login" replace />} />
           <Route path="/register" element={<PatientLoginPage />} />
+          <Route path="/forgot-password" element={<ForgotPasswordPage />} />
+          <Route path="/reset-password" element={<ResetPasswordPage />} />
 
           {/* Patient Routes */}
           <Route element={<PatientLayout />}>

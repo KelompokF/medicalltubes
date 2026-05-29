@@ -134,7 +134,7 @@ export default function EmergencyPage() {
       setEmergencyStatus({
         id: activeRequest.id,
         status: activeRequest.status,
-        message: activeRequest.message || "Permintaan darurat aktif",
+        message: activeRequest.message || t("patient.emergency.activeRequest", "Permintaan darurat aktif"),
         address: activeRequest.address,
         ambulance: activeRequest.ambulance_service ? {
           id: activeRequest.ambulance_service.id,
@@ -706,7 +706,7 @@ export default function EmergencyPage() {
                   variant="default"
                 >
                   <Navigation className="h-4 w-4 mr-2" />
-                  Lacak Ambulans
+                  {t("patient.emergency.trackAmbulance", "Lacak Ambulans")}
                 </Button>
               )}
               <div className="grid grid-cols-1 sm:grid-cols-2 gap-2">

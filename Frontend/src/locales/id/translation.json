@@ -573,6 +573,8 @@
       "cancel": "Batalkan",
       "complete": "Selesaikan",
       "reportAmbulanceService": "Laporkan Layanan Ambulans",
+      "trackAmbulance": "Lacak Ambulans",
+      "activeRequest": "Permintaan darurat aktif",
       "noActiveEmergency": "Tidak ada permintaan darurat aktif. Tekan tombol SOS di atas jika Anda butuh bantuan segera.",
       "emergencyTips": "Tips Darurat",
       "cpr": "CPR",

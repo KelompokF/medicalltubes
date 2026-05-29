@@ -49,12 +49,14 @@ export default api;
 export const authService = {
   login: (data: { email: string; password: string }) =>
     api.post("/auth/login", data),
+  googleLogin: (token: string) =>
+    api.post("/auth/google", { token }),
   register: (data: { full_name: string; email: string; password: string }) =>
     api.post("/auth/register", data),
   getMe: () => api.get("/auth/me"),
   forgotPassword: (email: string) =>
     api.post("/auth/forgot-password", { email }),
-  resetPassword: (data: { token: string; password: string }) =>
+  resetPassword: (data: { email: string; otp: string; new_password: string }) =>
     api.post("/auth/reset-password", data),
   changePassword: (data: { current_password: string; new_password: string }) =>
     api.put("/auth/change-password", data),

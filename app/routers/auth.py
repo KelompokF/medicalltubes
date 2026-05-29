@@ -164,3 +164,112 @@ async def change_password(data: ChangePasswordRequest, current_user: User = Depe
     db.add(current_user)
     await db.commit()
     return {"detail": "Password updated successfully"}
+
+from pydantic import EmailStr
+from google.oauth2 import id_token
+from google.auth.transport import requests as google_requests
+from app.core.config import settings
+from app.services.email_service import send_reset_password_email
+import string
+import random
+from datetime import datetime, timedelta
+
+class ForgotPasswordRequest(BaseModel):
+    email: EmailStr
+
+class ResetPasswordRequest(BaseModel):
+    email: EmailStr
+    otp: str
+    new_password: str
+
+class GoogleLoginRequest(BaseModel):
+    token: str
+
+@router.post("/forgot-password")
+async def forgot_password(data: ForgotPasswordRequest, db: AsyncSession = Depends(get_db)):
+    result = await db.execute(select(User).where(User.email == data.email))
+    user = result.scalar_one_or_none()
+    
+    if user:
+        otp = ''.join(random.choices(string.digits, k=6))
+        user.reset_otp = otp
+        user.reset_otp_expire = datetime.utcnow() + timedelta(minutes=15)
+        db.add(user)
+        await db.commit()
+        
+        try:
+            await send_reset_password_email(user.email, otp)
+        except Exception as e:
+            logger.error(f"Failed to send reset email: {e}")
+            raise HTTPException(status_code=500, detail="Failed to send reset email")
+
+    # Always return success to prevent email enumeration
+    return {"message": "If that email exists, an OTP has been sent."}
+
+@router.post("/reset-password")
+async def reset_password(data: ResetPasswordRequest, db: AsyncSession = Depends(get_db)):
+    result = await db.execute(select(User).where(User.email == data.email))
+    user = result.scalar_one_or_none()
+    
+    if not user:
+        raise HTTPException(status_code=404, detail="User not found")
+        
+    if not user.reset_otp or user.reset_otp != data.otp:
+        raise HTTPException(status_code=400, detail="Invalid OTP")
+        
+    if not user.reset_otp_expire or user.reset_otp_expire < datetime.utcnow():
+        raise HTTPException(status_code=400, detail="OTP expired")
+        
+    user.hashed_password = hash_password(data.new_password)
+    user.reset_otp = None
+    user.reset_otp_expire = None
+    db.add(user)
+    await db.commit()
+    
+    return {"message": "Password successfully reset"}
+
+@router.post("/google", response_model=Token)
+async def google_login(data: GoogleLoginRequest, db: AsyncSession = Depends(get_db)):
+    try:
+        idinfo = id_token.verify_oauth2_token(
+            data.token, 
+            google_requests.Request(), 
+            settings.GOOGLE_CLIENT_ID
+        )
+        email = idinfo.get("email")
+        full_name = idinfo.get("name", "Google User")
+        
+        if not email:
+            raise HTTPException(status_code=400, detail="No email provided by Google")
+            
+        result = await db.execute(select(User).where(User.email == email))
+        user = result.scalar_one_or_none()
+        
+        if not user:
+            # Register new user
+            random_password = ''.join(random.choices(string.ascii_letters + string.digits, k=16))
+            user = User(
+                full_name=full_name,
+                email=email,
+                hashed_password=hash_password(random_password),
+                role='patient' # Default role
+            )
+            db.add(user)
+            await db.commit()
+            await db.refresh(user)
+            
+        if getattr(user, 'is_deleted', False):
+            raise HTTPException(status_code=403, detail="Akun telah dihapus")
+
+        account_status = getattr(user, 'account_status', 'active')
+        if account_status == 'suspended':
+            raise HTTPException(status_code=403, detail="Akun Ditangguhkan Sementara, Silahkan Hubungi Admin")
+        if account_status == 'banned':
+            raise HTTPException(status_code=403, detail="Akun Diblokir Admin")
+
+        token = create_access_token({"sub": str(user.id), "role": getattr(user, 'role', 'patient')})
+        return {"access_token": token, "token_type": "bearer"}
+        
+    except ValueError as e:
+        logger.error(f"Google Token Verification failed: {e}")
+        raise HTTPException(status_code=401, detail=f"Invalid Google token: {str(e)}")
