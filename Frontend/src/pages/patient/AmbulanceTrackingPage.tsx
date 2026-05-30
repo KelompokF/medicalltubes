@@ -23,7 +23,7 @@ const AmbulanceTrackingPage = () => {
 
   // Validate request ID
   if (!requestId) {
-    navigate("/patient/dashboard");
+    navigate("/dashboard");
     return null;
   }
 
@@ -90,7 +90,7 @@ const AmbulanceTrackingPage = () => {
                 Retry Connection
               </button>
               <button
-                onClick={() => navigate("/patient/dashboard")}
+                onClick={() => navigate("/dashboard")}
                 className="w-full bg-gray-200 text-gray-700 py-3 px-4 rounded-lg hover:bg-gray-300 transition-colors font-medium"
               >
                 Back to Dashboard
@@ -170,7 +170,7 @@ const AmbulanceTrackingPage = () => {
         <div className="max-w-7xl mx-auto flex items-center justify-between">
           <div className="flex items-center space-x-4">
             <button
-              onClick={() => navigate("/patient/dashboard")}
+              onClick={() => navigate("/dashboard")}
               className="text-gray-600 hover:text-gray-900"
             >
               <svg

@@ -91,6 +91,39 @@ const reverseGeocodeLocation = async (lat: number, lng: number) => {
   return data.display_name || null;
 };
 
+const getEmergencyMessage = (message: string, t: any, ambulance?: AmbulanceService) => {
+  if (!message || message === "Permintaan darurat aktif") {
+    return t("patient.emergency.activeRequest", "Permintaan darurat aktif");
+  }
+  if (message.includes("Sedang mencari ambulans terdekat")) {
+    return t("patient.emergency.searchingAmbulanceDesc", "Sedang mencari ambulans terdekat di area Anda...");
+  }
+  if (message.startsWith("Ambulans terdekat ditemukan:")) {
+    if (ambulance) {
+      return t("patient.emergency.ambulanceFound", "Ambulans terdekat ditemukan: {{name}} ({{dist}}). ETA: {{eta}}.", {
+        name: ambulance.name,
+        dist: ambulance.distance_text,
+        eta: ambulance.eta_text
+      });
+    }
+    return message;
+  }
+  if (message === "Ambulans sedang menuju lokasi pasien.") {
+    return t("patient.emergency.ambulanceOnWay", "Ambulans sedang menuju lokasi pasien.");
+  }
+  if (message === "Penanganan pasien sedang berlangsung.") {
+    return t("patient.emergency.handlingInProgress", "Penanganan pasien sedang berlangsung.");
+  }
+  if (message === "Permintaan darurat dibatalkan.") {
+    return t("patient.emergency.requestCancelled", "Permintaan darurat dibatalkan.");
+  }
+  if (message === "Permintaan darurat diselesaikan.") {
+    return t("patient.emergency.requestCompleted", "Permintaan darurat diselesaikan.");
+  }
+  
+  return message; // fallback for custom notes
+};
+
 export default function EmergencyPage() {
   const { t } = useTranslation();
   const [ambulances, setAmbulances] = useState<AmbulanceService[]>([]);
@@ -131,10 +164,13 @@ export default function EmergencyPage() {
   useEffect(() => {
     if (activeEmergencies?.requests && activeEmergencies.requests.length > 0) {
       const activeRequest = activeEmergencies.requests[0]; // Get the first active request
+      const ambulanceData = activeRequest.ambulance_service;
+      const msg = getEmergencyMessage(activeRequest.message, t, ambulanceData);
+
       setEmergencyStatus({
         id: activeRequest.id,
         status: activeRequest.status,
-        message: activeRequest.message || t("patient.emergency.activeRequest", "Permintaan darurat aktif"),
+        message: msg,
         address: activeRequest.address,
         ambulance: activeRequest.ambulance_service ? {
           id: activeRequest.ambulance_service.id,
@@ -331,12 +367,13 @@ export default function EmergencyPage() {
       if (data.status === "cancelled" || data.status === "completed") {
         setEmergencyStatus(null);
       } else {
+        const ambAssigned = data.ambulance_assigned || nearestAmbulance;
         setEmergencyStatus({
           id: data.id,
           status: data.status,
-          message: data.message,
+          message: getEmergencyMessage(data.message, t, ambAssigned),
           address,
-          ambulance: data.ambulance_assigned || nearestAmbulance,
+          ambulance: ambAssigned,
         });
       }
       setShowSOSConfirm(false);
@@ -505,6 +542,94 @@ export default function EmergencyPage() {
         </CardContent>
       </Card>
 
+      {/* Emergency Request Status */}
+      <Card className={`shadow-card ${emergencyStatus ? "border-emergency/40" : "border-emergency/20"}`}>
+        <CardHeader>
+          <CardTitle className="flex items-center gap-2 text-emergency">
+            <AlertTriangle className="h-5 w-5" />
+            {t("patient.emergency.emergencyRequestStatus", "Status Permintaan Darurat")}
+          </CardTitle>
+        </CardHeader>
+        <CardContent>
+          {emergencyStatus ? (
+            <div className="space-y-4">
+              <div className="flex flex-wrap items-center gap-2">
+                <Badge
+                  variant="default"
+                  className={
+                    emergencyStatus.status === "dispatched" || emergencyStatus.status === "on_route"
+                      ? "bg-success/10 text-success border-success/20"
+                      : "bg-warning/10 text-warning border-warning/20"
+                  }
+                >
+                  {emergencyStatus.status === "dispatched" || emergencyStatus.status === "on_route" ? t("patient.emergency.dispatched", "Dikirim") : t("patient.emergency.searching", "Mencari")}
+                </Badge>
+                <span className="text-sm text-muted-foreground">ID: {emergencyStatus.id.slice(0, 8)}...</span>
+              </div>
+              <p className="text-sm text-foreground">{emergencyStatus.message}</p>
+              <div className="grid grid-cols-1 sm:grid-cols-2 gap-3 text-sm">
+                <div className="rounded-lg bg-muted/50 p-3">
+                  <p className="text-muted-foreground">{t("patient.emergency.pickupAddress", "Alamat Penjemputan")}</p>
+                  <p className="font-medium text-foreground mt-1">{emergencyStatus.address}</p>
+                </div>
+                <div className="rounded-lg bg-muted/50 p-3">
+                  <p className="text-muted-foreground">{t("patient.emergency.bookingStatus", "Status Booking")}</p>
+                  <p className="font-medium text-foreground mt-1 capitalize">{emergencyStatus.status.replace(/_/g, " ")}</p>
+                </div>
+              </div>
+              {emergencyStatus.ambulance && (
+                <div className="bg-muted/50 rounded-lg p-3 text-sm space-y-1">
+                  <p className="font-medium text-foreground">{emergencyStatus.ambulance.name}</p>
+                  <p className="text-muted-foreground">{emergencyStatus.ambulance.address}</p>
+                  <div className="flex flex-wrap gap-x-4 gap-y-1 text-muted-foreground">
+                    <span>{t("patient.emergency.distance", "Jarak")}: {emergencyStatus.ambulance.distance_text}</span>
+                    <span>ETA: {emergencyStatus.ambulance.eta_text}</span>
+                  </div>
+                </div>
+              )}
+              {emergencyStatus.ambulance && (emergencyStatus.status === "on_my_way" || emergencyStatus.status === "on_progress") && (
+                <Button 
+                  onClick={() => navigate(`/ambulance-tracking/${emergencyStatus.id}`)}
+                  className="w-full"
+                  variant="default"
+                >
+                  <Navigation className="h-4 w-4 mr-2" />
+                  {t("patient.emergency.trackAmbulance", "Lacak Ambulans")}
+                </Button>
+              )}
+              <div className="grid grid-cols-1 sm:grid-cols-2 gap-2">
+                <Button variant="outline" onClick={() => setPendingAction("cancel")}>
+                  <XCircle className="h-4 w-4 mr-2" />
+                  {t("patient.emergency.cancel", "Batalkan")}
+                </Button>
+                <Button onClick={() => setPendingAction("complete")}>
+                  <CheckCircle2 className="h-4 w-4 mr-2" />
+                  {t("patient.emergency.complete", "Selesaikan")}
+                </Button>
+              </div>
+              {/* Report Ambulance Button */}
+              {emergencyStatus.ambulance && (
+                <div className="pt-2 border-t border-dashed">
+                  <Button
+                    variant="ghost"
+                    size="sm"
+                    className="w-full gap-2 text-amber-600 hover:bg-amber-50 hover:text-amber-700 dark:hover:bg-amber-950/30"
+                    onClick={() => setIsReportModalOpen(true)}
+                  >
+                    <AlertTriangle className="h-4 w-4" />
+                    {t("patient.emergency.reportAmbulanceService", "Laporkan Layanan Ambulans")}
+                  </Button>
+                </div>
+              )}
+            </div>
+          ) : (
+            <p className="text-muted-foreground text-sm">
+              {t("patient.emergency.noActiveEmergency", "Tidak ada permintaan darurat aktif. Tekan tombol SOS di atas jika Anda butuh bantuan segera.")}
+            </p>
+          )}
+        </CardContent>
+      </Card>
+
       {/* Search Radius Control */}
       {location && (
         <div className="flex items-center gap-3">
@@ -653,94 +778,6 @@ export default function EmergencyPage() {
           </div>
         )}
       </div>
-
-      {/* Emergency Request Status */}
-      <Card className={`shadow-card ${emergencyStatus ? "border-emergency/40" : "border-emergency/20"}`}>
-        <CardHeader>
-          <CardTitle className="flex items-center gap-2 text-emergency">
-            <AlertTriangle className="h-5 w-5" />
-            {t("patient.emergency.emergencyRequestStatus", "Status Permintaan Darurat")}
-          </CardTitle>
-        </CardHeader>
-        <CardContent>
-          {emergencyStatus ? (
-            <div className="space-y-4">
-              <div className="flex flex-wrap items-center gap-2">
-                <Badge
-                  variant="default"
-                  className={
-                    emergencyStatus.status === "dispatched" || emergencyStatus.status === "on_route"
-                      ? "bg-success/10 text-success border-success/20"
-                      : "bg-warning/10 text-warning border-warning/20"
-                  }
-                >
-                  {emergencyStatus.status === "dispatched" || emergencyStatus.status === "on_route" ? t("patient.emergency.dispatched", "Dikirim") : t("patient.emergency.searching", "Mencari")}
-                </Badge>
-                <span className="text-sm text-muted-foreground">ID: {emergencyStatus.id.slice(0, 8)}...</span>
-              </div>
-              <p className="text-sm text-foreground">{emergencyStatus.message}</p>
-              <div className="grid grid-cols-1 sm:grid-cols-2 gap-3 text-sm">
-                <div className="rounded-lg bg-muted/50 p-3">
-                  <p className="text-muted-foreground">{t("patient.emergency.pickupAddress", "Alamat Penjemputan")}</p>
-                  <p className="font-medium text-foreground mt-1">{emergencyStatus.address}</p>
-                </div>
-                <div className="rounded-lg bg-muted/50 p-3">
-                  <p className="text-muted-foreground">{t("patient.emergency.bookingStatus", "Status Booking")}</p>
-                  <p className="font-medium text-foreground mt-1 capitalize">{emergencyStatus.status.replace(/_/g, " ")}</p>
-                </div>
-              </div>
-              {emergencyStatus.ambulance && (
-                <div className="bg-muted/50 rounded-lg p-3 text-sm space-y-1">
-                  <p className="font-medium text-foreground">{emergencyStatus.ambulance.name}</p>
-                  <p className="text-muted-foreground">{emergencyStatus.ambulance.address}</p>
-                  <div className="flex flex-wrap gap-x-4 gap-y-1 text-muted-foreground">
-                    <span>{t("patient.emergency.distance", "Jarak")}: {emergencyStatus.ambulance.distance_text}</span>
-                    <span>ETA: {emergencyStatus.ambulance.eta_text}</span>
-                  </div>
-                </div>
-              )}
-              {emergencyStatus.ambulance && (emergencyStatus.status === "on_my_way" || emergencyStatus.status === "on_progress") && (
-                <Button 
-                  onClick={() => navigate(`/ambulance-tracking/${emergencyStatus.id}`)}
-                  className="w-full"
-                  variant="default"
-                >
-                  <Navigation className="h-4 w-4 mr-2" />
-                  {t("patient.emergency.trackAmbulance", "Lacak Ambulans")}
-                </Button>
-              )}
-              <div className="grid grid-cols-1 sm:grid-cols-2 gap-2">
-                <Button variant="outline" onClick={() => setPendingAction("cancel")}>
-                  <XCircle className="h-4 w-4 mr-2" />
-                  {t("patient.emergency.cancel", "Batalkan")}
-                </Button>
-                <Button onClick={() => setPendingAction("complete")}>
-                  <CheckCircle2 className="h-4 w-4 mr-2" />
-                  {t("patient.emergency.complete", "Selesaikan")}
-                </Button>
-              </div>
-              {/* Report Ambulance Button */}
-              {emergencyStatus.ambulance && (
-                <div className="pt-2 border-t border-dashed">
-                  <Button
-                    variant="ghost"
-                    size="sm"
-                    className="w-full gap-2 text-amber-600 hover:bg-amber-50 hover:text-amber-700 dark:hover:bg-amber-950/30"
-                    onClick={() => setIsReportModalOpen(true)}
-                  >
-                    <AlertTriangle className="h-4 w-4" />
-                    {t("patient.emergency.reportAmbulanceService", "Laporkan Layanan Ambulans")}
-                  </Button>
-                </div>
-              )}
-            </div>
-          ) : (
-            <p className="text-muted-foreground text-sm">
-              {t("patient.emergency.noActiveEmergency", "Tidak ada permintaan darurat aktif. Tekan tombol SOS di atas jika Anda butuh bantuan segera.")}
-            </p>
-          )}
-        </CardContent>
-      </Card>
 
       {/* Emergency Tips */}
       <Card className="shadow-card">
