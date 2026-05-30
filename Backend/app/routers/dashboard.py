@@ -404,12 +404,42 @@ async def get_doctor_dashboard_summary(
                 type="home_visit"
             ))
 
+    # 4. Prescriptions issued by this doctor
+    prescriptions = []
+    pres_result = await db.execute(
+        select(Prescription, User)
+        .join(User, Prescription.patient_id == User.id)
+        .where(Prescription.doctor_id == current_user.id)
+        .order_by(Prescription.created_at.desc())
+        .limit(3)
+    )
+    
+    for pres, patient in pres_result:
+        meds = []
+        if isinstance(pres.medications, list):
+            for m in pres.medications:
+                meds.append(MedicationItem(
+                    name=m.get("name", ""),
+                    dosage=m.get("dosage", ""),
+                    duration=m.get("duration", ""),
+                    instructions=m.get("instructions", "")
+                ))
+        
+        prescriptions.append(PrescriptionDashboardItem(
+            id=pres.id,
+            doctor=patient.full_name,
+            date=pres.created_at.strftime("%d %b %Y, %H:%M"),
+            medications=meds,
+            notes=pres.notes
+        ))
+
     return DashboardResponse(
         stats=stats,
         recentActivities=[],
         consultationHistory=consultation_history,
         bookingHistory=booking_history,
-        upcomingAppointment=None
+        upcomingAppointment=None,
+        prescriptions=prescriptions
     )
 
 @router.get("/admin/dashboard", response_model=AdminDashboardResponse)

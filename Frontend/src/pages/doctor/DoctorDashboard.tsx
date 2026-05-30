@@ -5,9 +5,26 @@ import { Button } from "@/components/ui/button";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
 import StatCard from "@/components/StatCard";
 import { useTranslation } from "react-i18next";
+import { useState, useEffect } from "react";
+import { doctorService } from "@/services/api";
 
 export default function DoctorDashboard() {
   const { t } = useTranslation();
+  const [recentPrescriptions, setRecentPrescriptions] = useState<any[]>([]);
+
+  useEffect(() => {
+    const fetchDashboard = async () => {
+      try {
+        const response = await doctorService.getDashboard();
+        if (response.data?.prescriptions) {
+          setRecentPrescriptions(response.data.prescriptions);
+        }
+      } catch (error) {
+        console.error("Failed to fetch dashboard data:", error);
+      }
+    };
+    fetchDashboard();
+  }, []);
   const doctorDashboardStats = {
     patientsToday: 0,
     pendingConsultations: 0,
@@ -87,14 +104,31 @@ export default function DoctorDashboard() {
       <Card className="shadow-card">
         <CardHeader><CardTitle className="flex items-center gap-2"><Pill className="h-5 w-5 text-primary" />{t("doctor.dashboard.recentPrescriptions")}</CardTitle></CardHeader>
         <CardContent>
-          <div className="grid grid-cols-1 sm:grid-cols-3 gap-4">
-            {["John Smith - Amoxicillin 500mg", "Jane Doe - Ibuprofen 200mg", "Mike Brown - Metformin 850mg"].map((rx, i) => (
-              <div key={i} className="p-4 rounded-lg border bg-card hover:shadow-card-hover transition-all">
-                <p className="text-sm font-medium text-foreground">{rx}</p>
-                <p className="text-xs text-muted-foreground mt-1">{t("doctor.dashboard.prescribed")}: April {10 + i}, 2026</p>
-              </div>
-            ))}
-          </div>
+          {recentPrescriptions.length > 0 ? (
+            <div className="grid grid-cols-1 sm:grid-cols-3 gap-4">
+              {recentPrescriptions.map((rx, i) => (
+                <div key={rx.id || i} className="p-4 rounded-lg border bg-card hover:shadow-card-hover transition-all flex flex-col justify-between">
+                  <div>
+                    <p className="text-sm font-medium text-foreground mb-2">{rx.doctor}</p>
+                    <div className="space-y-1">
+                      {rx.medications && rx.medications.length > 0 ? (
+                        rx.medications.map((m: any, idx: number) => (
+                          <p key={idx} className="text-xs text-muted-foreground border-l-2 border-primary/30 pl-2">
+                            <span className="font-medium text-foreground">{m.name}</span> - {m.dosage}
+                          </p>
+                        ))
+                      ) : (
+                        <p className="text-xs text-muted-foreground">Resep Tanpa Obat</p>
+                      )}
+                    </div>
+                  </div>
+                  <p className="text-xs text-muted-foreground mt-3 pt-2 border-t border-dashed">{t("doctor.dashboard.prescribed")}: {rx.date}</p>
+                </div>
+              ))}
+            </div>
+          ) : (
+            <p className="text-sm text-muted-foreground">Belum ada resep yang diberikan.</p>
+          )}
         </CardContent>
       </Card>
     </div>
