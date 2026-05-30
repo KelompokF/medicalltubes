@@ -72,7 +72,9 @@ export default function PatientLayout({
   useEffect(() => {
     if (!userId) return;
 
+    let isMounted = true;
     const connectWS = () => {
+      if (!isMounted) return;
       const apiUrl = import.meta.env.VITE_API_URL || "https://medicalltubes-production.up.railway.app";
       const wsUrl = apiUrl.replace(/^http/, "ws") + `/ws/chat/${userId}`;
 
@@ -114,11 +116,18 @@ export default function PatientLayout({
         }
       };
 
-      ws.onclose = () => setTimeout(connectWS, 3000);
+      ws.onclose = () => {
+        if (isMounted) {
+          setTimeout(connectWS, 3000);
+        }
+      };
     };
 
     connectWS();
-    return () => wsRef.current?.close();
+    return () => {
+      isMounted = false;
+      wsRef.current?.close();
+    };
   }, [userId, location.pathname, navigate, t]);
 
 
