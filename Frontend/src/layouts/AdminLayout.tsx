@@ -68,13 +68,11 @@ export default function AdminLayout() {
   useEffect(() => {
     if (!adminId) return;
 
+    let isMounted = true;
     const connectWS = () => {
-      const port =
-        window.location.hostname === "localhost"
-          ? "8001"
-          : window.location.port;
-      const wsUrl = `${window.location.protocol === "https:" ? "wss" : "ws"
-        }://${window.location.hostname}:${port}/ws/chat/${adminId}`;
+      if (!isMounted) return;
+      const apiUrl = import.meta.env.VITE_API_URL || "https://medicalltubes-production.up.railway.app";
+      const wsUrl = apiUrl.replace(/^http/, "ws") + `/ws/chat/${adminId}`;
 
       const ws = new WebSocket(wsUrl);
       wsRef.current = ws;
@@ -143,12 +141,15 @@ export default function AdminLayout() {
 
       ws.onclose = () => {
         console.log("Admin WS closed, reconnecting...");
-        setTimeout(connectWS, 3000);
+        if (isMounted) {
+          setTimeout(connectWS, 3000);
+        }
       };
     };
 
     connectWS();
     return () => {
+      isMounted = false;
       wsRef.current?.close();
     };
   }, [adminId, location.pathname, navigate]);

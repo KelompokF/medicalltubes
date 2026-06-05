@@ -199,8 +199,10 @@ export default function AmbulanceActivePage() {
           try {
             await trackingService.updateLocation({
               emergency_request_id: selectedRequest.id,
-              lat: position.coords.latitude,
-              lng: position.coords.longitude,
+              location: {
+                lat: position.coords.latitude,
+                lng: position.coords.longitude,
+              },
             });
           } catch (error) {
             console.error("Failed to update location:", error);

@@ -126,11 +126,8 @@ export default function ReportTrackingPage() {
   useEffect(() => {
     if (!userId) return;
 
-    const port =
-      window.location.hostname === "localhost" ? "8001" : window.location.port;
-    const wsUrl = `${
-      window.location.protocol === "https:" ? "wss" : "ws"
-    }://${window.location.hostname}:${port}/ws/chat/${userId}`;
+    const apiUrl = import.meta.env.VITE_API_URL || "https://medicalltubes-production.up.railway.app";
+    const wsUrl = apiUrl.replace(/^http/, "ws") + `/ws/chat/${userId}`;
 
     const ws = new WebSocket(wsUrl);
 

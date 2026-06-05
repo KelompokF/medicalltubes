@@ -155,7 +155,8 @@ class TrackingService {
    * @returns WebSocket URL for real-time updates
    */
   getWebSocketUrl(emergencyRequestId: string): string {
-    const wsBaseUrl = import.meta.env.VITE_WS_BASE_URL || "ws://localhost:8001";
+    const apiUrl = import.meta.env.VITE_API_URL || "https://medicalltubes-production.up.railway.app";
+    const wsBaseUrl = import.meta.env.VITE_WS_BASE_URL || apiUrl.replace(/^http/, "ws");
     const token = localStorage.getItem("access_token");
     return `${wsBaseUrl}/ws/tracking/${emergencyRequestId}?token=${token}`;
   }

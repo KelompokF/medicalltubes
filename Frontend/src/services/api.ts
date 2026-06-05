@@ -2,7 +2,7 @@ import axios from "axios";
 
 // Base API configuration — point to your FastAPI backend
 // Default to backend root (no /api/v1) since backend routes use /auth, /chat, etc.
-export const API_BASE_URL = import.meta.env.VITE_API_BASE_URL || "http://localhost:8001";
+export const API_BASE_URL = import.meta.env.VITE_API_URL || "https://medicalltubes-production.up.railway.app";
 
 
 const api = axios.create({
@@ -129,20 +129,20 @@ export const consultationService = {
 // HOME VISIT ENDPOINTS
 // ============================================
 export const homeVisitService = {
-  /** Buat permintaan home visit baru (POST /home-visit/) */
+  /** Buat permintaan home visit baru (POST /home-visits/) */
   createRequest: (data: {
     patient_name: string;
     address: string;
     phone_number: string;
     complaint: string;
     preferred_date: string;
-  }) => api.post("/home-visit/", data),
+  }) => api.post("/home-visits/", data),
 
-  /** Ambil semua permintaan home visit milik user yang login (GET /home-visit/) */
-  getMyRequests: () => api.get("/home-visit/"),
+  /** Ambil semua permintaan home visit milik user yang login (GET /home-visits/) */
+  getMyRequests: () => api.get("/home-visits/"),
 
-  /** Ambil detail satu permintaan berdasarkan ID (GET /home-visit/{id}) */
-  getRequestById: (id: string) => api.get(`/home-visit/${id}`),
+  /** Ambil detail satu permintaan berdasarkan ID (GET /home-visits/{id}) */
+  getRequestById: (id: string) => api.get(`/home-visits/${id}`),
 };
 
 // ============================================
@@ -182,7 +182,7 @@ export const homeVisitScheduleService = {
 // ============================================
 export const emergencyService = {
   requestEmergency: (data: { location: { lat: number; lng: number }; type?: string; notes?: string }) =>
-    api.post("/emergencies", data),
+    api.post("/emergencies/", data),
   getNearbyAmbulances: (lat: number, lng: number, radiusKm?: number) =>
     api.get("/emergencies/ambulances", { params: { lat, lng, radius_km: radiusKm } }),
   getEmergencyHistory: (params?: {
@@ -254,9 +254,9 @@ export const prescriptionService = {
 // HEALTH RECORD ENDPOINTS
 // ============================================
 export const healthRecordService = {
-  getRecords: () => api.get("/health-records"),
+  getRecords: () => api.get("/health-records/"),
   getRecordById: (id: string) => api.get(`/health-records/${id}`),
-  createRecord: (data: any) => api.post("/health-records", data),
+  createRecord: (data: any) => api.post("/health-records/", data),
   deleteRecord: (id: string) => api.delete(`/health-records/${id}`),
 };
 
