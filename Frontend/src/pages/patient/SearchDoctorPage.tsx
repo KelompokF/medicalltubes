@@ -292,7 +292,7 @@ export default function SearchDoctorPage() {
       {!isLoading && (
         <div className="flex items-center justify-between">
           <p className="text-sm text-muted-foreground">
-            {doctors.length} {t("patient.searchDoctor.noDoctorsFound") !== doctors.length ? t("patient.searchDoctor.doctorsFound", "dokter ditemukan") : ""}
+            {doctors.length} {doctors.length !== 0 ? t("patient.searchDoctor.doctorsFound", "dokter ditemukan") : ""}
             {nearbyMode && location ? t("patient.searchDoctor.inRadius", " dalam radius {{radius}} km", { radius: radiusKm }) : ""}
           </p>
           <Button

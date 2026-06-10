@@ -494,14 +494,47 @@ async def get_admin_dashboard_summary(
             "joined": u.created_at.strftime("%b %d, %Y") if u.created_at else "N/A"
         })
 
-    # 6. Analytics Data (Mock data for now, could be dynamic)
-    analytics_data = [
-        {"month": "Jan", "consultations": 40, "homeVisits": 24, "emergencies": 10},
-        {"month": "Feb", "consultations": 30, "homeVisits": 13, "emergencies": 5},
-        {"month": "Mar", "consultations": 50, "homeVisits": 38, "emergencies": 15},
-        {"month": "Apr", "consultations": 45, "homeVisits": 43, "emergencies": 8},
-        {"month": "May", "consultations": total_consultations, "homeVisits": 20, "emergencies": active_emergencies},
-    ]
+    # 6. Analytics Data (Actual data for the last 5 months)
+    import calendar
+    analytics_data = []
+    now = datetime.datetime.utcnow()
+    
+    for i in range(4, -1, -1):
+        m = now.month - i
+        y = now.year
+        if m <= 0:
+            m += 12
+            y -= 1
+            
+        month_name = datetime.date(y, m, 1).strftime("%b")
+        _, last_day = calendar.monthrange(y, m)
+        start_date = datetime.datetime(y, m, 1)
+        end_date = datetime.datetime(y, m, last_day, 23, 59, 59, 999999)
+        
+        # Consultations
+        c_res = await db.execute(select(func.count(ChatRoom.id)).where(ChatRoom.created_at >= start_date, ChatRoom.created_at <= end_date))
+        consultations_count = c_res.scalar() or 0
+        
+        # Home Visits
+        hv1_res = await db.execute(select(func.count(HomeVisit.id)).where(HomeVisit.created_at >= start_date, HomeVisit.created_at <= end_date))
+        hv1_count = hv1_res.scalar() or 0
+        
+        hv2_res = await db.execute(
+            text("SELECT count(*) FROM home_visit_requests_v3 WHERE created_at >= :start AND created_at <= :end"),
+            {"start": start_date, "end": end_date}
+        )
+        hv2_count = hv2_res.scalar() or 0
+        
+        # Emergencies
+        e_res = await db.execute(select(func.count(EmergencyRequest.id)).where(EmergencyRequest.created_at >= start_date, EmergencyRequest.created_at <= end_date))
+        emergencies_count = e_res.scalar() or 0
+        
+        analytics_data.append({
+            "month": month_name,
+            "consultations": consultations_count,
+            "homeVisits": hv1_count + hv2_count,
+            "emergencies": emergencies_count
+        })
 
     return AdminDashboardResponse(
         stats=stats,

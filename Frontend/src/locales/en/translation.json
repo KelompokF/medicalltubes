@@ -918,7 +918,6 @@
       "summaryTitle": "Schedule Summary",
       "noSlotSelected": "No Slots Selected",
       "noSlotDesc": "Please select from the time slots above or add a custom time for {{day}}.",
-      "autoSaveOff": "Auto-save off",
       "clickToApply": "Click save to apply"
     }
   },
