@@ -107,7 +107,7 @@ const AmbulanceTrackingPage = () => {
   // ============================================
 
   const formatETA = (eta?: string) => {
-    if (!eta) return "Calculating...";
+    if (!eta) return "Waiting for location data...";
     const etaDate = new Date(eta);
     const now = new Date();
     const diffMs = etaDate.getTime() - now.getTime();
@@ -119,7 +119,8 @@ const AmbulanceTrackingPage = () => {
   };
 
   const formatDistance = (distance?: number) => {
-    if (!distance) return "Calculating...";
+    if (distance === undefined || distance === null) return "Waiting for location data...";
+    if (distance < 0.1) return "Very close";
     return `${distance.toFixed(1)} km`;
   };
 

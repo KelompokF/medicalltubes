@@ -22,7 +22,7 @@ from app.models.ambulance import AmbulanceService
 from app.models.ambulance_location_update import AmbulanceLocationUpdate
 from app.models.emergency_request import EmergencyRequest as EmergencyRequestRecord
 from app.models.user import User
-from app.services.routing_service import routing_service
+from app.services.routing_service import routing_service, RoutingService
 from app.Websocket.tracking_manager import tracking_manager
 
 logger = logging.getLogger(__name__)
@@ -450,12 +450,29 @@ async def get_tracking_data(
                                 eta_minutes=eta_data["minutes_remaining"],
                                 estimated_arrival=eta_data["estimated_arrival"]
                             )
-                    except asyncio.TimeoutError:
-                        logger.error("Timeout calculating route for tracking data")
-                        # Continue without route info if calculation times out
-                    except Exception as e:
+                    except (asyncio.TimeoutError, Exception) as e:
                         logger.error(f"Error calculating route for tracking data: {e}")
-                        # Continue without route info if calculation fails
+                        # Fallback: use straight-line (Haversine) calculation
+                        try:
+                            fallback_rs = RoutingService()
+                            fallback_data = fallback_rs._calculate_straight_line(
+                                latest_location.lat, latest_location.lng,
+                                emergency_request.location_lat, emergency_request.location_lng
+                            )
+                            fallback_eta = fallback_rs.calculate_eta(
+                                distance_km=fallback_data["distance_km"],
+                                current_speed_kmh=latest_location.speed
+                            )
+                            route_info = RouteInfo(
+                                distance_km=round(fallback_data["distance_km"], 2),
+                                duration_minutes=round(fallback_data["duration_minutes"], 1),
+                                coordinates=fallback_data["coordinates"],
+                                eta_minutes=fallback_eta["minutes_remaining"],
+                                estimated_arrival=fallback_eta["estimated_arrival"]
+                            )
+                            logger.info("Used Haversine fallback for route calculation")
+                        except Exception as fallback_err:
+                            logger.error(f"Haversine fallback also failed: {fallback_err}")
             else:
                 # No location updates yet, use ambulance base location
                 ambulance_info = AmbulanceInfo(
@@ -469,6 +486,61 @@ async def get_tracking_data(
                     heading=None,
                     last_update=emergency_request.created_at
                 )
+                
+                # Calculate route from ambulance base location to patient
+                if (emergency_request.location_lat is not None 
+                    and emergency_request.location_lng is not None
+                    and ambulance_service.lat is not None
+                    and ambulance_service.lng is not None):
+                    try:
+                        async with routing_service as rs:
+                            route_data = await asyncio.wait_for(
+                                rs.calculate_route(
+                                    origin_lat=ambulance_service.lat,
+                                    origin_lng=ambulance_service.lng,
+                                    dest_lat=emergency_request.location_lat,
+                                    dest_lng=emergency_request.location_lng
+                                ),
+                                timeout=10.0
+                            )
+                            eta_data = rs.calculate_eta(
+                                distance_km=route_data["distance_km"],
+                                current_speed_kmh=None
+                            )
+                            route_info = RouteInfo(
+                                distance_km=round(route_data["distance_km"], 2),
+                                duration_minutes=round(route_data["duration_minutes"], 1),
+                                coordinates=route_data["coordinates"],
+                                eta_minutes=eta_data["minutes_remaining"],
+                                estimated_arrival=eta_data["estimated_arrival"]
+                            )
+                            logger.info(
+                                f"Initial route calculated from ambulance base location "
+                                f"for emergency {emergency_request.id}"
+                            )
+                    except (asyncio.TimeoutError, Exception) as e:
+                        logger.error(f"Error calculating initial route from base location: {e}")
+                        # Fallback: use straight-line (Haversine) calculation
+                        try:
+                            fallback_rs = RoutingService()
+                            fallback_data = fallback_rs._calculate_straight_line(
+                                ambulance_service.lat, ambulance_service.lng,
+                                emergency_request.location_lat, emergency_request.location_lng
+                            )
+                            fallback_eta = fallback_rs.calculate_eta(
+                                distance_km=fallback_data["distance_km"],
+                                current_speed_kmh=None
+                            )
+                            route_info = RouteInfo(
+                                distance_km=round(fallback_data["distance_km"], 2),
+                                duration_minutes=round(fallback_data["duration_minutes"], 1),
+                                coordinates=fallback_data["coordinates"],
+                                eta_minutes=fallback_eta["minutes_remaining"],
+                                estimated_arrival=fallback_eta["estimated_arrival"]
+                            )
+                            logger.info("Used Haversine fallback for initial route calculation")
+                        except Exception as fallback_err:
+                            logger.error(f"Haversine fallback also failed: {fallback_err}")
     
     return TrackingDataResponse(
         emergency_request_id=emergency_request_id,
